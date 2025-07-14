@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cusrl"
+dynamic = ["dependencies", "version"]
+keywords = ["reinforcement-learning", "pytorch", "rl"]
+authors = [
+    { name = "Chengrui Zhu", email = "jewel@zju.edu.cn" },
+]
+description = "Customizable and modular RL algorithms implemented in PyTorch"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+onnx = ["onnx", "onnxruntime", "onnxscript"]
+tensorboard = ["tensorboard"]
+wandb = ["wandb"]
+all = [
+    "pytest",
+    "onnx",
+    "onnxruntime",
+    "onnxscript",
+    "tensorboard",
+    "wandb",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
+unstable = true
+
+[tool.codespell]
+ignore-words-list = "lamda,-"
+
+[tool.isort]
+line_length = 120
+profile = "black"
+py_version = 310
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["cusrl_test"]
+
+[tool.ruff]
+indent-width = 4
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.format]
+indent-style = "space"
+line-ending = "auto"
+quote-style = "double"
+skip-magic-trailing-comma = false
+
+[tool.setuptools]
+packages = ["cusrl"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools_scm]

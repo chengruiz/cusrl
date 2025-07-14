@@ -1,0 +1,5 @@
+numpy>=1.26.0
+torch>=2.4.0
+objprint~=0.3.0
+gymnasium>=1.1.0
+pyyaml~=6.0.2
