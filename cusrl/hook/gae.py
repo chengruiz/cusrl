@@ -5,7 +5,7 @@ import torch
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils import ExponentialMovingNormalizer
 
-__all__ = ["GAE"]
+__all__ = ["GeneralizedAdvantageEstimation"]
 
 
 @torch.jit.script
@@ -24,7 +24,7 @@ def _generalized_advantage_estimation(
     return advantage
 
 
-class GAE(Hook[ActorCritic]):
+class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
     """A hook that computes advantages and returns using Generalized Advantage Estimation (GAE).
 
     GAE is described in:

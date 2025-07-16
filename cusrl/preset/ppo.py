@@ -41,7 +41,7 @@ def hook_suite(
         ),
         cusrl.hook.ObservationNormalization() if normalize_observation else None,
         cusrl.hook.ValueComputation(),
-        cusrl.hook.GAE(
+        cusrl.hook.GeneralizedAdvantageEstimation(
             gamma=gae_gamma,
             lamda=gae_lamda,
             lamda_value=gae_lamda_value,

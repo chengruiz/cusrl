@@ -1,6 +1,6 @@
 from .advantage import AdvantageNormalization, AdvantageReduction
 from .condition import ConditionalObjectiveActivation
-from .gae import GAE
+from .gae import GeneralizedAdvantageEstimation, GeneralizedAdvantageEstimation as GAE
 from .gradient import GradientClipping
 from .initialization import ModuleInitialization
 from .lr_schedule import AdaptiveLRSchedule, MiniBatchWiseLRSchedule, ThresholdLRSchedule
@@ -35,6 +35,7 @@ __all__ = [
     "ConditionalObjectiveActivation",
     "EntropyLoss",
     "GAE",
+    "GeneralizedAdvantageEstimation",
     "GradientClipping",
     "HookActivationSchedule",
     "MiniBatchWiseLRSchedule",
