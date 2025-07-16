@@ -6,6 +6,20 @@ __all__ = ["OnPolicyStatistics"]
 
 
 class OnPolicyStatistics(Hook[ActorCritic]):
+    """Calculates and records on-policy statistics after update phase.
+
+    Specifically, it records:
+    - `kl_divergence`: The Kullback-Leibler divergence between the policy
+        before and after the update.
+    - `action_std`: The standard deviation of the action distribution from the
+        updated policy.
+
+    Args:
+        sampler (Sampler | None, optional):
+            The sampler used to sample batches from the agent's buffer. If None,
+            a default `Sampler()` is used. Defaults to None.
+    """
+
     def __init__(self, sampler: Sampler | None = None):
         self.sampler = sampler if sampler is not None else Sampler()
 

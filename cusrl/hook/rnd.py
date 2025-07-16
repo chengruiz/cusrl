@@ -15,8 +15,18 @@ __all__ = ["RandomNetworkDistillation"]
 class RandomNetworkDistillation(Hook):
     """A hook to generate intrinsic rewards with Random Network Distillation (RND).
 
-    This method is described in "Exploration by Random Network Distillation".
+    This method is described in "Exploration by Random Network Distillation",
     https://arxiv.org/abs/1810.12894
+
+    Args:
+        module_factory (ModuleFactoryLike):
+            Factory for creating the target and predictor networks.
+        output_dim (int):
+            Output dimension of the target and predictor networks.
+        reward_scale (float):
+            The scale of the intrinsic reward.
+        indices (Slice | None, optional):
+            Indices of states used for quantifying novelty. Defaults to None.
     """
 
     target: Module
@@ -26,9 +36,9 @@ class RandomNetworkDistillation(Hook):
 
     def __init__(
         self,
+        module_factory: ModuleFactoryLike,
         output_dim: int,
         reward_scale: float,
-        module_factory: ModuleFactoryLike,
         indices: Slice | None = None,
     ):
         self.output_dim = output_dim
