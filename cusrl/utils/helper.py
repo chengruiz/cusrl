@@ -4,7 +4,7 @@ import sys
 from collections.abc import Mapping
 from dataclasses import MISSING
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from typing import Any
+from typing import TypeVar, overload
 
 import numpy as np
 import torch
@@ -26,10 +26,24 @@ def float_fmt(number, digit):
     return " " + string[:-1]
 
 
-def get_or(data: Mapping, key1, key2) -> Any:
-    if (value := data.get(key1, MISSING)) is not MISSING:
-        return value
-    return data[key2]
+_K = TypeVar("_K")
+_V = TypeVar("_V")
+_D = TypeVar("_D")
+
+
+@overload
+def get_or(data: Mapping[_K, _V], *keys: _K) -> _V: ...
+@overload
+def get_or(data: Mapping[_K, _V], *keys: _K, default: _V | _D) -> _V | _D: ...
+
+
+def get_or(data: Mapping[_K, _V], *keys, default: _V | _D = MISSING) -> _V | _D:
+    for key in keys:
+        if (value := data.get(key, MISSING)) is not MISSING:
+            return value
+    if default is not MISSING:
+        return default
+    raise KeyError(str(keys))
 
 
 def import_module(
