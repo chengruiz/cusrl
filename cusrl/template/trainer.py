@@ -9,7 +9,7 @@ import torch
 
 import cusrl
 from cusrl.template.agent import Agent
-from cusrl.template.environment import Environment
+from cusrl.template.environment import Environment, get_done_indices, update_observation_and_state
 from cusrl.template.logger import LoggerFactoryLike
 from cusrl.template.trial import Trial
 from cusrl.utils import CONFIG, Timer, distributed, is_main_process
@@ -197,10 +197,10 @@ class Trainer:
             with self.timer.record("agent"):
                 ready_to_update = self.agent.step(next_observation, reward, terminated, truncated, next_state, **info)
             with self.timer.record("environment"):
-                if done_indices := self.environment.get_done_indices(terminated, truncated):
+                if done_indices := get_done_indices(terminated, truncated):
                     if not self.environment.spec.autoreset:
                         init_observation, init_state, _ = self.environment.reset(indices=done_indices)
-                        next_observation, next_state = self.environment.update_observation_and_state(
+                        next_observation, next_state = update_observation_and_state(
                             next_observation, next_state, done_indices, init_observation, init_state
                         )
                     self.stats.track_episode(done_indices)

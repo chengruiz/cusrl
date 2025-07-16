@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Optional, TypeAlias
+from typing import TYPE_CHECKING, Any, Optional, TypeAlias
 
 from cusrl.utils.typing import (
     Array,
     ArrayType,
+    BoolArrayType,
     Info,
     Observation,
     Reward,
@@ -18,7 +19,7 @@ from cusrl.utils.typing import (
 if TYPE_CHECKING:
     from cusrl.hook.symmetry import SymmetryDef
 
-__all__ = ["Environment", "EnvironmentFactory", "EnvironmentSpec"]
+__all__ = ["Environment", "EnvironmentFactory", "EnvironmentSpec", "get_done_indices", "update_observation_and_state"]
 
 
 class EnvironmentSpec:
@@ -46,7 +47,7 @@ class EnvironmentSpec:
             Definition for state symmetry transformations.
 
         # State/observation relationships
-        observation_is_subset_of_state (ArrayType | SliceType | None):
+        observation_is_subset_of_state (Array | Slice | None):
             Definition of the one-to-one correspondence relationship from state to observation.
 
         # Statistical grouping
@@ -147,12 +148,11 @@ class Environment(ABC):
         self.spec: EnvironmentSpec = spec
 
     # fmt: off
-    # @formatter:off
     @abstractmethod
     def reset(self, *, indices: Array | Slice | None = None) -> tuple[
         Observation,  # [ N / Ni, Do ], f32 (observation of all or reset instances)
         State,        # [ N / Ni, Ds ], f32 (state of all or reset instances)
-        Info,         # dict[str, [N / Ni, Dk]]
+        Info,         # [ N / Ni, Dk ]
     ]:
         raise NotImplementedError
 
@@ -163,46 +163,42 @@ class Environment(ABC):
         Reward,       # [ N, Dr ], f32
         Terminated,   # [ N,  1 ], bool
         Truncated,    # [ N,  1 ], bool
-        Info,         # dict[str, [N, Dk]]
+        Info,         # [ N, Dk ]
     ]:
         raise NotImplementedError
-
-    # @formatter:on
     # fmt: on
 
     def get_metrics(self) -> dict[str, float]:
         return {}
 
-    def state_dict(self) -> dict[str, Array]:
+    def state_dict(self) -> dict[str, Any]:
         return {}
 
-    def load_state_dict(self, state_dict: dict[str, Array]):
+    def load_state_dict(self, state_dict: dict[str, Any]):
         pass
 
-    # utility methods
-    @classmethod
-    def get_done_indices(cls, terminated: Terminated, truncated: Truncated) -> list[int]:
-        done = terminated | truncated
-        indices = done.squeeze(-1).nonzero()
-        if isinstance(indices, tuple):  # for np.nonzero
-            indices = indices[0]
-        indices = indices.reshape(-1)  # for torch.nonzero
-        return indices.tolist()
 
-    @classmethod
-    def update_observation_and_state(
-        cls,
-        last_observation: ArrayType,
-        last_state: StateType,
-        indices: Array | Slice | None,
-        init_observation: ArrayType,
-        init_state: StateType,
-    ) -> tuple[Observation, StateType]:
-        # If the complete observation of all instances is returned
-        if init_observation.shape == last_observation.shape:
-            return init_observation, init_state
-        # Replace the observation and state of the reset instances
-        last_observation[indices] = init_observation
-        if last_state is not None:
-            last_state[indices] = init_state
-        return last_observation, last_state
+def get_done_indices(terminated: BoolArrayType, truncated: BoolArrayType) -> list[int]:
+    done = terminated | truncated
+    indices = done.squeeze(-1).nonzero()
+    if isinstance(indices, tuple):  # for np.nonzero
+        indices = indices[0]
+    indices = indices.reshape(-1)  # for torch.nonzero
+    return indices.tolist()
+
+
+def update_observation_and_state(
+    last_observation: ArrayType,
+    last_state: StateType,
+    indices: ArrayType | Slice,
+    init_observation: ArrayType,
+    init_state: StateType,
+) -> tuple[ArrayType, StateType]:
+    # If the complete observation of all instances is returned
+    if init_observation.shape == last_observation.shape:
+        return init_observation, init_state
+    # Replace the observation and state of the reset instances
+    last_observation[indices] = init_observation
+    if last_state is not None:
+        last_state[indices] = init_state
+    return last_observation, last_state

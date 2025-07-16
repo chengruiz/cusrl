@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 import cusrl
+from cusrl.template.environment import get_done_indices
 
 __all__ = [
     "create_dummy_env",
@@ -107,7 +108,7 @@ def run_environment_evaluation_loop(environment: cusrl.Environment, agent: cusrl
             action = agent.act(observation, state)
             observation, state, reward, terminated, truncated, _ = environment.step(action)
             ready_to_update = agent.step(observation, reward, terminated, truncated, state)
-            environment.reset(indices=environment.get_done_indices(terminated, truncated))
+            environment.reset(indices=get_done_indices(terminated, truncated))
             if ready_to_update:
                 break
         agent.update()

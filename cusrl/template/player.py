@@ -2,7 +2,7 @@ from collections.abc import Iterable
 
 from cusrl import utils
 from cusrl.template.agent import Agent
-from cusrl.template.environment import Environment
+from cusrl.template.environment import Environment, get_done_indices, update_observation_and_state
 from cusrl.template.trial import Trial
 
 __all__ = ["Player"]
@@ -101,10 +101,10 @@ class Player:
             self.agent.step(observation, reward, terminated, truncated, state, **info)
             for hook in self.hooks:
                 hook.step(step, self.agent.transition, self.environment.get_metrics())
-            if done_indices := self.environment.get_done_indices(terminated, truncated):
+            if done_indices := get_done_indices(terminated, truncated):
                 if not self.environment.spec.autoreset:
                     init_observation, init_state, _ = self.environment.reset(indices=done_indices)
-                    observation, state = self.environment.update_observation_and_state(
+                    observation, state = update_observation_and_state(
                         observation, state, done_indices, init_observation, init_state
                     )
                 for hook in self.hooks:
