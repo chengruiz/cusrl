@@ -10,7 +10,11 @@ from cusrl_test import create_dummy_env
 def test_rnd(with_state):
     agent_factory = cusrl.preset.ppo.AgentFactory()
     agent_factory.register_hook(
-        cusrl.hook.RandomNetworkDistillation(16, 0.1, cusrl.MLP.Factory([128, 128])),
+        cusrl.hook.RandomNetworkDistillation(
+            module_factory=cusrl.MLP.Factory([128, 128]),
+            output_dim=16,
+            reward_scale=0.1,
+        ),
         before="ValueComputation",
     )
     cusrl.Trainer(
