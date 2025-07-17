@@ -313,9 +313,10 @@ class ActorCritic(Agent):
             export_spec.export(output_dir, verbose=verbose)
 
     def _save_transition(self, **kwargs: NestedArray | None):
-        for key, val in kwargs.items():
-            if val is not None:
-                try:
-                    self.transition[key] = self.to_nested_tensor(val)
-                except Exception as e:
-                    raise ValueError(f"Failed to convert '{key}' to tensor.") from e
+        for key, value in kwargs.items():
+            if value is None:
+                continue
+            try:
+                self.transition[key] = self.to_nested_tensor(value)
+            except Exception as e:
+                raise ValueError(f"Failed to convert '{key}' to tensor.") from e

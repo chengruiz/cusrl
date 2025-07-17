@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Mapping, TypeVar, overload
 
 import numpy as np
 import torch
@@ -167,12 +167,20 @@ class Agent(ABC):
             tensor = tensor.clone()
         return tensor
 
-    def to_nested_tensor(self, input: NestedArray | None) -> NestedTensor | None:
+    @overload
+    def to_nested_tensor(self, input: None) -> None: ...
+    @overload
+    def to_nested_tensor(self, input: Array) -> torch.Tensor: ...
+    @overload
+    def to_nested_tensor(self, input: tuple[NestedArray, ...] | list[NestedArray]) -> tuple[NestedTensor, ...]: ...
+    @overload
+    def to_nested_tensor(self, input: Mapping[str, NestedArray]) -> dict[str, NestedTensor]: ...
+    def to_nested_tensor(self, input):
         if input is None:
             return None
         if isinstance(input, (tuple, list)):
             return tuple(self.to_nested_tensor(i) for i in input)
-        if isinstance(input, dict):
+        if isinstance(input, Mapping):
             return {k: self.to_nested_tensor(v) for k, v in input.items()}
         return self.to_tensor(input)
 
