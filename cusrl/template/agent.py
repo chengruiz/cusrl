@@ -7,17 +7,18 @@ import torch
 from torch import nn
 
 import cusrl
+from cusrl.module.module import ModuleType
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.utils import Metrics, distributed
 from cusrl.utils.typing import Array, NestedArray, NestedTensor, Observation, Reward, State, Terminated, Truncated
 
-__all__ = ["Agent", "AgentT", "AgentFactory"]
+__all__ = ["Agent", "AgentType", "AgentFactory"]
 
 
-AgentT = TypeVar("AgentT", bound="Agent")
+AgentType = TypeVar("AgentType", bound="Agent")
 
 
-class AgentFactory(ABC, Generic[AgentT]):
+class AgentFactory(ABC, Generic[AgentType]):
     @abstractmethod
     def __call__(
         self,
@@ -26,10 +27,10 @@ class AgentFactory(ABC, Generic[AgentT]):
         state_dim: int | None = None,
         parallelism: int | None = None,
         environment_spec: EnvironmentSpec | None = None,
-    ) -> AgentT:
+    ) -> AgentType:
         raise NotImplementedError
 
-    def from_environment(self, environment: "cusrl.Environment") -> AgentT:
+    def from_environment(self, environment: "cusrl.Environment") -> AgentType:
         return self(
             environment.observation_dim,
             environment.action_dim,
@@ -184,7 +185,8 @@ class Agent(ABC):
             return {k: self.to_nested_tensor(v) for k, v in input.items()}
         return self.to_tensor(input)
 
-    def setup_module(self, module: nn.Module) -> nn.Module:
+    def setup_module(self, module: ModuleType) -> ModuleType:
+        # Can also return a DistributedDataParallel instance with the module wrapped
         module = module.to(device=self.device)
         if distributed.enabled():
             module = distributed.make_distributed(module)

@@ -5,15 +5,15 @@ import torch
 from torch import nn
 
 import cusrl
-from cusrl.template.agent import AgentT
+from cusrl.template.agent import AgentType
 from cusrl.utils import distributed
 from cusrl.utils.export import ExportSpec
 
 __all__ = ["Hook", "HookComposite"]
 
 
-class Hook(Generic[AgentT]):
-    agent: AgentT
+class Hook(Generic[AgentType]):
+    agent: AgentType
     MODULES: list[str] = []
     PARAMETERS: list[str] = []
     MUTABLE_ATTRS: list[str] = []
@@ -89,7 +89,7 @@ class Hook(Generic[AgentT]):
     def eval(self):
         self.train(False)
 
-    def pre_init(self, agent: AgentT):
+    def pre_init(self, agent: AgentType):
         self.agent = agent
 
     def init(self):
