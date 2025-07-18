@@ -11,6 +11,27 @@ __all__ = ["ActionSmoothnessLoss"]
 
 
 class ActionSmoothnessLoss(Hook):
+    """A hook to penalize non-smooth actions in temporal sequences.
+
+    This hook calculates a loss based on the 1st and/or 2nd order differences
+    of the action sequence, effectively penalizing high action velocities and
+    accelerations.
+
+    The loss is computed using 1D convolution with fixed kernels:
+    - 1st order (velocity): `[-1, 1]`
+    - 2nd order (acceleration): `[-1, 2, -1]`
+
+    Args:
+        weight_1st_order (torch.Tensor | None, optional):
+            Weight for the 1st order smoothness loss. Can be a scalar or a tensor
+            matching the action dimension. Defaults to None.
+        weight_2nd_order (torch.Tensor | None, optional):
+            Weight for the 2nd order smoothness loss. Can be a scalar or a tensor
+            matching the action dimension. Defaults to None.
+    """
+
+    weight_1st_order: torch.Tensor | None
+    weight_2nd_order: torch.Tensor | None
     conv_1st_order: torch.Tensor
     conv_2nd_order: torch.Tensor
     MUTABLE_ATTRS = ["weight_1st_order", "weight_2nd_order"]
@@ -20,14 +41,14 @@ class ActionSmoothnessLoss(Hook):
         weight_1st_order: float | Sequence[float] | None = None,
         weight_2nd_order: float | Sequence[float] | None = None,
     ):
-        self.weight_1st_order: torch.Tensor | None = weight_1st_order
-        self.weight_2nd_order: torch.Tensor | None = weight_2nd_order
+        self.weight_1st_order = None if weight_1st_order is None else torch.tensor(weight_1st_order)
+        self.weight_2nd_order = None if weight_2nd_order is None else torch.tensor(weight_2nd_order)
 
     def init(self):
         if self.weight_1st_order is not None:
-            self.weight_1st_order = self.agent.to_tensor(self.weight_1st_order)
+            self.weight_1st_order = self.weight_1st_order.to(self.agent.device)
         if self.weight_2nd_order is not None:
-            self.weight_2nd_order = self.agent.to_tensor(self.weight_2nd_order)
+            self.weight_2nd_order = self.weight_2nd_order.to(self.agent.device)
         self.conv_1st_order = self.agent.to_tensor([[[-1.0, 1.0]]])
         self.conv_2nd_order = self.agent.to_tensor([[[-1.0, 2.0, -1.0]]])
 
