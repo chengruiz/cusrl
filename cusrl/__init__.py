@@ -1,17 +1,16 @@
 from cusrl import environment, hook, logger, module, preset, sampler, template, utils, zoo
 from cusrl.environment import make_gym_env, make_gym_vec, make_isaaclab_env
 from cusrl.module import (
-    CNN,
-    MLP,
-    RNN,
     Actor,
     AdaptiveNormalDist,
+    Cnn,
     Denormalization,
     Distribution,
     DistributionFactoryLike,
     FeedForward,
     InferenceModule,
     LayerFactoryLike,
+    Mlp,
     Module,
     ModuleFactory,
     ModuleFactoryLike,
@@ -19,6 +18,7 @@ from cusrl.module import (
     NormalDist,
     Normalization,
     OneHotCategoricalDist,
+    Rnn,
     Sequential,
     Simba,
     TransformerEncoderLayer,
@@ -50,6 +50,11 @@ from cusrl.utils import (
     set_global_seed,
 )
 
+# alias
+CNN = Cnn
+MLP = Mlp
+RNN = Rnn
+
 __all__ = [
     "hook",
     "logger",
@@ -67,6 +72,7 @@ __all__ = [
     "AutoMiniBatchSampler",
     "Buffer",
     "CNN",
+    "Cnn",
     "Denormalization",
     "Distribution",
     "DistributionFactoryLike",
@@ -80,6 +86,7 @@ __all__ = [
     "LoggerFactory",
     "LoggerFactoryLike",
     "MLP",
+    "Mlp",
     "MiniBatchSampler",
     "Module",
     "ModuleFactory",
@@ -91,6 +98,7 @@ __all__ = [
     "OptimizerFactory",
     "Player",
     "RNN",
+    "Rnn",
     "Sampler",
     "Sequential",
     "Simba",

@@ -11,8 +11,8 @@ def test_sequential_mlp_mlp():
     hidden_dim2 = 64
     output_dim = 8
 
-    mlp_factory1 = cusrl.MLP.Factory(hidden_dims=[hidden_dim1], activation_fn=nn.ReLU, ends_with_activation=True)
-    mlp_factory2 = cusrl.MLP.Factory(hidden_dims=[hidden_dim2], activation_fn=nn.ReLU)
+    mlp_factory1 = cusrl.Mlp.Factory(hidden_dims=[hidden_dim1], activation_fn=nn.ReLU, ends_with_activation=True)
+    mlp_factory2 = cusrl.Mlp.Factory(hidden_dims=[hidden_dim2], activation_fn=nn.ReLU)
 
     sequential_factory = cusrl.Sequential.Factory(factories=[mlp_factory1, mlp_factory2], hidden_dims=[None])
     sequential_module = sequential_factory(input_dim=input_dim, output_dim=output_dim)
@@ -31,8 +31,8 @@ def test_sequential_rnn_mlp():
     output_dim = 8
     seq_len = 10
 
-    rnn_factory = cusrl.RNN.Factory(module_cls="RNN", hidden_size=rnn_hidden_dim)
-    mlp_factory = cusrl.MLP.Factory(hidden_dims=[mlp_hidden_dim], activation_fn=nn.ReLU)
+    rnn_factory = cusrl.Rnn.Factory(module_cls="RNN", hidden_size=rnn_hidden_dim)
+    mlp_factory = cusrl.Mlp.Factory(hidden_dims=[mlp_hidden_dim], activation_fn=nn.ReLU)
     sequential_factory = cusrl.Sequential.Factory(factories=[rnn_factory, mlp_factory], hidden_dims=[None])
     sequential_module = sequential_factory(input_dim=input_dim, output_dim=output_dim)
 
@@ -73,8 +73,8 @@ def test_sequential_rnn_rnn():
     output_dim = 8
     seq_len = 10
 
-    lstm_factory = cusrl.RNN.Factory(module_cls="LSTM", hidden_size=rnn_hidden_dim1)
-    gru_factory = cusrl.RNN.Factory(module_cls="GRU", hidden_size=rnn_hidden_dim2)
+    lstm_factory = cusrl.Rnn.Factory(module_cls="LSTM", hidden_size=rnn_hidden_dim1)
+    gru_factory = cusrl.Rnn.Factory(module_cls="GRU", hidden_size=rnn_hidden_dim2)
     sequential_factory = cusrl.Sequential.Factory(factories=[lstm_factory, gru_factory], hidden_dims=[None])
     sequential_module = sequential_factory(input_dim=input_dim, output_dim=output_dim)
 

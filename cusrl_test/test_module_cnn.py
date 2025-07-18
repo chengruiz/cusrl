@@ -14,7 +14,7 @@ def test_cnn_output_shape():
         print("input_flattened:", input_flattened, end="; ")
         print("flatten_output:", flatten_output)
 
-        net = cusrl.CNN.Factory(
+        net = cusrl.Cnn.Factory(
             [
                 partial(nn.Conv2d, 1, 16, 3, padding=1),
                 partial(nn.ReLU, inplace=True),

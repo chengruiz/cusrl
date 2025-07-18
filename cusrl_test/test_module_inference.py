@@ -5,7 +5,7 @@ import cusrl
 
 
 def test_mlp_inference():
-    module = cusrl.MLP.Factory([256, 128])(42, 12).inference()
+    module = cusrl.Mlp.Factory([256, 128])(42, 12).inference()
 
     input_tensor = torch.randn(10, 42)
     output_tensor1 = module(input_tensor)
@@ -23,7 +23,7 @@ def test_mlp_inference():
 
 
 def test_lstm_inference():
-    module = cusrl.RNN.Factory("LSTM", hidden_size=256, num_layers=2)(42, 12).inference()
+    module = cusrl.Rnn.Factory("LSTM", hidden_size=256, num_layers=2)(42, 12).inference()
 
     input_tensor = torch.randn(10, 42)
     output_tensor1 = module(input_tensor)

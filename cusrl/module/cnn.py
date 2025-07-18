@@ -7,18 +7,18 @@ from torch import nn
 
 from cusrl.module.module import Module, ModuleFactory
 
-__all__ = ["CNN"]
+__all__ = ["Cnn"]
 
 
 @dataclass(slots=True)
-class CNNFactory(ModuleFactory["CNN"]):
+class CnnFactory(ModuleFactory["Cnn"]):
     layer_factories: Iterable[Callable[[], nn.Module]]
     input_shape: tuple[int, int] | tuple[int, int, int]
     input_flattened: bool = True
     flatten_output: bool = True
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        module = CNN(
+        module = Cnn(
             [factory() for factory in self.layer_factories],
             input_shape=self.input_shape,
             input_flattened=self.input_flattened,
@@ -30,8 +30,8 @@ class CNNFactory(ModuleFactory["CNN"]):
         return module
 
 
-class CNN(Module):
-    Factory = CNNFactory
+class Cnn(Module):
+    Factory = CnnFactory
 
     def __init__(
         self,

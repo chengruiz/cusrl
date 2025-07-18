@@ -7,10 +7,10 @@ from cusrl.module.module import Module, ModuleFactory
 from cusrl.utils.recurrent import compute_sequence_lengths, split_and_pad_sequences, unpad_and_merge_sequences
 from cusrl.utils.typing import Memory
 
-__all__ = ["RNN", "RNNBase"]
+__all__ = ["Rnn", "RnnBase"]
 
 
-class RNNBase(nn.Module):
+class RnnBase(nn.Module):
     input_size: int
     hidden_size: int
 
@@ -23,25 +23,25 @@ class RNNBase(nn.Module):
         raise NotImplementedError
 
 
-RNNLike: TypeAlias = nn.RNNBase | RNNBase
+RnnLike: TypeAlias = nn.RNNBase | RnnBase
 
 
-class RNNFactory(ModuleFactory["RNN"]):
-    def __init__(self, module_cls: str | type[RNNLike], **kwargs):
+class RnnFactory(ModuleFactory["Rnn"]):
+    def __init__(self, module_cls: str | type[RnnLike], **kwargs):
         if isinstance(module_cls, str):
             # RNN / LSTM / GRU
             module_cls = getattr(nn, module_cls.upper())
-        self.module_cls: type[RNNLike] = module_cls
+        self.module_cls: type[RnnLike] = module_cls
         self.kwargs = kwargs
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return RNN(self.module_cls(input_size=input_dim, **self.kwargs), output_dim)
+        return Rnn(self.module_cls(input_size=input_dim, **self.kwargs), output_dim)
 
 
-class RNN(Module):
-    Factory = RNNFactory
+class Rnn(Module):
+    Factory = RnnFactory
 
-    def __init__(self, rnn: RNNLike, output_dim: int | None = None):
+    def __init__(self, rnn: RnnLike, output_dim: int | None = None):
         super().__init__(rnn.input_size, output_dim or rnn.hidden_size, is_recurrent=True)
         self.rnn = rnn
         self.output_proj = nn.Linear(rnn.hidden_size, output_dim) if output_dim else nn.Identity()

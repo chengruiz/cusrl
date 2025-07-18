@@ -100,7 +100,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
         super().__init__(
             num_steps_per_update=num_steps_per_update,
             actor_factory=cusrl.Actor.Factory(
-                backbone_factory=cusrl.MLP.Factory(
+                backbone_factory=cusrl.Mlp.Factory(
                     hidden_dims=actor_hidden_dims,
                     activation_fn=activation_fn,
                     ends_with_activation=True,
@@ -108,7 +108,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
                 distribution_factory=get_distribution_factory(action_space_type),
             ),
             critic_factory=cusrl.Value.Factory(
-                backbone_factory=cusrl.MLP.Factory(
+                backbone_factory=cusrl.Mlp.Factory(
                     hidden_dims=critic_hidden_dims,
                     activation_fn=activation_fn,
                     ends_with_activation=True,
@@ -175,7 +175,7 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
         super().__init__(
             num_steps_per_update=num_steps_per_update,
             actor_factory=cusrl.Actor.Factory(
-                backbone_factory=cusrl.RNN.Factory(
+                backbone_factory=cusrl.Rnn.Factory(
                     rnn_type,
                     num_layers=actor_num_layers,
                     hidden_size=actor_hidden_size,
@@ -183,7 +183,7 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
                 distribution_factory=get_distribution_factory(action_space_type),
             ),
             critic_factory=cusrl.Value.Factory(
-                backbone_factory=cusrl.RNN.Factory(
+                backbone_factory=cusrl.Rnn.Factory(
                     rnn_type,
                     num_layers=critic_num_layers,
                     hidden_size=critic_hidden_size,

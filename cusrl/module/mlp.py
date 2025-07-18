@@ -6,18 +6,18 @@ from torch import nn
 
 from cusrl.module.module import Module, ModuleFactory
 
-__all__ = ["MLP"]
+__all__ = ["Mlp"]
 
 
 @dataclass(slots=True)
-class MLPFactory(ModuleFactory["MLP"]):
+class MlpFactory(ModuleFactory["Mlp"]):
     hidden_dims: Iterable[int]
     activation_fn: str | type[nn.Module] = nn.ReLU
     ends_with_activation: bool = False
     dropout: float = 0.0
 
     def __call__(self, input_dim: int, output_dim: int | None):
-        return MLP(
+        return Mlp(
             input_dim=input_dim,
             output_dim=output_dim,
             hidden_dims=self.hidden_dims,
@@ -27,8 +27,8 @@ class MLPFactory(ModuleFactory["MLP"]):
         )
 
 
-class MLP(Module):
-    Factory = MLPFactory
+class Mlp(Module):
+    Factory = MlpFactory
 
     def __init__(
         self,

@@ -1,19 +1,19 @@
 from .actor import Actor
 from .attention import FeedForward, MultiheadSelfAttention, TransformerEncoderLayer
-from .cnn import CNN
+from .cnn import Cnn
 from .critic import Value
 from .distribution import AdaptiveNormalDist, Distribution, DistributionFactoryLike, NormalDist, OneHotCategoricalDist
 from .inference import InferenceModule
-from .mlp import MLP
+from .mlp import Mlp
 from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
 from .normalization import Denormalization, Normalization
-from .rnn import RNN
+from .rnn import Rnn
 from .sequential import Sequential
 from .simba import Simba
 
 __all__ = [
     # Simple modules
-    "CNN",
+    "Cnn",
     "Denormalization",
     "FeedForward",
     "InferenceModule",
@@ -21,10 +21,10 @@ __all__ = [
     "Module",
     "ModuleFactory",
     "ModuleFactoryLike",
-    "MLP",
+    "Mlp",
     "MultiheadSelfAttention",
     "Normalization",
-    "RNN",
+    "Rnn",
     "Sequential",
     "Simba",
     "TransformerEncoderLayer",

@@ -11,7 +11,7 @@ def test_rnn_consistency():
     num_seqs = 20
     seq_len = 30
 
-    rnn = cusrl.RNN.Factory("LSTM", num_layers=2, hidden_size=hidden_size)(input_dim=input_dim)
+    rnn = cusrl.Rnn.Factory("LSTM", num_layers=2, hidden_size=hidden_size)(input_dim=input_dim)
     input = torch.randn(seq_len, num_seqs, input_dim)
     done = torch.rand(seq_len, num_seqs, 1) > 0.8
     _, memory = rnn(input)
@@ -35,7 +35,7 @@ def test_rnn_actor_consistency():
     action_dim = 5
 
     rnn = cusrl.Actor.Factory(
-        backbone_factory=cusrl.RNN.Factory("lstm", num_layers=2, hidden_size=hidden_size),
+        backbone_factory=cusrl.Rnn.Factory("lstm", num_layers=2, hidden_size=hidden_size),
         distribution_factory=cusrl.NormalDist.Factory(),
     )(input_dim, action_dim)
     input = torch.randn(seq_len, num_seqs, input_dim)
@@ -62,7 +62,7 @@ def test_rnn_actor_consistency():
 @pytest.mark.parametrize("rnn_type", ["GRU", "LSTM"])
 def test_consistency_during_training(rnn_type):
     test_module_consistency(
-        cusrl.RNN.Factory(rnn_type, num_layers=2, hidden_size=32),
+        cusrl.Rnn.Factory(rnn_type, num_layers=2, hidden_size=32),
         is_recurrent=True,
     )
 
@@ -74,7 +74,7 @@ def test_step_memory():
     seq_len = 30
 
     rnn = cusrl.Actor.Factory(
-        cusrl.RNN.Factory("GRU", num_layers=2, hidden_size=hidden_size),
+        cusrl.Rnn.Factory("GRU", num_layers=2, hidden_size=hidden_size),
         cusrl.NormalDist.Factory(),
     )(input_dim, 12)
 

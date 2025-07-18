@@ -11,7 +11,7 @@ def test_rnd(with_state):
     agent_factory = cusrl.preset.ppo.AgentFactory()
     agent_factory.register_hook(
         cusrl.hook.RandomNetworkDistillation(
-            module_factory=cusrl.MLP.Factory([128, 128]),
+            module_factory=cusrl.Mlp.Factory([128, 128]),
             output_dim=16,
             reward_scale=0.1,
         ),

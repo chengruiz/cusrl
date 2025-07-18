@@ -1,6 +1,6 @@
 from .advantage import AdvantageNormalization, AdvantageReduction
 from .condition import ConditionalObjectiveActivation
-from .gae import GeneralizedAdvantageEstimation, GeneralizedAdvantageEstimation as GAE
+from .gae import GeneralizedAdvantageEstimation
 from .gradient import GradientClipping
 from .initialization import ModuleInitialization
 from .lr_schedule import AdaptiveLRSchedule, MiniBatchWiseLRSchedule, ThresholdLRSchedule
@@ -26,6 +26,9 @@ from .symmetry import (
     SymmetryLoss,
 )
 from .value import ValueComputation, ValueLoss
+
+# alias
+GAE = GeneralizedAdvantageEstimation
 
 __all__ = [
     "ActionSmoothnessLoss",

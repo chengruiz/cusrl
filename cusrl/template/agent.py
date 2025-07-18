@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import Any, Generic, Mapping, TypeVar, overload
+from typing import Any, Generic, TypeVar, overload
+from collections.abc import Mapping
 
 import numpy as np
 import torch

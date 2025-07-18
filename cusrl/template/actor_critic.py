@@ -14,9 +14,9 @@ from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
 from cusrl.utils.export import (
     ExportSpec,
+    denormalize_output_forward_hook,
     get_num_tensors,
     remove_none_output_forward_hook,
-    denormalize_output_forward_hook,
 )
 from cusrl.utils.typing import NestedArray, NestedTensor, Observation, Reward, State, Terminated, Truncated
 
