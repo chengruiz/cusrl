@@ -1,6 +1,7 @@
 import itertools
 import os
 from collections.abc import Iterable
+from functools import partial
 from typing import Any
 
 import torch
@@ -11,7 +12,12 @@ from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
-from cusrl.utils.export import ExportSpec, get_num_tensors, remove_none_output_forward_hook
+from cusrl.utils.export import (
+    ExportSpec,
+    get_num_tensors,
+    remove_none_output_forward_hook,
+    denormalize_output_forward_hook,
+)
 from cusrl.utils.typing import NestedArray, NestedTensor, Observation, Reward, State, Terminated, Truncated
 
 __all__ = ["ActorCritic"]
@@ -309,6 +315,14 @@ class ActorCritic(Agent):
                 export_spec.output_names.extend([f"memory_out{i}" for i in range(num_memory_tensors)])
 
         self.hook.export(export_data)
+        if self.environment_spec.action_stats is not None:
+            actor.register_forward_hook(
+                partial(
+                    denormalize_output_forward_hook,
+                    mean=self.to_tensor(self.environment_spec.action_stats[0]),
+                    std=self.to_tensor(self.environment_spec.action_stats[1]),
+                )
+            )
         for export_spec in export_data.values():
             export_spec.export(output_dir, verbose=verbose)
 

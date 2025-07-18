@@ -25,16 +25,17 @@ __all__ = ["Environment", "EnvironmentFactory", "EnvironmentSpec", "get_done_ind
 class EnvironmentSpec:
     """A class encapsulates environment-specific specifications and properties.
 
-    This class stores parameters that define environment behavior, statistical properties,
-    transformation capabilities, and other environment characteristics.
+    This class stores parameters that define environment behavior, statistical
+    properties, transformation capabilities, and other environment characteristics.
 
     Attributes:
         autoreset (bool):
-            Whether the environment automatically resets itself on terminal states inside `Environment.step`.
+            Whether the environment automatically resets itself on terminal states
+            inside `Environment.step`.
         final_state_is_missing (bool):
             Whether the environment omits the final state of an episode.
         reward_dim (int):
-            The dimension of the reward. Default is 1.
+            The dimension of the reward. Defaults to 1.
         timestep (float | None):
             The time duration for one environment step.
 
@@ -46,24 +47,41 @@ class EnvironmentSpec:
         mirror_state (SymmetryDef | None):
             Definition for state symmetry transformations.
 
+        # Predefined statistics
+        action_stats (tuple[Array, Array] | None):
+            Tuple of arrays (mean, standard deviation) for scaling and biasing actions
+            within the environment. If provided, these statistics are applied as a
+            denormalization layer appended to the actor upon export. (not implemented yet)
+        observation_stats (tuple[Array, Array] | None):
+            Tuple of arrays (mean, standard deviation) used to scale and bias
+            observations within the environment. If provided, these statistics are
+            applied as a denormalization layer prepended to the actor upon export.
+            (not implemented yet)
+        state_stats (tuple[Array, Array] | None):
+            Tuple of arrays (mean, standard deviation) used to scale and bias
+            states within the environment. If provided, these statistics are applied
+            as a denormalization layer prepended to the critic upon export.
+
         # State/observation relationships
         observation_is_subset_of_state (Array | Slice | None):
-            Definition of the one-to-one correspondence relationship from state to observation.
+            Definition of the one-to-one correspondence relationship from state to
+            observation.
 
         # Statistical grouping
         observation_stat_groups (Sequence[tuple[int, int]]):
-            Sequence of (start_idx, end_idx) pairs defining groups of observation dimensions
-            that share statistical properties.
+            Sequence of (start_idx, end_idx) pairs defining groups of observation
+            dimensions that share statistical properties.
         state_stat_groups (Sequence[tuple[int, int]]):
             Sequence of (start_idx, end_idx) pairs defining groups of state dimensions
             that share statistical properties.
 
-        extra (dict): Dictionary containing additional environment-specific properties.
+        extras (dict): Dictionary containing additional environment-specific properties.
     """
 
     def __init__(
         self,
         *,
+        action_stats: tuple[Array, Array] | None = None,
         autoreset: bool = False,
         final_state_is_missing: bool = False,
         mirror_action: Optional["SymmetryDef"] = None,
@@ -71,11 +89,14 @@ class EnvironmentSpec:
         mirror_state: Optional["SymmetryDef"] = None,
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Sequence[tuple[int, int]] = (),
+        observation_stats: tuple[Array, Array] | None = None,
         reward_dim: int = 1,
         state_stat_groups: Sequence[tuple[int, int]] = (),
+        state_stats: tuple[Array, Array] | None = None,
         timestep: float | None = None,
         **kwargs,
     ):
+        self.action_stats = action_stats
         self.autoreset = autoreset
         self.final_state_is_missing = final_state_is_missing
         self.mirror_action = mirror_action
@@ -83,17 +104,19 @@ class EnvironmentSpec:
         self.mirror_state = mirror_state
         self.observation_is_subset_of_state = observation_is_subset_of_state
         self.observation_stat_groups = tuple(observation_stat_groups)
+        self.observation_stats = observation_stats
         self.reward_dim = reward_dim
         self.state_stat_groups = tuple(state_stat_groups)
+        self.state_stats = state_stats
         self.timestep = timestep
-        self.extra = kwargs
+        self.extras = kwargs
 
     def __getattr__(self, key: str):
-        return self.extra[key]
+        return self.extras[key]
 
     def get(self, key: str, default=None):
-        if key in self.extra:
-            return self.extra[key]
+        if key in self.extras:
+            return self.extras[key]
         return self.__dict__.get(key, default)
 
 

@@ -12,8 +12,8 @@ __all__ = [
     "ExportSpec",
     "get_num_tensors",
     "remove_none_output_forward_hook",
+    "denormalize_output_forward_hook",
 ]
-
 
 GetNumTensorsInputType = torch.Tensor | Iterable[torch.Tensor] | Iterable["GetNumTensorsInputType"]
 
@@ -96,3 +96,15 @@ def remove_none_output_forward_hook(module: nn.Module, args: tuple[Any, ...], ou
     if isinstance(output, tuple):
         return tuple(out for out in output if out is not None)
     return output
+
+
+def denormalize_output_forward_hook(
+    module: nn.Module,
+    args: tuple[Any, ...],
+    output: Any,
+    mean: torch.Tensor,
+    std: torch.Tensor,
+) -> Any:
+    if isinstance(output, tuple):
+        return output[0] * std + mean, *output[1:]
+    return output * std + mean
