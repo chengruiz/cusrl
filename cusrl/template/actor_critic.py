@@ -1,23 +1,17 @@
 import itertools
 import os
 from collections.abc import Iterable
-from functools import partial
 from typing import Any
 
 import torch
 
-from cusrl.module import Actor, Module, Value
+from cusrl.module import Actor, Denormalization, Normalization, Value
 from cusrl.template.agent import Agent, AgentFactory
 from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
-from cusrl.utils.export import (
-    ExportSpec,
-    denormalize_output_forward_hook,
-    get_num_tensors,
-    remove_none_output_forward_hook,
-)
+from cusrl.utils.export import ExportGraph
 from cusrl.utils.typing import NestedArray, NestedTensor, Observation, Reward, State, Terminated, Truncated
 
 __all__ = ["ActorCritic"]
@@ -258,73 +252,59 @@ class ActorCritic(Agent):
         self.buffer_capacity = capacity
         self.buffer.resize(capacity)
 
-    def export(self, output_dir, export_critic=False, verbose=True, **kwargs):
+    def export(self, output_dir, verbose=True, **kwargs):
         os.makedirs(output_dir, exist_ok=True)
 
         actor = self.actor_factory(self.observation_dim, self.action_dim).to(device=self.device)
-        actor.register_forward_hook(remove_none_output_forward_hook)
         actor.load_state_dict(self.actor.state_dict())
-        observation = torch.randn(1, 1, self.observation_dim, device=self.device)
-        export_data: dict[str, ExportSpec] = {
-            "actor": ExportSpec(
-                module=actor,
-                module_name="actor",
-                inputs={"observation": observation},
-                input_names=["observation"],
-                output_names=["action"],
-                extra_kwargs={"forward_type": "act_deterministic"},
-                configuration={
-                    "input_dim": self.observation_dim,
-                    "output_dim": self.action_dim,
-                },
+        graph = ExportGraph()
+        inputs = {"observation": torch.zeros(1, 1, self.observation_dim, device=self.device)}
+        input_names = {"observation": "observation"}
+        output_names = ["action"]
+        if actor.is_recurrent:
+            _, init_memory = actor(**inputs)
+            actor.reset_memory(init_memory)
+            inputs["memory_in"] = init_memory
+            input_names["memory"] = "memory_in"
+            output_names.append("memory_out")
+
+        self.hook.pre_export(graph)
+        graph.add_module_to_graph(
+            actor,
+            input_names=input_names,
+            output_names=output_names,
+            module_name="actor",
+            extra_kwargs={"forward_type": "act_deterministic"},
+            info={
+                "observation_dim": self.observation_dim,
+                "action_dim": self.action_dim,
+                "is_recurrent": actor.is_recurrent,
+            },
+            expose_outputs=True,
+        )
+        self.hook.post_export(graph)
+        if self.environment_spec.observation_stats is not None:
+            graph.add_module_to_graph(
+                Normalization(
+                    self.to_tensor(self.environment_spec.observation_stats[0]),
+                    self.to_tensor(self.environment_spec.observation_stats[1]),
+                ),
+                input_names={"input": "observation"},
+                output_names="observation",
+                expose_outputs=False,
+                prepend=True,
             )
-        }
-
-        if export_critic:
-            critic = self.critic_factory(self.state_dim, self.value_dim).to(device=self.device)
-            critic.load_state_dict(self.critic.state_dict())
-            critic.register_forward_hook(remove_none_output_forward_hook)
-            state = torch.randn(1, 1, self.state_dim, device=self.device)
-            export_data["critic"] = ExportSpec(
-                module=critic,
-                module_name="critic",
-                inputs={"state": state, "action": None},
-                input_names=["state"],
-                output_names=["value"],
-                configuration={
-                    "input_dim": self.state_dim,
-                    "output_dim": self.value_dim,
-                },
-            )
-
-        for module_name, export_spec in export_data.items():
-            module: Module = export_spec.module
-            if not module.is_recurrent:
-                continue
-
-            _, init_memory = module(**export_spec.inputs)
-            export_spec.module.reset_memory(init_memory)
-            export_spec.init_memory = init_memory
-            export_spec.inputs["memory"] = init_memory
-            num_memory_tensors = get_num_tensors(init_memory)
-            if num_memory_tensors == 1:
-                export_spec.input_names.append("memory_in")
-                export_spec.output_names.append("memory_out")
-            else:
-                export_spec.input_names.extend([f"memory_in{i}" for i in range(num_memory_tensors)])
-                export_spec.output_names.extend([f"memory_out{i}" for i in range(num_memory_tensors)])
-
-        self.hook.export(export_data)
         if self.environment_spec.action_stats is not None:
-            actor.register_forward_hook(
-                partial(
-                    denormalize_output_forward_hook,
-                    mean=self.to_tensor(self.environment_spec.action_stats[0]),
-                    std=self.to_tensor(self.environment_spec.action_stats[1]),
-                )
+            graph.add_module_to_graph(
+                Denormalization(
+                    self.to_tensor(self.environment_spec.action_stats[0]),
+                    self.to_tensor(self.environment_spec.action_stats[1]),
+                ),
+                input_names={"input": "action"},
+                output_names="action",
+                expose_outputs=False,
             )
-        for export_spec in export_data.values():
-            export_spec.export(output_dir, verbose=verbose)
+        graph.export(inputs, output_dir, graph_name="actor", verbose=verbose)
 
     def _save_transition(self, **kwargs: NestedArray | None):
         for key, value in kwargs.items():

@@ -51,16 +51,16 @@ class EnvironmentSpec:
         action_stats (tuple[Array, Array] | None):
             Tuple of arrays (mean, standard deviation) for scaling and biasing actions
             within the environment. If provided, these statistics are applied as a
-            denormalization layer appended to the actor upon export. (not implemented yet)
+            denormalization layer appended to the actor upon export.
         observation_stats (tuple[Array, Array] | None):
             Tuple of arrays (mean, standard deviation) used to scale and bias
             observations within the environment. If provided, these statistics are
             applied as a denormalization layer prepended to the actor upon export.
-            (not implemented yet)
         state_stats (tuple[Array, Array] | None):
             Tuple of arrays (mean, standard deviation) used to scale and bias
             states within the environment. If provided, these statistics are applied
             as a denormalization layer prepended to the critic upon export.
+            (not implemented yet)
 
         # State/observation relationships
         observation_is_subset_of_state (Array | Slice | None):

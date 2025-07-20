@@ -209,6 +209,9 @@ class RunningMeanStd(nn.Module):
         self._is_synchronized = True
         self._synchronized_state = (total_mean, total_var, self.count)
 
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        return self.normalize(input)
+
     def normalize(self, input: torch.Tensor) -> torch.Tensor:
         """Normalizes the given values."""
         output = (input - self.mean) / self.std

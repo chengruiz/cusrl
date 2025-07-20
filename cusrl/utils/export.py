@@ -1,110 +1,114 @@
-from collections.abc import Iterable
-from dataclasses import dataclass, field
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 import torch
 import yaml
 from torch import nn
 
-import cusrl
+from cusrl.module import Module
 
-__all__ = [
-    "ExportSpec",
-    "get_num_tensors",
-    "remove_none_output_forward_hook",
-    "denormalize_output_forward_hook",
-]
+__all__ = ["ExportGraph"]
 
 GetNumTensorsInputType = torch.Tensor | Iterable[torch.Tensor] | Iterable["GetNumTensorsInputType"]
 
 
-class MethodForwarder(nn.Module):
-    def __init__(
+class ExportGraph(nn.Module):
+    def __init__(self, output_names: Iterable[str] = ()):
+        super().__init__()
+        self.module_list = nn.ModuleList()
+        self.output_names = list(output_names)
+        self.info = {}
+
+    def forward(self, **kwargs):
+        if self.output_names is None:
+            self.output_names = sorted(kwargs.keys())
+        return tuple(kwargs[name] for name in self.output_names)
+
+    def add_module_to_graph(
         self,
         module: nn.Module,
-        method_name: str | None = None,
+        input_names: str | Iterable[str] | Mapping[str, str],
+        output_names: str | Iterable[str],
+        module_name: str = "",
+        method_name: str = "__call__",
         extra_kwargs: dict[str, Any] | None = None,
+        info: dict[str, Any] | None = None,
+        expose_outputs: bool = True,
+        prepend: bool = False,
     ):
-        super().__init__()
-        self.module = module
-        self.method_name = method_name
-        self.extra_kwargs = extra_kwargs or {}
+        if isinstance(input_names, str):
+            input_names = {input_names: input_names}
+        elif not isinstance(input_names, Mapping):
+            input_names = {name: name for name in input_names}
+        if isinstance(output_names, str):
+            output_names = (output_names,)
+        self.module_list.append(module)
 
-    def forward(self, *args, **kwargs):
-        if self.method_name:
-            return getattr(self.module, self.method_name)(*args, **kwargs, **self.extra_kwargs)
-        return self.module(*args, **kwargs, **self.extra_kwargs)
+        def hook(_: nn.Module, args: tuple, kwargs: dict[str, Any]):
+            if input_names is not None:
+                inputs = {input_name: kwargs[arg_name] for input_name, arg_name in input_names.items()}
+            else:
+                inputs = kwargs
+            outputs = getattr(module, method_name)(**inputs, **(extra_kwargs or {}))
+            if not isinstance(outputs, tuple):
+                outputs = (outputs,)
+            outputs = [output for output in outputs if output is not None]
+            named_outputs = {name: output for name, output in zip(output_names, outputs, strict=True)}
+            if isinstance(module, Module):
+                prefix = f"{module_name}." if module_name else ""
+                named_outputs.update({
+                    f"{prefix}{name}": value for name, value in module.intermediate_repr.items() if name not in outputs
+                })
+            kwargs.update(named_outputs)
 
+        if info is not None:
+            self.info.update(info)
+        if expose_outputs:
+            for output_name in output_names:
+                if output_name not in self.output_names:
+                    self.output_names.append(output_name)
 
-@dataclass(slots=True)
-class ExportSpec:
-    module: "cusrl.Module"
-    module_name: str
-    inputs: dict[str, Any]
-    input_names: list[str]
-    output_names: list[str]
-    method_name: str | None = None
-    extra_kwargs: dict[str, Any] = field(default_factory=dict)
-    init_memory: Any = None
-    dynamic_shapes: dict[str, Any] | None = None
-    configuration: dict[str, Any] = field(default_factory=dict)
+        self.register_forward_pre_hook(hook, prepend=prepend, with_kwargs=True)
 
-    def export(self, output_dir: str, verbose: bool = True):
-        self._legacy_export(output_dir, verbose=verbose)
-        self.configuration["input_name"] = self.input_names
-        self.configuration["output_name"] = self.output_names
-        with open(f"{output_dir}/{self.module_name}.yml", "w") as f:
-            yaml.safe_dump(self.configuration, f)
+    def export(
+        self,
+        kwargs: dict[str, Any],
+        output_dir: str,
+        graph_name: str,
+        verbose: bool = True,
+    ):
+        outputs = self(**kwargs)
+        output_names = []
+        for output, name in zip(outputs, self.output_names):
+            if (num_tensors := get_num_tensors(output)) == 1:
+                output_names.append(name)
+            else:
+                output_names.extend(f"{name}_{i}" for i in range(num_tensors))
 
-    def _dynamo_export(self, output_dir: str, verbose: bool = True):
-        # To be tested further
-        torch.onnx.export(
-            MethodForwarder(self.module, self.method_name, self.extra_kwargs),
-            f=f"{output_dir}/{self.module_name}.onnx",
-            kwargs=self.inputs,
+        onnx_program = torch.onnx.export(
+            self,
+            kwargs=kwargs,
+            f=f"{output_dir}/{graph_name}.onnx",
             verbose=verbose,
-            input_names=self.input_names,
-            output_names=self.output_names,
+            output_names=output_names,
+            external_data=False,
+            dynamic_axes=None,
             dynamo=True,
-            dynamic_shapes=self.dynamic_shapes,
-            report=True,
-            optimize=True,
+            report=verbose,
+            optimize=False,
             verify=True,
-            fallback=False,
-            artifacts_dir=f"{output_dir}/{self.module_name}_artifacts",
+            artifacts_dir=output_dir,
         )
+        if onnx_program is None:
+            raise RuntimeError("ONNX export failed.")
 
-    def _legacy_export(self, output_dir: str, verbose: bool = True):
-        torch.onnx.export(
-            MethodForwarder(self.module, self.method_name, self.extra_kwargs),
-            args=tuple(self.inputs.values()),
-            f=f"{output_dir}/{self.module_name}.onnx",
-            input_names=self.input_names,
-            output_names=self.output_names,
-            dynamo=False,
-            verbose=verbose,
-        )
+        self.info["input_name"] = [input.name for input in onnx_program.model.graph.inputs]
+        self.info["output_name"] = [output.name for output in onnx_program.model.graph.outputs]
+        with open(f"{output_dir}/{graph_name}.yml", "w") as f:
+            yaml.safe_dump(self.info, f)
 
 
 def get_num_tensors(tensor_list: GetNumTensorsInputType) -> int:
     if isinstance(tensor_list, torch.Tensor):
         return 1
     return sum(get_num_tensors(sublist) for sublist in tensor_list)
-
-
-def remove_none_output_forward_hook(module: nn.Module, args: tuple[Any, ...], output: Any) -> Any:
-    if isinstance(output, tuple):
-        return tuple(out for out in output if out is not None)
-    return output
-
-
-def denormalize_output_forward_hook(
-    module: nn.Module,
-    args: tuple[Any, ...],
-    output: Any,
-    mean: torch.Tensor,
-    std: torch.Tensor,
-) -> Any:
-    if isinstance(output, tuple):
-        return output[0] * std + mean, *output[1:]
-    return output * std + mean

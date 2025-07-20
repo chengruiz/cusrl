@@ -7,7 +7,7 @@ from torch import nn
 import cusrl
 from cusrl.template.agent import AgentType
 from cusrl.utils import distributed
-from cusrl.utils.export import ExportSpec
+from cusrl.utils.export import ExportGraph
 
 __all__ = ["Hook", "HookComposite"]
 
@@ -127,7 +127,10 @@ class Hook(Generic[AgentType]):
             raise ValueError(f"Attribute '{name}' is not mutable for hook {self.name}.")
         setattr(self, name, value)
 
-    def export(self, export_data: dict[str, ExportSpec]):
+    def pre_export(self, graph: ExportGraph):
+        pass
+
+    def post_export(self, graph: ExportGraph):
         pass
 
     @classmethod
@@ -234,9 +237,13 @@ class HookComposite(Hook):
         for hook in self.active_hooks():
             hook.apply_schedule(iteration)
 
-    def export(self, export_data: dict[str, ExportSpec]):
+    def pre_export(self, graph: ExportGraph):
         for hook in self:
-            hook.export(export_data)
+            hook.pre_export(graph)
+
+    def post_export(self, graph: ExportGraph):
+        for hook in self:
+            hook.post_export(graph)
 
     def active_hooks(self) -> Iterator[Hook]:
         for hook in self:

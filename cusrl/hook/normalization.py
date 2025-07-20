@@ -7,7 +7,7 @@ import torch
 from cusrl.hook.symmetry import SymmetryDef
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils import RunningMeanStd, mean_var_count
-from cusrl.utils.export import ExportSpec
+from cusrl.utils.export import ExportGraph
 from cusrl.utils.typing import Slice
 
 __all__ = ["ObservationNormalization"]
@@ -163,32 +163,10 @@ class ObservationNormalization(Hook[ActorCritic]):
             else:
                 self.observation_rms.synchronize()
 
-    def export(self, export_data: dict[str, ExportSpec]):
-        export_data["actor"].module.register_forward_pre_hook(
-            self.__normalize_observation_forward_pre_hook, with_kwargs=True
+    def pre_export(self, graph: ExportGraph):
+        graph.add_module_to_graph(
+            self.observation_rms,
+            input_names="observation",
+            output_names="observation",
+            expose_outputs=False,
         )
-        if "critic" in export_data:
-            export_data["critic"].module.register_forward_pre_hook(
-                (
-                    self.__normalize_state_forward_pre_hook
-                    if self.agent.has_state
-                    else self.__normalize_observation_forward_pre_hook
-                ),
-                with_kwargs=True,
-            )
-
-    @torch.no_grad()
-    def __normalize_observation_forward_pre_hook(self, module, args: tuple, kwargs: dict[str, Any]):
-        if "observation" in kwargs:
-            kwargs["observation"] = self.observation_rms.normalize(kwargs["observation"])
-            return args, kwargs
-        normalized_observation = self.observation_rms.normalize(args[0])
-        return (normalized_observation, *args[1:]), kwargs
-
-    @torch.no_grad()
-    def __normalize_state_forward_pre_hook(self, module, args: tuple, kwargs: dict[str, Any]):
-        if "state" in kwargs:
-            kwargs["state"] = self.state_rms.normalize(kwargs["state"])
-            return args, kwargs
-        normalized_state = self.state_rms.normalize(args[0])
-        return (normalized_state, *args[1:]), kwargs

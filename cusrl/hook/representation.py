@@ -3,9 +3,9 @@ from typing import Any
 import torch
 from torch import nn
 
-from cusrl.module import LayerFactoryLike, Module
+from cusrl.module import LayerFactoryLike
 from cusrl.template import ActorCritic, Hook
-from cusrl.utils.export import ExportSpec
+from cusrl.utils.export import ExportGraph
 from cusrl.utils.typing import Slice
 
 __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]
@@ -39,14 +39,13 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.agent.record(return_prediction_loss=return_prediction_loss)
         return return_prediction_loss
 
-    def export(self, export_data: dict[str, ExportSpec]):
-        export_data["actor"].module.return_predictor = self.predictor
-        export_data["actor"].module.register_forward_hook(self.__prediction_forward_hook)
-        export_data["actor"].output_names.append("return_prediction")
-
-    @staticmethod
-    def __prediction_forward_hook(module: Module, args: tuple[Any, ...], output: Any) -> Any:
-        return *output, module.return_predictor(module.intermediate_repr["backbone.output"])
+    def post_export(self, graph: ExportGraph):
+        graph.add_module_to_graph(
+            self.predictor,
+            input_names={"input": "actor.backbone.output"},
+            output_names="return_prediction",
+            expose_outputs=True,
+        )
 
 
 class StatePrediction(Hook[ActorCritic]):
@@ -79,14 +78,24 @@ class StatePrediction(Hook[ActorCritic]):
         self.agent.record(state_prediction_loss=state_prediction_loss)
         return state_prediction_loss
 
-    def export(self, export_data: dict[str, ExportSpec]):
-        export_data["actor"].module.state_predictor = self.predictor
-        export_data["actor"].module.register_forward_hook(self.__prediction_forward_hook)
-        export_data["actor"].output_names.append("state_prediction")
+    def post_export(self, graph: ExportGraph):
+        graph.add_module_to_graph(
+            self.predictor,
+            input_names={"input": "actor.backbone.output"},
+            output_names="state_prediction",
+            expose_outputs=True,
+        )
 
-    @staticmethod
-    def __prediction_forward_hook(module: Module, args: tuple[Any, ...], output: Any) -> Any:
-        return *output, module.state_predictor(module.intermediate_repr["backbone.output"])
+
+class PredictorWrapper(nn.Module):
+    def __init__(self, predictor: nn.Module):
+        super().__init__()
+        self.predictor = predictor
+
+    def forward(self, latent: torch.Tensor, action: torch.Tensor | None = None):
+        if action is not None:
+            latent = torch.cat([latent, action], dim=-1)
+        return self.predictor(latent)
 
 
 class NextStatePrediction(Hook[ActorCritic]):
@@ -108,25 +117,24 @@ class NextStatePrediction(Hook[ActorCritic]):
         if not self.agent.has_state:
             raise ValueError("NextStatePrediction: State is not defined for the agent.")
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
-        self.predictor = self.predictor_factory(self.agent.actor.latent_dim + self.agent.action_dim, target_dim)
+        self.predictor = PredictorWrapper(
+            self.predictor_factory(self.agent.actor.latent_dim + self.agent.action_dim, target_dim)
+        )
         self.predictor = self.agent.setup_module(self.predictor)
 
     def objective(self, batch: dict[str, Any]):
         with self.agent.autocast():
             latent = self.agent.actor.intermediate_repr["backbone.output"]
             target = batch["next_state"][..., self.target_indices]
-            prediction = self.predictor(torch.cat([latent, batch["action"]], dim=-1))
+            prediction = self.predictor(latent, batch["action"])
             next_state_prediction_loss = self.weight * self.criterion(prediction, target)
         self.agent.record(next_state_prediction_loss=next_state_prediction_loss)
         return next_state_prediction_loss
 
-    def export(self, export_data: dict[str, ExportSpec]):
-        export_data["actor"].module.next_state_predictor = self.predictor
-        export_data["actor"].module.register_forward_hook(self.__prediction_forward_hook)
-        export_data["actor"].output_names.append("next_state_prediction")
-
-    @staticmethod
-    def __prediction_forward_hook(module: Module, args: tuple[Any, ...], output: Any) -> Any:
-        action = output[0]
-        predictor_input = torch.cat([module.intermediate_repr["backbone.output"], action], dim=-1)
-        return *output, module.next_state_predictor(predictor_input)
+    def post_export(self, graph: ExportGraph):
+        graph.add_module_to_graph(
+            self.predictor,
+            input_names={"latent": "actor.backbone.output", "action": "action"},
+            output_names="next_state_prediction",
+            expose_outputs=True,
+        )
