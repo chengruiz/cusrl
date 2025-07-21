@@ -252,7 +252,7 @@ class ActorCritic(Agent):
         self.buffer_capacity = capacity
         self.buffer.resize(capacity)
 
-    def export(self, output_dir, verbose=True, **kwargs):
+    def export(self, output_dir, dynamo=False, verbose=True, **kwargs):
         os.makedirs(output_dir, exist_ok=True)
 
         actor = self.actor_factory(self.observation_dim, self.action_dim).to(device=self.device)
@@ -304,7 +304,7 @@ class ActorCritic(Agent):
                 output_names="action",
                 expose_outputs=False,
             )
-        graph.export(inputs, output_dir, graph_name="actor", verbose=verbose)
+        graph.export(inputs, output_dir, graph_name="actor", dynamo=dynamo, verbose=verbose)
 
     def _save_transition(self, **kwargs: NestedArray | None):
         for key, value in kwargs.items():

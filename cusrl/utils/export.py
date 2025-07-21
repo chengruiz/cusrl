@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -19,7 +20,9 @@ class ExportGraph(nn.Module):
         self.output_names = list(output_names)
         self.info = {}
 
-    def forward(self, **kwargs):
+    def forward(self, *args, **kwargs):
+        if args:
+            kwargs.update(dict(args))
         if self.output_names is None:
             self.output_names = sorted(kwargs.keys())
         return tuple(kwargs[name] for name in self.output_names)
@@ -45,6 +48,8 @@ class ExportGraph(nn.Module):
         self.module_list.append(module)
 
         def hook(_: nn.Module, args: tuple, kwargs: dict[str, Any]):
+            if args:
+                kwargs.update(dict(args))
             if input_names is not None:
                 inputs = {input_name: kwargs[arg_name] for input_name, arg_name in input_names.items()}
             else:
@@ -60,6 +65,7 @@ class ExportGraph(nn.Module):
                     f"{prefix}{name}": value for name, value in module.intermediate_repr.items() if name not in outputs
                 })
             kwargs.update(named_outputs)
+            return (), kwargs
 
         if info is not None:
             self.info.update(info)
@@ -75,6 +81,7 @@ class ExportGraph(nn.Module):
         inputs: dict[str, Any],
         output_dir: str,
         graph_name: str,
+        dynamo: bool = False,
         verbose: bool = True,
     ):
         outputs = self(**inputs)
@@ -90,28 +97,61 @@ class ExportGraph(nn.Module):
             else:
                 output_names.extend(f"{name}_{i}" for i in range(num_tensors))
 
-        onnx_program = torch.onnx.export(
+        unoptimized_model_path = f"{output_dir}/{graph_name}_unoptimized.onnx"
+        optimized_model_path = f"{output_dir}/{graph_name}.onnx"
+        torch.onnx.export(
             self,
-            kwargs=inputs,
-            f=f"{output_dir}/{graph_name}.onnx",
+            args=tuple(inputs.items()),
+            f=unoptimized_model_path,
             verbose=verbose,
             input_names=input_names,
             output_names=output_names,
             external_data=False,
             dynamic_axes=None,
-            dynamo=True,
+            dynamo=dynamo,
             report=verbose,
             optimize=False,
             verify=True,
             artifacts_dir=output_dir,
         )
-        if onnx_program is None:
-            raise RuntimeError("ONNX export failed.")
 
-        self.info["input_name"] = [input.name for input in onnx_program.model.graph.inputs]
-        self.info["output_name"] = [output.name for output in onnx_program.model.graph.outputs]
+        import onnx
+
+        onnx.checker.check_model(unoptimized_model_path, full_check=True)
+        onnx_model = onnx.load(unoptimized_model_path)
+        self.info["input_name"] = [input.name for input in onnx_model.graph.input]
+        self.info["output_name"] = [output.name for output in onnx_model.graph.output]
         with open(f"{output_dir}/{graph_name}.yml", "w") as f:
             yaml.safe_dump(self.info, f)
+
+        optimizers = ["onnxslim", "onnxoptimizer"]
+        for optimizer in optimizers:
+            try:
+                getattr(self, f"_optimize_onnx_model_with_{optimizer}")(onnx_model, optimized_model_path, verbose)
+            except Exception as error:
+                if verbose:
+                    print(f"\033[1;33mFailed to optimize ONNX model with {optimizer}: {error}.\033[0m")
+                continue
+            if verbose:
+                print(f"\033[1;32mOptimized ONNX model with {optimizer}.\033[0m")
+            break
+        else:
+            if verbose:
+                print(f"\033[1;33mFailed to optimize ONNX model.\033[0m")
+            os.rename(unoptimized_model_path, optimized_model_path)
+        onnx.checker.check_model(optimized_model_path, full_check=True)
+
+    def _optimize_onnx_model_with_onnxslim(self, onnx_model, output_path: str, verbose: bool = True):
+        import onnxslim
+
+        onnxslim.slim(onnx_model, output_path, verbose=verbose)
+
+    def _optimize_onnx_model_with_onnxoptimizer(self, onnx_model: Any, output_path: str, verbose: bool = True):
+        import onnx
+        import onnxoptimizer
+
+        optimized_model = onnxoptimizer.optimize(onnx_model)
+        onnx.save(optimized_model, output_path)
 
 
 def get_num_tensors(tensor_list: GetNumTensorsInputType) -> int:

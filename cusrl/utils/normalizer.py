@@ -247,12 +247,12 @@ class RunningMeanStd(nn.Module):
             batch_var[start:end] = group_var
 
     def get_extra_state(self) -> Any:
-        return self.count
+        return torch.tensor(self.count, dtype=torch.int64)
 
     def set_extra_state(self, state: Any):
         if state < 0:
             raise ValueError("State must be non-negative.")
-        self.count = state
+        self.count = int(state.item() if isinstance(state, torch.Tensor) else state)
         self._synchronized_state = (self.mean.clone(), self.var.clone(), self.count)
 
 

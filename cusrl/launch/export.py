@@ -16,6 +16,8 @@ if __name__ == "__main__":
                         help="Directory to save exported files to (default: exported)")
     parser.add_argument("--silent", action="store_true",
                         help="Whether to suppress output messages")
+    parser.add_argument("--dynamo", action="store_true",
+                        help="Whether to use PyTorch Dynamo for exporting")
     parser.add_argument("--load-experiment-spec", action="store_true",
                         help="Whether to load experiment spec from checkpoint directory")
     parser.add_argument("--environment-args", type=str, metavar="ARG",
@@ -39,5 +41,6 @@ if __name__ == "__main__":
         environment.load_state_dict(checkpoint["environment"])
     agent.export(
         os.path.join(args.output_dir, experiment.name, getattr(trial, "name", "dummy")),
+        dynamo=args.dynamo,
         verbose=not args.silent,
     )

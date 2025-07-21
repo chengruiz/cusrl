@@ -23,6 +23,7 @@ all = [
     "onnx",
     "onnxruntime",
     "onnxscript",
+    "onnxslim", # or onnxoptimizer
     "tensorboard",
     "wandb",
 ]
