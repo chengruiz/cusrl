@@ -43,14 +43,17 @@ class ExperimentSpec:
     def name(self) -> str:
         return f"{self.environment_name}:{self.algorithm_name}"
 
-    def make_agent_factory(self, agent_factory_kwargs: dict[str, Any] | None = None) -> Agent.Factory:
-        return self.agent_factory_cls(**(self.agent_factory_kwargs | (agent_factory_kwargs or {})))
+    def make_agent_factory(self, override_kwargs: dict[str, Any] | None = None, **kwargs) -> Agent.Factory:
+        agent_factory_kwargs = self.agent_factory_kwargs | (override_kwargs or {}) | kwargs
+        return self.agent_factory_cls(**agent_factory_kwargs)
 
-    def make_training_env(self, kwargs: dict[str, Any] | None = None) -> Environment:
-        return self.training_env_factory(*self.training_env_args, **(self.training_env_kwargs | (kwargs or {})))
+    def make_training_env(self, override_kwargs: dict[str, Any] | None = None, **kwargs) -> Environment:
+        training_env_kwargs = self.training_env_kwargs | (override_kwargs or {}) | kwargs
+        return self.training_env_factory(*self.training_env_args, **training_env_kwargs)
 
-    def make_playing_env(self, kwargs: dict[str, Any] | None = None) -> Environment:
-        return self.playing_env_factory(*self.playing_env_args, **(self.playing_env_kwargs | (kwargs or {})))
+    def make_playing_env(self, override_kwargs: dict[str, Any] | None = None, **kwargs) -> Environment:
+        playing_env_kwargs = self.playing_env_kwargs | (override_kwargs or {}) | kwargs
+        return self.playing_env_factory(*self.playing_env_args, **playing_env_kwargs)
 
     def make_trainer(
         self,
