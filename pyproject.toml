@@ -6,27 +6,22 @@ build-backend = "setuptools.build_meta"
 name = "cusrl"
 dynamic = ["dependencies", "version"]
 keywords = ["reinforcement-learning", "pytorch", "rl"]
-authors = [
-    { name = "Chengrui Zhu", email = "jewel@zju.edu.cn" },
-]
+authors = [{ name = "Chengrui Zhu", email = "jewel@zju.edu.cn" }]
 description = "Customizable and modular RL algorithms implemented in PyTorch"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 
 [project.optional-dependencies]
-dev = ["pytest"]
-onnx = ["onnx", "onnxruntime", "onnxscript"]
-tensorboard = ["tensorboard"]
-wandb = ["wandb"]
-all = [
-    "pytest",
+dev = ["cusrl[all]", "pre-commit", "pytest"]
+export = [
     "onnx",
     "onnxruntime",
     "onnxscript",
-    "onnxslim", # or onnxoptimizer
-    "tensorboard",
-    "wandb",
+    "onnxslim",    # or "onnxoptimizer"
 ]
+tensorboard = ["tensorboard"]
+wandb = ["wandb"]
+all = ["cusrl[export,tensorboard,wandb]"]
 
 [tool.black]
 line-length = 120

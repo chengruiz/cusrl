@@ -12,9 +12,10 @@ and breaking changes are likely to occur frequently.
 CusRL requires Python 3.10 or later. It can be installed via PyPI with:
 
 ```bash
-# Minimal installation
+# Choose one of the following:
+# 1. Minimal installation
 pip install cusrl
-# Install with all optional dependencies
+# 2. Install with export and logging utilities
 pip install cusrl[all]
 ```
 
@@ -22,11 +23,13 @@ or by cloning this repository and installing it with:
 
 ```bash
 git clone https://github.com/chengruiz/cusrl.git
-# Minimal installation
+# Choose one of the following:
+# 1. Minimal installation
 pip install -e . --config-settings editable_mode=strict
-# Install with all optional dependencies
+# 2. Install with optional dependencies
 pip install -e .[all] --config-settings editable_mode=strict
-# For development, install pre-commit (assuming you have pre-commit installed)
+# 3. Install dependencies for development
+pip install -e .[dev] --config-settings editable_mode=strict
 pre-commit install
 ```
 
