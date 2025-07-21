@@ -3,6 +3,7 @@ import pickle
 import sys
 from collections.abc import Callable, Iterable
 
+import git
 import numpy as np
 import objprint
 import torch
@@ -76,17 +77,30 @@ class EnvironmentStats:
         return self.len_buffer[: self.num_episodes].mean().item()
 
 
-def save_version_info(outdir: str, workspace: str | None = None):
+def save_version_info(output_dir: str, workspace: str | None = None):
     workspace_str: str = os.getcwd() if workspace is None else os.path.abspath(workspace)
-    os.system(
-        f"cd {workspace_str}  && mkdir -p {outdir}      && "
-        "cd $(git rev-parse --show-toplevel)            && "
-        f"echo $(pwd)         > {outdir}/workspace.txt  && "
-        f"git log -3          > {outdir}/git_log.txt    && "
-        f"git diff HEAD       > {outdir}/git_diff.patch && "
-        f"git status          > {outdir}/git_status.txt && "
-        f"git describe --tags > {outdir}/version.txt"
-    )
+    try:
+        repo = git.Repo(workspace_str, search_parent_directories=True)
+    except git.InvalidGitRepositoryError:
+        print(f"'{workspace_str}' is not a git repository.")
+        return
+
+    repo_dir = repo.working_tree_dir
+    os.makedirs(output_dir, exist_ok=True)
+    with open(f"{output_dir}/workspace.txt", "w") as f:
+        f.write(str(repo_dir))
+    with open(f"{output_dir}/git_log.txt", "w") as f:
+        f.write(repo.git.log("-3"))
+    with open(f"{output_dir}/git_diff.patch", "w") as f:
+        f.write(repo.git.diff("HEAD"))
+    with open(f"{output_dir}/git_status.txt", "w") as f:
+        f.write(repo.git.status())
+    with open(f"{output_dir}/version.txt", "w") as f:
+        try:
+            version = repo.git.describe("--tags")
+        except git.GitError:
+            version = "unknown"
+        f.write(version)
 
 
 class Trainer:

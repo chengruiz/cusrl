@@ -1,5 +1,6 @@
-numpy>=1.26.0
-torch>=2.4.0
-objprint~=0.3.0
+gitpython~=3.1.44
 gymnasium>=1.1.0
+numpy>=1.26.0
+objprint~=0.3.0
 pyyaml~=6.0.2
+torch>=2.4.0
