@@ -7,9 +7,18 @@ which is particularly useful for advancements in robotics learning.
 > **Note:** This project is under **active development**, which means the interface is unstable
 and breaking changes are likely to occur frequently.
 
-## Installation
+## Setup
 
-Requires Python >= 3.10.
+CusRL requires Python 3.10 or later. It can be installed via PyPI with:
+
+```bash
+# Minimal installation
+pip install cusrl
+# Install with all optional dependencies
+pip install cusrl[all]
+```
+
+or by cloning this repository and installing it with:
 
 ```bash
 git clone https://github.com/chengruiz/cusrl.git
