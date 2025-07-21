@@ -271,9 +271,9 @@ class ActorCritic(Agent):
         self.hook.pre_export(graph)
         graph.add_module_to_graph(
             actor,
+            module_name="actor",
             input_names=input_names,
             output_names=output_names,
-            module_name="actor",
             extra_kwargs={"forward_type": "act_deterministic"},
             info={
                 "observation_dim": self.observation_dim,
@@ -289,9 +289,9 @@ class ActorCritic(Agent):
                     self.to_tensor(self.environment_spec.observation_stats[0]),
                     self.to_tensor(self.environment_spec.observation_stats[1]),
                 ),
+                module_name="observation_normalization",
                 input_names={"input": "observation"},
                 output_names="observation",
-                module_name="observation_normalization",
                 expose_outputs=False,
                 prepend=True,
             )
@@ -301,9 +301,9 @@ class ActorCritic(Agent):
                     self.to_tensor(self.environment_spec.action_stats[0]),
                     self.to_tensor(self.environment_spec.action_stats[1]),
                 ),
+                module_name="action_denormalization",
                 input_names={"input": "action"},
                 output_names="action",
-                module_name="action_denormalization",
                 expose_outputs=False,
             )
         graph.export(inputs, output_dir, graph_name="actor", dynamo=dynamo, verbose=verbose)

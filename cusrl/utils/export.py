@@ -30,9 +30,9 @@ class ExportGraph(nn.Module):
     def add_module_to_graph(
         self,
         module: nn.Module,
+        module_name: str,
         input_names: str | Iterable[str] | Mapping[str, str],
         output_names: str | Iterable[str],
-        module_name: str = "",
         method_name: str = "__call__",
         extra_kwargs: dict[str, Any] | None = None,
         info: dict[str, Any] | None = None,
