@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--save-interval", type=int, metavar="N",
                         help="Override the interval to save checkpoints at")
     parser.add_argument("--checkpoint", type=str, metavar="PATH",
-                         help="Path to a checkpoint to resume training from")
+                        help="Path to a checkpoint to resume training from")
     parser.add_argument("--device", type=str,
                         help="Device to use for training")
     parser.add_argument("--autocast", action="store_true",

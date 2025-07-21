@@ -177,6 +177,7 @@ class Agent(ABC):
     def to_nested_tensor(self, input: tuple[NestedArray, ...] | list[NestedArray]) -> tuple[NestedTensor, ...]: ...
     @overload
     def to_nested_tensor(self, input: Mapping[str, NestedArray]) -> dict[str, NestedTensor]: ...
+
     def to_nested_tensor(self, input):
         if input is None:
             return None

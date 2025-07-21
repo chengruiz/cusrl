@@ -140,7 +140,7 @@ class ExportGraph(nn.Module):
             break
         else:
             if verbose:
-                print(f"\033[1;33mFailed to optimize ONNX model.\033[0m")
+                print("\033[1;33mFailed to optimize ONNX model.\033[0m")
             os.rename(unoptimized_model_path, optimized_model_path)
         onnx.checker.check_model(optimized_model_path, full_check=True)
 
