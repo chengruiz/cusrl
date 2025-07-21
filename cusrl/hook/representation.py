@@ -44,6 +44,7 @@ class ReturnPrediction(Hook[ActorCritic]):
             self.predictor,
             input_names={"input": "actor.backbone.output"},
             output_names="return_prediction",
+            module_name="return_predictor",
             expose_outputs=True,
         )
 
@@ -83,6 +84,7 @@ class StatePrediction(Hook[ActorCritic]):
             self.predictor,
             input_names={"input": "actor.backbone.output"},
             output_names="state_prediction",
+            module_name="state_predictor",
             expose_outputs=True,
         )
 
@@ -136,5 +138,6 @@ class NextStatePrediction(Hook[ActorCritic]):
             self.predictor,
             input_names={"latent": "actor.backbone.output", "action": "action"},
             output_names="next_state_prediction",
+            module_name="next_state_predictor",
             expose_outputs=True,
         )

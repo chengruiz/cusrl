@@ -291,6 +291,7 @@ class ActorCritic(Agent):
                 ),
                 input_names={"input": "observation"},
                 output_names="observation",
+                module_name="observation_normalization",
                 expose_outputs=False,
                 prepend=True,
             )
@@ -302,6 +303,7 @@ class ActorCritic(Agent):
                 ),
                 input_names={"input": "action"},
                 output_names="action",
+                module_name="action_denormalization",
                 expose_outputs=False,
             )
         graph.export(inputs, output_dir, graph_name="actor", dynamo=dynamo, verbose=verbose)

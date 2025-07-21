@@ -167,5 +167,6 @@ class ObservationNormalization(Hook[ActorCritic]):
             self.observation_rms,
             input_names={"input": "observation"},
             output_names="observation",
+            module_name="observation_rms",
             expose_outputs=False,
         )

@@ -16,9 +16,9 @@ GetNumTensorsInputType = torch.Tensor | Iterable[torch.Tensor] | Iterable["GetNu
 class ExportGraph(nn.Module):
     def __init__(self, output_names: Iterable[str] = ()):
         super().__init__()
-        self.module_list = nn.ModuleList()
         self.output_names = list(output_names)
         self.info = {}
+        self._named_submodules = {}
 
     def forward(self, *args, **kwargs):
         if args:
@@ -45,7 +45,10 @@ class ExportGraph(nn.Module):
             input_names = {name: name for name in input_names}
         if isinstance(output_names, str):
             output_names = (output_names,)
-        self.module_list.append(module)
+        if module_name in self._named_submodules:
+            raise ValueError(f"Module with name '{module_name}' already exists in the graph.")
+        self._named_submodules[module_name] = module
+        self.add_module(module_name, module)
 
         def hook(_: nn.Module, args: tuple, kwargs: dict[str, Any]):
             if args:

@@ -13,11 +13,10 @@ __all__ = ["Normalization", "Denormalization"]
 @dataclass(slots=True)
 class NormalizationFactory(ModuleFactory["Normalization"]):
     mean: Sequence[float] | np.ndarray | torch.Tensor
-    var: Sequence[float] | np.ndarray | torch.Tensor
-    eps: float = 1e-8
+    std: Sequence[float] | np.ndarray | torch.Tensor
 
     def __call__(self, input_dim: int | None, output_dim: int | None):
-        module = Normalization(torch.as_tensor(self.mean), torch.as_tensor(self.var), self.eps)
+        module = Normalization(torch.as_tensor(self.mean), torch.as_tensor(self.std))
         if input_dim is not None and module.input_dim != input_dim:
             raise ValueError(f"Input dimension mismatch: {module.input_dim} != {input_dim}.")
         if output_dim is not None and module.output_dim != output_dim:
@@ -28,10 +27,10 @@ class NormalizationFactory(ModuleFactory["Normalization"]):
 class Normalization(Module):
     Factory = NormalizationFactory
 
-    def __init__(self, mean: torch.Tensor, var: torch.Tensor, eps: float = 1e-8):
+    def __init__(self, mean: torch.Tensor, std: torch.Tensor):
         super().__init__(mean.size(0), mean.size(0))
         self.mean = nn.Parameter(mean, requires_grad=False)
-        self.std = nn.Parameter(torch.sqrt(var + eps), requires_grad=False)
+        self.std = nn.Parameter(std, requires_grad=False)
 
     def forward(self, input: torch.Tensor, **kwargs) -> torch.Tensor:
         return (input - self.mean) / self.std
@@ -40,11 +39,10 @@ class Normalization(Module):
 @dataclass(slots=True)
 class DenormalizationFactory(ModuleFactory["Denormalization"]):
     mean: Sequence[float] | np.ndarray | torch.Tensor
-    var: Sequence[float] | np.ndarray | torch.Tensor
-    eps: float = 1e-8
+    std: Sequence[float] | np.ndarray | torch.Tensor
 
     def __call__(self, input_dim: int | None, output_dim: int | None):
-        module = Denormalization(torch.as_tensor(self.mean), torch.as_tensor(self.var), self.eps)
+        module = Denormalization(torch.as_tensor(self.mean), torch.as_tensor(self.std))
         if input_dim is not None and module.input_dim != input_dim:
             raise ValueError(f"Input dimension mismatch: {module.input_dim} != {input_dim}.")
         if output_dim is not None and module.output_dim != output_dim:
