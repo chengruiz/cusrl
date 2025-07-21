@@ -72,13 +72,18 @@ class ExportGraph(nn.Module):
 
     def export(
         self,
-        kwargs: dict[str, Any],
+        inputs: dict[str, Any],
         output_dir: str,
         graph_name: str,
         verbose: bool = True,
     ):
-        outputs = self(**kwargs)
-        output_names = []
+        outputs = self(**inputs)
+        input_names, output_names = [], []
+        for name, input in inputs.items():
+            if (num_tensors := get_num_tensors(input)) == 1:
+                input_names.append(name)
+            else:
+                input_names.extend(f"{name}_{i}" for i in range(num_tensors))
         for output, name in zip(outputs, self.output_names):
             if (num_tensors := get_num_tensors(output)) == 1:
                 output_names.append(name)
@@ -87,9 +92,10 @@ class ExportGraph(nn.Module):
 
         onnx_program = torch.onnx.export(
             self,
-            kwargs=kwargs,
+            kwargs=inputs,
             f=f"{output_dir}/{graph_name}.onnx",
             verbose=verbose,
+            input_names=input_names,
             output_names=output_names,
             external_data=False,
             dynamic_axes=None,

@@ -166,7 +166,7 @@ class ObservationNormalization(Hook[ActorCritic]):
     def pre_export(self, graph: ExportGraph):
         graph.add_module_to_graph(
             self.observation_rms,
-            input_names="observation",
+            input_names={"input": "observation"},
             output_names="observation",
             expose_outputs=False,
         )

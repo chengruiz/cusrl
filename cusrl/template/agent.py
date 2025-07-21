@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from contextlib import contextmanager
 from typing import Any, Generic, TypeVar, overload
-from collections.abc import Mapping
 
 import numpy as np
 import torch
@@ -228,7 +228,7 @@ class Agent(ABC):
 
     @classmethod
     def warn(cls, info_str):
-        distributed.print_once(f"\033[1;31mAgent: {info_str}\033[0m")
+        distributed.print_once(f"\033[1;33mAgent: {info_str}\033[0m")
 
     @contextmanager
     def autocast(self):
