@@ -6,6 +6,17 @@ __all__ = ["OnPolicyPreparation"]
 
 
 class OnPolicyPreparation(Hook[ActorCritic]):
+    """Prepares data for on-policy reinforcement learning algorithms.
+
+    This hook processes a batch of data to compute current policy statistics,
+    including action mean, standard deviation, log probability, entropy, and
+    probability ratio. Optionally computes KL divergence if enabled.
+
+    Args:
+        calculate_kl_divergence (bool): If True, computes the KL divergence
+        between the old and current policy distributions.
+    """
+
     def __init__(self, calculate_kl_divergence: bool = False):
         self.calculate_kl_divergence = calculate_kl_divergence
 
