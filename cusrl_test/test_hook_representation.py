@@ -21,5 +21,5 @@ from cusrl_test import create_dummy_env
 )
 def test_representation_hook(agent_factory, hook):
     environment = create_dummy_env(with_state=True)
-    agent_factory.register_hook(hook, after="PPOSurrogateLoss")
+    agent_factory.register_hook(hook, after="PpoSurrogateLoss")
     cusrl.Trainer(environment, agent_factory, num_iterations=1).run_training_loop()

@@ -4,7 +4,7 @@ import torch
 
 from cusrl.template import Hook
 
-__all__ = ["PPOSurrogateLoss", "EntropyLoss"]
+__all__ = ["PpoSurrogateLoss", "EntropyLoss"]
 
 
 def _ppo_surrogate_loss(
@@ -18,7 +18,7 @@ def _ppo_surrogate_loss(
     ).mean()
 
 
-class PPOSurrogateLoss(Hook):
+class PpoSurrogateLoss(Hook):
     """Calculates the PPO surrogate loss.
 
     This hook implements the clipped surrogate objective function from the Proximal

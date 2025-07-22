@@ -6,7 +6,7 @@ from .initialization import ModuleInitialization
 from .lr_schedule import AdaptiveLRSchedule, MiniBatchWiseLRSchedule, ThresholdLRSchedule
 from .normalization import ObservationNormalization
 from .on_policy import OnPolicyPreparation
-from .ppo import EntropyLoss, PPOSurrogateLoss
+from .ppo import EntropyLoss, PpoSurrogateLoss
 from .representation import (
     NextStatePrediction,
     ReturnPrediction,
@@ -29,6 +29,7 @@ from .value import ValueComputation, ValueLoss
 
 # alias
 GAE = GeneralizedAdvantageEstimation
+PPOSurrogateLoss = PpoSurrogateLoss
 
 __all__ = [
     "ActionSmoothnessLoss",
@@ -50,6 +51,7 @@ __all__ = [
     "OnPolicyStatistics",
     "ParameterSchedule",
     "PPOSurrogateLoss",
+    "PpoSurrogateLoss",
     "RandomNetworkDistillation",
     "ReturnPrediction",
     "StatePrediction",
