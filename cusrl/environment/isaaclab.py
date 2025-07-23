@@ -1,6 +1,6 @@
 import argparse
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast
 
 import gymnasium as gym
 import torch
@@ -114,14 +114,12 @@ class IsaacLabEnvAdapter(Environment):
         observation_dict, reward, terminated, truncated, extras = self.wrapped.step(action)
         observation = observation_dict.pop("policy")
         state = observation_dict.pop("critic", None)
-        reward = reward.unsqueeze(-1)
-        terminated = terminated.unsqueeze(-1)
-        truncated = truncated.unsqueeze(-1)
-        self.metrics.record(
-            **extras.get("log", {}),
-            **extras.get("episode", {}),
-        )
-        return observation, state, reward, terminated, truncated, observation_dict
+        reward = cast(torch.Tensor, reward).unsqueeze(-1)
+        terminated = cast(torch.Tensor, terminated).unsqueeze(-1)
+        truncated = cast(torch.Tensor, truncated).unsqueeze(-1)
+        extras = cast(dict, extras)
+        self.metrics.record(**extras.pop("log", {}))
+        return observation, state, reward, terminated, truncated, observation_dict | extras
 
     def get_metrics(self):
         metrics = self.metrics.summary()
