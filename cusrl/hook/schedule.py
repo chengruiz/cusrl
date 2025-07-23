@@ -84,7 +84,7 @@ class OnPolicyBufferCapacitySchedule(Hook[ActorCritic]):
         self.agent.resize_buffer(capacity)
 
 
-class LessThan(Callable[[int], bool]):
+class LessThan:
     def __init__(self, threshold: int):
         self.threshold = threshold
 
@@ -92,7 +92,7 @@ class LessThan(Callable[[int], bool]):
         return value < self.threshold
 
 
-class NotLessThan(Callable[[int], bool]):
+class NotLessThan:
     def __init__(self, threshold: int):
         self.threshold = threshold
 

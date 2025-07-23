@@ -36,7 +36,7 @@ class OptimizerFactory:
         self,
         cls: str | type[Optimizer],
         defaults: dict[str, Any] | None = None,
-        **optim_groups: dict[str, dict[str, Any]],
+        **optim_groups: dict[str, Any],
     ):
         self.cls: type[Optimizer] = getattr(torch.optim, cls) if isinstance(cls, str) else cls
         self.defaults = defaults or {}
