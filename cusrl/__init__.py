@@ -26,8 +26,11 @@ from cusrl.module import (
 )
 from cusrl.sampler import (
     AutoMiniBatchSampler,
+    AutoRandomSampler,
     MiniBatchSampler,
+    RandomSampler,
     TemporalMiniBatchSampler,
+    TemporalRandomSampler,
 )
 from cusrl.template import (
     ActorCritic,
@@ -70,6 +73,7 @@ __all__ = [
     "AdaptiveNormalDist",
     "Agent",
     "AutoMiniBatchSampler",
+    "AutoRandomSampler",
     "Buffer",
     "CNN",
     "Cnn",
@@ -98,11 +102,13 @@ __all__ = [
     "OptimizerFactory",
     "Player",
     "RNN",
+    "RandomSampler",
     "Rnn",
     "Sampler",
     "Sequential",
     "Simba",
     "TemporalMiniBatchSampler",
+    "TemporalRandomSampler",
     "Trainer",
     "TransformerEncoderLayer",
     "Trial",

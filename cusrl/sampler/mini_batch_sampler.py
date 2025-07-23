@@ -7,7 +7,7 @@ import torch
 from cusrl.template import Buffer, Sampler
 from cusrl.utils.typing import NestedTensor
 
-__all__ = ["MiniBatchSampler"]
+__all__ = ["AutoMiniBatchSampler", "MiniBatchSampler", "TemporalMiniBatchSampler"]
 
 
 class MiniBatchSampler(Sampler):
@@ -25,6 +25,8 @@ class MiniBatchSampler(Sampler):
         self.shuffle = shuffle
 
     def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
+        if not buffer.full:
+            raise RuntimeError("MiniBatchSampler requires a full buffer to sample from.")
         num_samples = self._get_num_samples(buffer)
         epoch_indices = torch.randperm(num_samples, device=buffer.device)
         for epoch in range(self.num_epochs):
@@ -66,13 +68,9 @@ class AutoMiniBatchSampler(Sampler):
         self.num_epochs = num_epochs
         self.num_mini_batches = num_mini_batches
         self.shuffle = shuffle
-        self.is_temporal: bool | None = None
-        self._sampler: MiniBatchSampler | None = None
 
     def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
-        if self._sampler is None:
-            self.is_temporal = any(key.split(".")[0].endswith("memory") for key in buffer)
-            self._sampler = (TemporalMiniBatchSampler if self.is_temporal else MiniBatchSampler)(
-                num_epochs=self.num_epochs, num_mini_batches=self.num_mini_batches, shuffle=self.shuffle
-            )
-        return self._sampler(buffer)
+        is_temporal = any(key.split(".")[0].endswith("memory") for key in buffer)
+        sampler_cls = TemporalMiniBatchSampler if is_temporal else MiniBatchSampler
+        sampler = sampler_cls(self.num_epochs, self.num_mini_batches, self.shuffle)
+        return sampler(buffer)
