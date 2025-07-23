@@ -70,6 +70,8 @@ def gather_stack(tensor: torch.Tensor) -> torch.Tensor:
     if not CONFIG.distributed:
         return tensor.unsqueeze(0)
 
+    if torch.distributed.get_backend() == torch.distributed.Backend.GLOO:
+        return torch.stack(gather_tensor(tensor), dim=0)
     gathered = tensor.new_empty(CONFIG.world_size, *tensor.shape)
     torch.distributed.all_gather_into_tensor(gathered, tensor)
     return gathered
@@ -132,6 +134,9 @@ def reduce_mean_(tensor: torch.Tensor) -> torch.Tensor:
     """Reduces the tensor across all processes by averaging."""
     if not CONFIG.distributed:
         return tensor
+    if torch.distributed.get_backend() == torch.distributed.Backend.GLOO:
+        torch.distributed.all_reduce(tensor, op=torch.distributed.ReduceOp.SUM)
+        return tensor.div_(CONFIG.world_size)
     torch.distributed.all_reduce(tensor, op=torch.distributed.ReduceOp.AVG)
     return tensor
 
