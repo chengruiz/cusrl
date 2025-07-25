@@ -15,7 +15,7 @@ __all__ = ["RandomNetworkDistillation"]
 class RandomNetworkDistillation(Hook):
     """A hook to generate intrinsic rewards with Random Network Distillation (RND).
 
-    This method is described in "Exploration by Random Network Distillation",
+    Described in "Exploration by Random Network Distillation",
     https://arxiv.org/abs/1810.12894
 
     Args:

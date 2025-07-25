@@ -1,4 +1,5 @@
 from .advantage import AdvantageNormalization, AdvantageReduction
+from .amp import AdversarialMotionPrior
 from .condition import ConditionalObjectiveActivation
 from .gae import GeneralizedAdvantageEstimation
 from .gradient import GradientClipping
@@ -37,6 +38,7 @@ __all__ = [
     "AdaptiveLRSchedule",
     "AdvantageNormalization",
     "AdvantageReduction",
+    "AdversarialMotionPrior",
     "ConditionalObjectiveActivation",
     "EntropyLoss",
     "GAE",

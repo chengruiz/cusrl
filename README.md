@@ -71,15 +71,16 @@ concerns, allowing users to modify specific components without disrupting the re
 
 ## Implemented Algorithms
 
-- [Proximal Policy Optimization (PPO)](https://arxiv.org/abs/1707.06347) with recurrent policy support
+- [Adversarial Motion Prior (AMP)](https://dl.acm.org/doi/10.1145/3450626.3459670)
 - [Generalized Advantage Estimation (GAE)](https://arxiv.org/abs/1506.02438)
   with [distinct lambda values](https://proceedings.neurips.cc/paper_files/paper/2022/hash/e95475f5fb8edb9075bf9e25670d4013-Abstract-Conference.html)
 - [Preserving Outputs Precisely, while Adaptively Rescaling Targets (Pop-Art)](https://proceedings.neurips.cc/paper/2016/hash/5227b6aaf294f5f027273aebf16015f2-Abstract.html)
+- [Proximal Policy Optimization (PPO)](https://arxiv.org/abs/1707.06347) with recurrent policy support
 - [Random Network Distillation (RND)](https://arxiv.org/abs/1810.12894)
 - Symmetry Augmentations:
-  [Symmetry Loss](https://dl.acm.org/doi/abs/10.1145/3197517.3201397),
   [Symmetric Architecture](https://dl.acm.org/doi/abs/10.1145/3359566.3360070),
   [Symmetric Data Augmentation](https://ieeexplore.ieee.org/abstract/document/10611493)
+  [Symmetry Loss](https://dl.acm.org/doi/abs/10.1145/3197517.3201397),
 
 ## Cite
 
