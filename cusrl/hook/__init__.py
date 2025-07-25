@@ -12,6 +12,7 @@ from .representation import (
     ReturnPrediction,
     StatePrediction,
 )
+from .reward import RewardShaping
 from .rnd import RandomNetworkDistillation
 from .schedule import (
     HookActivationSchedule,
@@ -54,6 +55,7 @@ __all__ = [
     "PpoSurrogateLoss",
     "RandomNetworkDistillation",
     "ReturnPrediction",
+    "RewardShaping",
     "StatePrediction",
     "SymmetricArchitecture",
     "SymmetricDataAugmentation",
