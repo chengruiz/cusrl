@@ -94,9 +94,9 @@ def merge_mean_var_(
         raise ValueError(f"Weight sum must be positive, got {w_sum}.")
     w_old = w_old / w_sum
     w_new = w_new / w_sum
-    delta = old_mean - new_mean
-    old_mean.mul_(w_old).add_(new_mean * w_new)
-    old_var.mul_(w_old).add_(new_var * w_new + delta.square() * (w_old * w_new))
+    delta = new_mean - old_mean
+    old_mean.add_(delta * w_new)
+    old_var.add_((new_var - old_var) * w_new + delta.square() * (w_old * w_new))
 
 
 class RunningMeanStd(nn.Module):
