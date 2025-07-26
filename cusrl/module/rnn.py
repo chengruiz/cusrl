@@ -7,7 +7,7 @@ from cusrl.module.module import Module, ModuleFactory
 from cusrl.utils.recurrent import compute_sequence_lengths, split_and_pad_sequences, unpad_and_merge_sequences
 from cusrl.utils.typing import Memory
 
-__all__ = ["Rnn", "RnnBase"]
+__all__ = ["Gru", "Lstm", "Rnn", "RnnBase"]
 
 
 class RnnBase(nn.Module):
@@ -122,6 +122,30 @@ class Rnn(Module):
             input = input.unsqueeze(0)
         _, memory = self.rnn(input, memory)
         return memory
+
+
+class LstmFactory(RnnFactory):
+    def __init__(self, **kwargs):
+        super().__init__("LSTM", **kwargs)
+
+    def __call__(self, input_dim: int, output_dim: int | None = None):
+        return Lstm(self.module_cls(input_size=input_dim, **self.kwargs), output_dim)
+
+
+class Lstm(Rnn):
+    Factory = LstmFactory
+
+
+class GruFactory(RnnFactory):
+    def __init__(self, **kwargs):
+        super().__init__("GRU", **kwargs)
+
+    def __call__(self, input_dim: int, output_dim: int | None = None):
+        return Gru(self.module_cls(input_size=input_dim, **self.kwargs), output_dim)
+
+
+class Gru(Rnn):
+    Factory = GruFactory
 
 
 @torch.jit.script

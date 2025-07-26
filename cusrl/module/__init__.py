@@ -7,7 +7,7 @@ from .inference import InferenceModule
 from .mlp import Mlp
 from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
 from .normalization import Denormalization, Normalization
-from .rnn import Rnn
+from .rnn import Gru, Lstm, Rnn
 from .sequential import Sequential
 from .simba import Simba
 
@@ -16,8 +16,10 @@ __all__ = [
     "Cnn",
     "Denormalization",
     "FeedForward",
+    "Gru",
     "InferenceModule",
     "LayerFactoryLike",
+    "Lstm",
     "Module",
     "ModuleFactory",
     "ModuleFactoryLike",
