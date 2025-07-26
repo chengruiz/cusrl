@@ -89,3 +89,12 @@ If you find this framework useful for your research, please consider citing our 
 - [Efficient Learning of A Unified Policy For Whole-body Manipulation and Locomotion Skills](https://www.arxiv.org/abs/2507.04229), Accepted by IROS 2025
 - [Learning Accurate and Robust Velocity Tracking for Quadrupedal Robots](https://www.authorea.com/doi/full/10.22541/au.173321917.73583610), Accepted by JFR
 - [Learning Safe Locomotion for Quadrupedal Robots by Derived-Action Optimization](https://ieeexplore.ieee.org/abstract/document/10802725), Published in IROS 2024
+
+## Acknowledgement
+
+CusRL is based on or inspired by these projects:
+
+- [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3): Reliable implementations of reinforcement learning algorithms
+- [RSL RL](https://github.com/leggedrobotics/rsl_rl): Fast and simple implementation of RL algorithms
+- [IsaacLab](https://github.com/isaac-sim/IsaacLab): GPU-accelerated simulation environments for robot research
+- [robot_lab](https://github.com/fan-ziqi/robot_lab): RL extension library for robots, based on IsaacLab

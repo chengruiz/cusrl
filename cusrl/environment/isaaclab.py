@@ -1,4 +1,5 @@
 import argparse
+import importlib
 from collections.abc import Sequence
 from typing import Any, cast
 
@@ -13,7 +14,13 @@ __all__ = ["IsaacLabEnvAdapter", "make_isaaclab_env"]
 
 
 class IsaacLabEnvAdapter(Environment):
-    def __init__(self, id: str, argv: Sequence[str] | None = None, **kwargs):
+    def __init__(
+        self,
+        id: str,
+        argv: Sequence[str] | None = None,
+        extensions: Sequence[str] = (),
+        **kwargs,
+    ):
         from isaaclab.app import AppLauncher
 
         parser = argparse.ArgumentParser(prog="--environment-args", description="IsaacLab environment")
@@ -26,6 +33,9 @@ class IsaacLabEnvAdapter(Environment):
 
         from isaaclab.envs import DirectMARLEnv, DirectRLEnv, ManagerBasedRLEnv, multi_agent_to_single_agent
         from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry
+
+        for extension in extensions:
+            importlib.import_module(extension)
 
         env_cfg = load_cfg_from_registry(id, "env_cfg_entry_point")
         env_cfg.sim.device = args.device
