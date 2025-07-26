@@ -127,5 +127,14 @@ class IsaacLabEnvAdapter(Environment):
         return metrics
 
 
-def make_isaaclab_env(id: str, argv: Sequence[str] | None = None, **kwargs: Any) -> Environment:
+def make_isaaclab_env(
+    id: str,
+    argv: Sequence[str] | None = None,
+    play: bool = False,
+    **kwargs: Any,
+) -> Environment:
+    if play:
+        ids = id.split("-")
+        ids.insert(-1, "Play")
+        id = "-".join(ids)
     return IsaacLabEnvAdapter(id, argv, **kwargs)

@@ -1,5 +1,5 @@
 import importlib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 from cusrl.template import Agent, Environment, Trainer
@@ -16,7 +16,7 @@ experiment_modules = [
 
 
 def register_experiment(
-    environment_name: str,
+    environment_name: str | Sequence[str],
     algorithm_name: str,
     agent_factory_cls: type[Agent.Factory],
     agent_factory_kwargs: dict[str, Any],
@@ -30,25 +30,27 @@ def register_experiment(
     save_interval: int = 50,
     callbacks: Iterable[Callable[["Trainer"], None]] = (),
 ):
-    spec = ExperimentSpec(
-        environment_name=environment_name,
-        algorithm_name=algorithm_name,
-        agent_factory_cls=agent_factory_cls,
-        agent_factory_kwargs=agent_factory_kwargs,
-        training_env_factory=training_env_factory,
-        training_env_args=training_env_args,
-        training_env_kwargs=training_env_kwargs or {},
-        playing_env_factory=playing_env_factory,
-        playing_env_args=playing_env_args,
-        playing_env_kwargs=playing_env_kwargs,
-        num_iterations=num_iterations,
-        save_interval=save_interval,
-        callbacks=callbacks,
-    )
-    if spec.name in registry:
-        raise ValueError(f"Experiment '{spec.name}' is already registered.")
-
-    registry[spec.name] = spec
+    if isinstance(environment_name, str):
+        environment_name = [environment_name]
+    for env_name in environment_name:
+        spec = ExperimentSpec(
+            environment_name=env_name,
+            algorithm_name=algorithm_name,
+            agent_factory_cls=agent_factory_cls,
+            agent_factory_kwargs=agent_factory_kwargs,
+            training_env_factory=training_env_factory,
+            training_env_args=training_env_args,
+            training_env_kwargs=training_env_kwargs or {},
+            playing_env_factory=playing_env_factory,
+            playing_env_args=playing_env_args,
+            playing_env_kwargs=playing_env_kwargs,
+            num_iterations=num_iterations,
+            save_interval=save_interval,
+            callbacks=callbacks,
+        )
+        if spec.name in registry:
+            raise ValueError(f"Experiment '{spec.name}' is already registered.")
+        registry[spec.name] = spec
 
 
 def add_experiment_modules(*lib: str):
