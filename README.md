@@ -79,8 +79,8 @@ concerns, allowing users to modify specific components without disrupting the re
 - [Random Network Distillation (RND)](https://arxiv.org/abs/1810.12894)
 - Symmetry Augmentations:
   [Symmetric Architecture](https://dl.acm.org/doi/abs/10.1145/3359566.3360070),
-  [Symmetric Data Augmentation](https://ieeexplore.ieee.org/abstract/document/10611493)
-  [Symmetry Loss](https://dl.acm.org/doi/abs/10.1145/3197517.3201397),
+  [Symmetric Data Augmentation](https://ieeexplore.ieee.org/abstract/document/10611493),
+  [Symmetry Loss](https://dl.acm.org/doi/abs/10.1145/3197517.3201397)
 
 ## Cite
 
