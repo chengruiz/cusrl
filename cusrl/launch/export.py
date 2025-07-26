@@ -3,8 +3,10 @@ import os
 
 from cusrl.utils import cli as cli_utils
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Export a trained agent for inference.")
+__all__ = ["configure_parser", "main"]
+
+
+def configure_parser(parser):
     # fmt: off
     parser.add_argument("-env", "--environment", type=str, metavar="NAME",
                         help="Name of the environment used during training")
@@ -27,8 +29,9 @@ if __name__ == "__main__":
     parser.add_argument("script", nargs=argparse.REMAINDER, metavar="SCRIPT [ARG ...]",
                         help="Script to run, with its arguments")
     # fmt: on
-    args = parser.parse_args()
 
+
+def main(args):
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)
     experiment = cli_utils.load_experiment_spec_from_args(args, trial)
@@ -44,3 +47,10 @@ if __name__ == "__main__":
         dynamo=args.dynamo,
         verbose=not args.silent,
     )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Export an agent for deployment")
+    configure_parser(parser)
+    args = parser.parse_args()
+    main(args)

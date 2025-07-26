@@ -5,7 +5,13 @@ from typing import Any
 from cusrl.template import Agent, Environment, Trainer
 from cusrl.zoo.experiment import ExperimentSpec
 
-__all__ = ["ExperimentSpec", "register_experiment", "get_experiment", "add_experiment_modules"]
+__all__ = [
+    "ExperimentSpec",
+    "add_experiment_modules",
+    "get_experiment",
+    "register_experiment",
+    "registry",
+]
 
 
 registry: dict[str, ExperimentSpec] = {}
@@ -58,13 +64,18 @@ def add_experiment_modules(*lib: str):
     experiment_modules.extend(lib)
 
 
-def get_experiment(environment_name: str, algorithm_name: str) -> ExperimentSpec:
+def load_experiment_modules():
+    """Load all registered experiment modules."""
     for module in experiment_modules:
         try:
             importlib.import_module(module)
         except ImportError as error:
             raise ImportError(f"Failed to import experiment module '{module}'.") from error
     experiment_modules.clear()
+
+
+def get_experiment(environment_name: str, algorithm_name: str) -> ExperimentSpec:
+    load_experiment_modules()
 
     key = f"{environment_name}:{algorithm_name}"
     if key not in registry:

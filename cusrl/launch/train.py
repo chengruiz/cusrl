@@ -3,8 +3,10 @@ import argparse
 import cusrl
 from cusrl.utils import cli as cli_utils
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train an agent in an environment using a specified algorithm.")
+__all__ = ["configure_parser", "main"]
+
+
+def configure_parser(parser):
     # fmt: off
     parser.add_argument("-env", "--environment", type=str, required=True, metavar="NAME",
                         help="Name of the environment for training")
@@ -41,8 +43,9 @@ if __name__ == "__main__":
     parser.add_argument("script", nargs=argparse.REMAINDER, metavar="SCRIPT [ARG ...]",
                         help="Script to run, with its arguments")
     # fmt: on
-    args = parser.parse_args()
 
+
+def main(args):
     cusrl.set_global_seed(args.seed)
     cli_utils.import_module_from_args(args)
     experiment = cusrl.zoo.get_experiment(args.environment, args.algorithm)
@@ -60,3 +63,10 @@ if __name__ == "__main__":
         save_interval=args.save_interval,
         checkpoint_path=args.checkpoint,
     ).run_training_loop()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train an agent with a registered experiment")
+    configure_parser(parser)
+    args = parser.parse_args()
+    main(args)

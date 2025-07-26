@@ -1,8 +1,9 @@
 # CusRL: Customizable Reinforcement Learning
 
-CusRL is a flexible and modular reinforcement learning framework that emphasizes customization.
-Its clean and decoupled implementation allows researchers to easily integrate new components,
-which is particularly useful for advancements in robotics learning.
+CusRL is a flexible and modular reinforcement-learning framework designed for customization.
+By breaking down complex algorithms into minimal components, it allows users to easily modify
+or integrate components instead of rebuilding the entire algorithm from scratch, making it
+particularly well-suited for advancing robotics learning.
 
 > **Note:** This project is under **active development**, which means the interface is unstable
 and breaking changes are likely to occur frequently.
@@ -61,13 +62,9 @@ torchrun --nproc-per-node=2 -m cusrl.launch.train -env Isaac-Velocity-Rough-Anym
 
 CusRL provides a modular and extensible framework for RL with the following key features:
 
-- **Modular Design**: Components are highly decoupled, allowing for easy customization and extension
+- **Modular Design**: Components are highly decoupled, allowing for free combination and customization
 - **Diverse Network Architectures**: Support for MLP, CNN, RNNs, Transformer and custom architectures
 - **Modern Training Techniques**: Built-in support for distributed and mixed-precision training
-
-CusRL is designed for researchers and practitioners who need a clean, extensible framework for implementing
-and experimenting with reinforcement learning algorithms. The architecture emphasizes clean separation of
-concerns, allowing users to modify specific components without disrupting the rest of the system.
 
 ## Implemented Algorithms
 

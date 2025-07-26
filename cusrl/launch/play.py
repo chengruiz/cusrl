@@ -3,8 +3,10 @@ import argparse
 import cusrl
 from cusrl.utils import cli as cli_utils
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run an agent in an environment.")
+__all__ = ["configure_parser", "main"]
+
+
+def configure_parser(parser):
     # fmt: off
     parser.add_argument("-env", "--environment", type=str, metavar="NAME",
                         help="Name of the environment for playing")
@@ -29,8 +31,9 @@ if __name__ == "__main__":
     parser.add_argument("script", nargs=argparse.REMAINDER, metavar="SCRIPT [ARG ...]",
                         help="Script to run, with its arguments")
     # fmt: on
-    args = parser.parse_args()
 
+
+def main(args):
     cusrl.set_global_seed(args.seed)
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)
@@ -43,3 +46,10 @@ if __name__ == "__main__":
         deterministic=not args.stochastic,
         verbose=True,
     ).run_playing_loop()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Evaluate an agent with a registered experiment")
+    configure_parser(parser)
+    args = parser.parse_args()
+    main(args)
