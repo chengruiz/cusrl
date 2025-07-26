@@ -6,8 +6,13 @@ __all__ = []
 
 register_experiment(
     environment_name=[
+        "Isaac-Velocity-Flat-Anymal-B-v0",
         "Isaac-Velocity-Flat-Anymal-C-v0",
+        "Isaac-Velocity-Flat-Anymal-D-v0",
+        "Isaac-Velocity-Flat-Unitree-A1-v0",
+        "Isaac-Velocity-Flat-Unitree-Go1-v0",
         "Isaac-Velocity-Flat-Unitree-Go2-v0",
+        "Isaac-Velocity-Flat-Spot-v0",
     ],
     algorithm_name="ppo",
     agent_factory_cls=ppo.AgentFactory,
@@ -31,7 +36,11 @@ register_experiment(
 
 register_experiment(
     environment_name=[
+        "Isaac-Velocity-Rough-Anymal-B-v0",
         "Isaac-Velocity-Rough-Anymal-C-v0",
+        "Isaac-Velocity-Rough-Anymal-D-v0",
+        "Isaac-Velocity-Rough-Unitree-A1-v0",
+        "Isaac-Velocity-Rough-Unitree-Go1-v0",
         "Isaac-Velocity-Rough-Unitree-Go2-v0",
     ],
     algorithm_name="ppo",
