@@ -96,6 +96,7 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         if self.recompute:
             self._compute_advantage_and_return(batch)
 
+    @torch.no_grad()
     def post_update(self):
         if self.value_rms is not None:
             old_value_rms: ExponentialMovingNormalizer = self.agent.critic.value_rms
@@ -103,9 +104,8 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             # Adjust value head weights and biases
             new_mean, new_std = self.value_rms.mean, self.value_rms.std
             value_head = self.agent.critic.value_head
-            with torch.no_grad():
-                value_head.weight.data.mul_(old_std / new_std)
-                value_head.bias.data.mul_(old_std).add_(old_mean).sub_(new_mean).div_(new_std)
+            value_head.weight.data.mul_(old_std / new_std)
+            value_head.bias.data.mul_(old_std).add_(old_mean).sub_(new_mean).div_(new_std)
             old_value_rms.load_state_dict(self.value_rms.state_dict())
 
     @torch.no_grad()

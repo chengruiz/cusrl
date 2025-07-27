@@ -21,7 +21,7 @@ register_experiment(
         "Isaac-Humanoid-AMP-Run-Direct-v0",
         "Isaac-Humanoid-AMP-Walk-Direct-v0",
     ],
-    algorithm_name="ppo",
+    algorithm_name="amp",
     agent_factory_cls=AgentFactory,
     agent_factory_kwargs=dict(
         num_steps_per_update=16,

@@ -23,7 +23,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate an agent with a registered experiment")
+    parser = argparse.ArgumentParser(description="List available experiments")
     configure_parser(parser)
     args = parser.parse_args()
     main(args)
