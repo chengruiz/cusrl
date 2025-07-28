@@ -283,11 +283,11 @@ class ActorCritic(Agent):
             expose_outputs=True,
         )
         self.hook.post_export(graph)
-        if self.environment_spec.observation_stats is not None:
+        if self.environment_spec.observation_denormalization is not None:
             graph.add_module_to_graph(
                 Normalization(
-                    self.to_tensor(self.environment_spec.observation_stats[0]),
-                    self.to_tensor(self.environment_spec.observation_stats[1]),
+                    self.to_tensor(self.environment_spec.observation_denormalization[1]),
+                    self.to_tensor(self.environment_spec.observation_denormalization[0]),
                 ),
                 module_name="observation_normalization",
                 input_names={"input": "observation"},
@@ -295,11 +295,11 @@ class ActorCritic(Agent):
                 expose_outputs=False,
                 prepend=True,
             )
-        if self.environment_spec.action_stats is not None:
+        if self.environment_spec.action_normalization is not None:
             graph.add_module_to_graph(
                 Denormalization(
-                    self.to_tensor(self.environment_spec.action_stats[0]),
-                    self.to_tensor(self.environment_spec.action_stats[1]),
+                    self.to_tensor(self.environment_spec.action_normalization[1]),
+                    self.to_tensor(self.environment_spec.action_normalization[0]),
                 ),
                 module_name="action_denormalization",
                 input_names={"input": "action"},

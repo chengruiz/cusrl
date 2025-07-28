@@ -24,13 +24,13 @@ def test_export_recurrent_agent():
 @pytest.mark.parametrize("rnn_type", ["LSTM", "GRU"])
 def test_export_agent_with_hooks(rnn_type):
     environment = create_dummy_env(with_state=True)
-    environment.spec.observation_stats = (
+    environment.spec.observation_denormalization = (
+        torch.randn(environment.observation_dim).abs(),
         torch.randn(environment.observation_dim),
-        torch.randn(environment.observation_dim) ** 2,
     )
-    environment.spec.action_stats = (
+    environment.spec.action_normalization = (
+        torch.randn(environment.action_dim).abs(),
         torch.randn(environment.action_dim),
-        torch.randn(environment.action_dim) ** 2,
     )
     agent_factory = cusrl.preset.ppo.RecurrentAgentFactory(rnn_type=rnn_type)
     agent_factory.register_hook(cusrl.hook.ReturnPrediction(), index=0)
