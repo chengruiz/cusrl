@@ -35,13 +35,15 @@ class RnnFactory(ModuleFactory["Rnn"]):
         self.kwargs = kwargs
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Rnn(self.module_cls(input_size=input_dim, **self.kwargs), output_dim)
+        return Rnn(self.module_cls, input_size=input_dim, output_dim=output_dim, **self.kwargs)
 
 
 class Rnn(Module):
     Factory = RnnFactory
 
-    def __init__(self, rnn: RnnLike, output_dim: int | None = None):
+    def __init__(self, rnn: type[RnnLike] | RnnLike, output_dim: int | None = None, **kwargs):
+        if isinstance(rnn, type):
+            rnn = rnn(**kwargs)
         super().__init__(rnn.input_size, output_dim or rnn.hidden_size, is_recurrent=True)
         self.rnn = rnn
         self.output_proj = nn.Linear(rnn.hidden_size, output_dim) if output_dim else nn.Identity()
@@ -125,27 +127,33 @@ class Rnn(Module):
 
 
 class LstmFactory(RnnFactory):
-    def __init__(self, **kwargs):
-        super().__init__("LSTM", **kwargs)
+    def __init__(self, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, **kwargs):
+        super().__init__("LSTM", hidden_size=hidden_size, num_layers=num_layers, bias=bias, dropout=dropout, **kwargs)
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Lstm(self.module_cls(input_size=input_dim, **self.kwargs), output_dim)
+        return Lstm(self.module_cls, input_size=input_dim, **self.kwargs, output_dim=output_dim)
 
 
 class Lstm(Rnn):
     Factory = LstmFactory
 
+    def __init__(self, rnn: type[RnnLike] | RnnLike = nn.LSTM, output_dim: int | None = None, **kwargs):
+        super().__init__(rnn, output_dim=output_dim, **kwargs)
+
 
 class GruFactory(RnnFactory):
-    def __init__(self, **kwargs):
-        super().__init__("GRU", **kwargs)
+    def __init__(self, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, **kwargs):
+        super().__init__("GRU", hidden_size=hidden_size, num_layers=num_layers, bias=bias, dropout=dropout, **kwargs)
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Gru(self.module_cls(input_size=input_dim, **self.kwargs), output_dim)
+        return Gru(self.module_cls, input_size=input_dim, **self.kwargs, output_dim=output_dim)
 
 
 class Gru(Rnn):
     Factory = GruFactory
+
+    def __init__(self, rnn: type[RnnLike] | RnnLike = nn.GRU, output_dim: int | None = None, **kwargs):
+        super().__init__(rnn, output_dim=output_dim, **kwargs)
 
 
 @torch.jit.script
