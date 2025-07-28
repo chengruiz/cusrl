@@ -1,15 +1,15 @@
 import argparse
 
-from cusrl.launch import export, list_experiments, play, train
+from cusrl.cli import export, list_experiments, play, train
 
 
 def main():
     parser = argparse.ArgumentParser(prog="python -m cusrl")
     subparsers = parser.add_subparsers()
 
-    parser_list_experiments = subparsers.add_parser("list-experiments", help="List available experiments")
-    list_experiments.configure_parser(parser_list_experiments)
-    parser_list_experiments.set_defaults(func=list_experiments.main)
+    parser_list_exp = subparsers.add_parser("list-experiments", help="List available experiments")
+    list_experiments.configure_parser(parser_list_exp)
+    parser_list_exp.set_defaults(func=list_experiments.main)
 
     parser_train = subparsers.add_parser("train", help="Train an agent with a registered experiment")
     train.configure_parser(parser_train)

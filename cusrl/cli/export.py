@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from cusrl.utils import cli as cli_utils
+from cusrl.cli import utils as cli_utils
 
 __all__ = ["configure_parser", "main"]
 
@@ -52,5 +52,4 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Export an agent for deployment")
     configure_parser(parser)
-    args = parser.parse_args()
-    main(args)
+    main(parser.parse_args())

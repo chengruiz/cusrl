@@ -1,6 +1,6 @@
 import argparse
 
-from cusrl.utils import cli as cli_utils
+from cusrl.cli import utils as cli_utils
 from cusrl.zoo import load_experiment_modules, registry
 
 __all__ = ["configure_parser", "main"]
@@ -25,5 +25,4 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="List available experiments")
     configure_parser(parser)
-    args = parser.parse_args()
-    main(args)
+    main(parser.parse_args())

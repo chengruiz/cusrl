@@ -36,25 +36,31 @@ pre-commit install
 
 ## Quick Start
 
-Try to train a PPO agent with CusRL and evaluate it:
+List all available experiments:
 
 ```bash
-python -m cusrl.launch.train -env MountainCar-v0 -alg ppo --logger tensorboard --seed 42
-python -m cusrl.launch.play --checkpoint logs/MountainCar-v0:ppo
+python -m cusrl list-experiments
+```
+
+Train a PPO agent and evaluate it:
+
+```bash
+python -m cusrl train -env MountainCar-v0 -alg ppo --logger tensorboard --seed 42
+python -m cusrl play --checkpoint logs/MountainCar-v0:ppo
 ```
 
 Or if you have [IssacLab](https://github.com/isaac-sim/IsaacLab) installed:
 
 ```bash
-python -m cusrl.launch.train -env Isaac-Velocity-Rough-Anymal-C-v0 -alg ppo \
+python -m cusrl train -env Isaac-Velocity-Rough-Anymal-C-v0 -alg ppo \
     --logger tensorboard --environment-args="--headless"
-python -m cusrl.launch.play --checkpoint logs/Isaac-Velocity-Rough-Anymal-C-v0:ppo
+python -m cusrl play --checkpoint logs/Isaac-Velocity-Rough-Anymal-C-v0:ppo
 ```
 
 Try distributed training:
 
 ```bash
-torchrun --nproc-per-node=2 -m cusrl.launch.train -env Isaac-Velocity-Rough-Anymal-C-v0 \
+torchrun --nproc-per-node=2 -m cusrl train -env Isaac-Velocity-Rough-Anymal-C-v0 \
     -alg ppo --logger tensorboard --environment-args="--headless"
 ```
 
