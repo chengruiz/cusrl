@@ -1,5 +1,6 @@
 import os
 import pickle
+import subprocess
 import sys
 from collections.abc import Callable, Iterable
 
@@ -91,8 +92,10 @@ def save_version_info(output_dir: str, workspace: str | None = None):
         f.write(str(repo_dir))
     with open(f"{output_dir}/git_log.txt", "w") as f:
         f.write(repo.git.log("-3"))
-    with open(f"{output_dir}/git_diff.patch", "w") as f:
-        f.write(repo.git.diff("HEAD"))
+    # Unexpectedly error may occur with gitpython
+    # with open(f"{output_dir}/git_diff.patch", "w") as f:
+    #     f.write(repo.git.diff("HEAD"))
+    subprocess.run(f"git diff HEAD > {output_dir}/git_diff.patch", shell=True, cwd=repo_dir)
     with open(f"{output_dir}/git_status.txt", "w") as f:
         f.write(repo.git.status())
     with open(f"{output_dir}/version.txt", "w") as f:
