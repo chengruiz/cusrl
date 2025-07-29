@@ -89,9 +89,9 @@ CusRL provides a modular and extensible framework for RL with the following key 
 
 If you find this framework useful for your research, please consider citing our work on legged locomotion:
 
-- [Efficient Learning of A Unified Policy For Whole-body Manipulation and Locomotion Skills](https://www.arxiv.org/abs/2507.04229), Accepted by IROS 2025
-- [Learning Accurate and Robust Velocity Tracking for Quadrupedal Robots](https://www.authorea.com/doi/full/10.22541/au.173321917.73583610), Accepted by JFR
-- [Learning Safe Locomotion for Quadrupedal Robots by Derived-Action Optimization](https://ieeexplore.ieee.org/abstract/document/10802725), Published in IROS 2024
+- [Efficient Learning of A Unified Policy For Whole-body Manipulation and Locomotion Skills](https://www.arxiv.org/abs/2507.04229), IROS 2025
+- [Learning Accurate and Robust Velocity Tracking for Quadrupedal Robots](https://onlinelibrary.wiley.com/doi/10.1002/rob.70028), JFR 2025
+- [Learning Safe Locomotion for Quadrupedal Robots by Derived-Action Optimization](https://ieeexplore.ieee.org/abstract/document/10802725), IROS 2024
 
 ## Acknowledgement
 
