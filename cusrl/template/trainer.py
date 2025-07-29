@@ -133,13 +133,13 @@ class Trainer:
         verbose (bool):
             Whether to print progress and checkpoint messages (only on the main process).
         callbacks (Iterable[Callable[['Trainer'], None]]):
-            Sequence of functions to call after each iteration.
+            Sequence of functions to be executed at initialization and after each iteration.
 
     Methods:
         dump_obj(obj, filename):
             Serialize an arbitrary object into the logger's info directory.
         register_callback(callback):
-            Add a new callback to be executed at the end of each iteration.
+            Add a new callback to be executed at initialization and after each iteration.
         run_training_loop():
             Execute the training loop until reaching num_iterations.
     """
@@ -168,6 +168,8 @@ class Trainer:
         self.num_iterations = num_iterations
         self.save_interval = save_interval
         self.callbacks: list[Callable[[Trainer], None]] = list(callbacks)
+        for callback in self.callbacks:
+            callback(self)
 
         self.stats = EnvironmentStats(self.environment.num_instances, self.environment.spec.reward_dim)
         self.timer = Timer()
@@ -190,6 +192,7 @@ class Trainer:
 
     def register_callback(self, callback: Callable[["Trainer"], None]):
         self.callbacks.append(callback)
+        callback(self)
 
     def run_training_loop(self):
         self._save_checkpoint()
