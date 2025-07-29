@@ -69,6 +69,29 @@ LayerFactoryLike: TypeAlias = Callable[[int, int], nn.Module] | ModuleFactoryLik
 
 
 class Module(nn.Module):
+    """A base class for all `cusrl` modules, extending `torch.nn.Module`.
+
+    This class provides a standardized interface and additional functionalities
+    for all neural network modules within the framework. It includes features
+    for handling recurrent states, managing device placement, supporting
+    distributed training, and intermediate representation storage.
+
+    Args:
+        input_dim (int | None, optional):
+            The dimensionality of the input. Required if `like` is not provided.
+            Defaults to None.
+        output_dim (int | None, optional):
+            The dimensionality of the output. Required if `like` is not provided.
+            Defaults to None.
+        is_recurrent (bool, optional):
+            Whether the module is recurrent. Dsefaults to False.
+        like (Optional["Module"], optional):
+            Another module instance from which to copy `input_dim`, `output_dim`,
+            and `is_recurrent` attributes. Defaults to None.
+        intermediate_repr (dict[str, Any] | None, optional):
+            An initial dictionary for intermediate representations. Defaults to None.
+    """
+
     Factory = ModuleFactory
 
     input_dim: int

@@ -39,6 +39,25 @@ class RnnFactory(ModuleFactory["Rnn"]):
 
 
 class Rnn(Module):
+    """A generic wrapper for recurrent neural networks (RNNs).
+
+    This module provides a unified interface for various RNN-like layers (e.g.,
+    `nn.RNN`, `nn.LSTM`, `nn.GRU`), handling different input scenarios such as
+    single tensors, sequences with termination signals, and packed sequences.
+
+    It automatically handles memory (hidden state) management, including
+    resetting states for new episodes within a batch.
+
+    Args:
+        rnn (type[RnnLike] | RnnLike):
+            The RNN class (e.g., `nn.LSTM`) or an instantiated RNN module.
+        output_dim (int | None, optional):
+            The dimension of the output. If not None, an linear layer is added to
+            project the RNN's output to this dimension. Defaults to None.
+        **kwargs:
+            Additional keyword arguments passed to the RNN constructor if `rnn` is a class.
+    """
+
     Factory = RnnFactory
 
     def __init__(self, rnn: type[RnnLike] | RnnLike, output_dim: int | None = None, **kwargs):
