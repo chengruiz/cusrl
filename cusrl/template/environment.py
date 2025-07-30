@@ -48,21 +48,21 @@ class EnvironmentSpec:
             Definition for state symmetry transformations.
 
         # Predefined statistics
-        action_normalization (tuple[Array, Array] | None):
-            Tuple of arrays (scale, shift) of the action within the environment.
-            If provided, these statistics are applied as a normalization layer as
-            `action = original_action * scale + shift`
-            appended to the actor upon export.
-        observation_denormalization: (tuple[Array, Array] | None):
-            Tuple of arrays (scale, shift) of the observation within the environment.
-            If provided, these statistics are applied as a denormalization layer as
-            `observation = (original_observation - shift) / scale`
+        action_denormalization (tuple[Array, Array] | None):
+            Tuple of arrays (scale, shift) used for denormalizing the action within
+            the environment. If provided, these statistics are applied as an element-
+            wise affine layer as `action = original_action * scale + shift` appended
+            to the actor upon export.
+        observation_normalization: (tuple[Array, Array] | None):
+            Tuple of arrays (scale, shift) used for normalizing observation within
+            the environment. If provided, these statistics are applied as an element-
+            wise affine layer as `observation = (original_observation - shift) / scale`
             prepended to the actor upon export.
-        state_denormalization (tuple[Array, Array] | None):
-            Tuple of arrays (scale, shift) of the state within the environment.
-            If provided, these statistics are applied as a denormalization layer as
-            `state = (original_state - shift) / scale`
-            prepended to the critic upon export. (not implemented yet)
+        state_normalization (tuple[Array, Array] | None):
+            Tuple of arrays (scale, shift) used for normalizing state within the
+            environment. If provided, these statistics are applied as an element-wise
+            affine layer as `state = (original_state - shift) / scale` prepended to
+            the critic upon export. (not implemented yet)
 
         # State/observation relationships
         observation_is_subset_of_state (Array | Slice | None):
@@ -83,7 +83,7 @@ class EnvironmentSpec:
     def __init__(
         self,
         *,
-        action_normalization: tuple[Array, Array] | None = None,
+        action_denormalization: tuple[Array, Array] | None = None,
         autoreset: bool = False,
         final_state_is_missing: bool = False,
         mirror_action: Optional["SymmetryDef"] = None,
@@ -91,14 +91,14 @@ class EnvironmentSpec:
         mirror_state: Optional["SymmetryDef"] = None,
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Sequence[tuple[int, int]] = (),
-        observation_denormalization: tuple[Array, Array] | None = None,
+        observation_normalization: tuple[Array, Array] | None = None,
         reward_dim: int = 1,
         state_stat_groups: Sequence[tuple[int, int]] = (),
-        state_denormalization: tuple[Array, Array] | None = None,
+        state_normalization: tuple[Array, Array] | None = None,
         timestep: float | None = None,
         **kwargs,
     ):
-        self.action_normalization = action_normalization
+        self.action_denormalization = action_denormalization
         self.autoreset = autoreset
         self.final_state_is_missing = final_state_is_missing
         self.mirror_action = mirror_action
@@ -106,18 +106,24 @@ class EnvironmentSpec:
         self.mirror_state = mirror_state
         self.observation_is_subset_of_state = observation_is_subset_of_state
         self.observation_stat_groups = tuple(observation_stat_groups)
-        self.observation_denormalization = observation_denormalization
+        self.observation_normalization = observation_normalization
         self.reward_dim = reward_dim
         self.state_stat_groups = tuple(state_stat_groups)
-        self.state_denormalization = state_denormalization
+        self.state_normalization = state_normalization
         self.timestep = timestep
 
         if "action_stats" in kwargs:
-            raise ValueError("'action_stats' is removed. Use 'action_normalization' instead.")
+            raise ValueError("'action_stats' is removed. Use 'action_denormalization' instead.")
+        if "action_normalization" in kwargs:
+            raise ValueError("'action_stats' is removed. Use 'action_denormalization' instead.")
         if "observation_stats" in kwargs:
-            raise ValueError("'observation_stats' is removed. Use 'observation_denormalization' instead.")
+            raise ValueError("'observation_stats' is removed. Use 'observation_normalization' instead.")
+        if "observation_denormalization" in kwargs:
+            raise ValueError("'observation_denormalization' is removed. Use 'observation_normalization' instead.")
         if "state_stats" in kwargs:
-            raise ValueError("'state_stats' is removed. Use 'state_denormalization' instead.")
+            raise ValueError("'state_stats' is removed. Use 'state_normalization' instead.")
+        if "state_denormalization" in kwargs:
+            raise ValueError("'state_denormalization' is removed. Use 'state_normalization' instead.")
         self.extras = kwargs
 
     def __getattr__(self, key: str):

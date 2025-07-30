@@ -24,11 +24,11 @@ def test_export_recurrent_agent():
 @pytest.mark.parametrize("rnn_type", ["LSTM", "GRU"])
 def test_export_agent_with_hooks(rnn_type):
     environment = create_dummy_env(with_state=True)
-    environment.spec.observation_denormalization = (
+    environment.spec.observation_normalization = (
         torch.randn(environment.observation_dim).abs(),
         torch.randn(environment.observation_dim),
     )
-    environment.spec.action_normalization = (
+    environment.spec.action_denormalization = (
         torch.randn(environment.action_dim).abs(),
         torch.randn(environment.action_dim),
     )
