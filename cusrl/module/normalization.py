@@ -25,6 +25,19 @@ class NormalizationFactory(ModuleFactory["Normalization"]):
 
 
 class Normalization(Module):
+    """Normalizes input tensors using a given mean and standard deviation.
+
+    This module performs element-wise normalization on an input tensor using the
+    formula: `output = (input - mean) / std`. The `mean` and `std` tensors are
+    provided during initialization and are stored as non-trainable parameters.
+
+    Args:
+        mean (torch.Tensor):
+            The mean tensor to be subtracted from the input.
+        std (torch.Tensor):
+            The standard deviation tensor to divide the input by.
+    """
+
     Factory = NormalizationFactory
 
     def __init__(self, mean: torch.Tensor, std: torch.Tensor):
@@ -51,6 +64,20 @@ class DenormalizationFactory(ModuleFactory["Denormalization"]):
 
 
 class Denormalization(Normalization):
+    """Denormalizes a tensor using a given mean and standard deviation.
+
+    This module reverses the normalization process by scaling the input tensor
+    back to its original data distribution. The transformation is defined by the
+    formula: `output = input * std + mean`. It is the inverse operation of the
+    `Normalization` module.
+
+    Args:
+        mean (torch.Tensor):
+            The mean tensor to be added to the input after scaling.
+        std (torch.Tensor):
+            The standard deviation tensor to scale the input by.
+    """
+
     Factory = DenormalizationFactory
 
     def forward(self, input: torch.Tensor, **kwargs) -> torch.Tensor:

@@ -175,16 +175,27 @@ class Gru(Rnn):
         super().__init__(rnn, output_dim=output_dim, **kwargs)
 
 
-@torch.jit.script
-def get_memory_mask(done: torch.Tensor) -> torch.Tensor:
-    done = done.squeeze(-1)
-    last_was_done = torch.zeros_like(done, dtype=torch.bool)
-    last_was_done[1:] = done[:-1]
-    last_was_done[0] = True
-    return last_was_done.permute(1, 0)
-
-
 def scatter_memory(memory: Memory, done: torch.Tensor):
+    """Restructures memory tensors from a batch of sequences into a batch of episodes.
+
+    This function takes RNN hidden states (`memory`) collected from a batch of parallel
+    environments and a `done` tensor that marks episode boundaries. It reorganizes the
+    memory so that each element in the new batch dimension corresponds to a single,
+    complete or partial episode.
+
+    Args:
+        memory (Memory):
+            The memory tensor(s) to be scattered. The tensor shape is expected to be
+            `(..., N, C)`, where `N` is the number of environments, and `C` is the
+            channel dimension.
+        done (torch.Tensor):
+            A boolean tensor of shape `(T, C, 1)` indicating episode terminations.
+
+    Returns:
+        Memory:
+            The scattered memory tensor(s) with shape `(..., M, C)`, where `M` is the total
+            number of episodes across all environments in the batch.
+    """
     if memory is None:
         return None
     if isinstance(memory, tuple):
