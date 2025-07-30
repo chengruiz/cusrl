@@ -10,46 +10,19 @@ import cusrl.utils
 from cusrl.template import Environment, EnvironmentSpec
 from cusrl.utils.typing import Array, Slice
 
-__all__ = ["IsaacLabEnvAdapter", "make_isaaclab_env"]
+__all__ = ["IsaacLabEnvAdapter", "IsaacLabEnvLauncher", "make_isaaclab_env"]
 
 
 class IsaacLabEnvAdapter(Environment):
-    def __init__(
-        self,
-        id: str,
-        argv: Sequence[str] | None = None,
-        extensions: Sequence[str] = (),
-        **kwargs,
-    ):
-        from isaaclab.app import AppLauncher
+    def __init__(self, wrapped: gym.Env):
+        from isaaclab.envs import DirectRLEnv, ManagerBasedRLEnv
 
-        parser = argparse.ArgumentParser(prog="--environment-args", description="IsaacLab environment")
-        parser.add_argument("--num_envs", type=int, metavar="N", help="Number of environments to simulate.")
-        AppLauncher.add_app_launcher_args(parser)
-        args = parser.parse_args(argv or [])
-        args.device = str(cusrl.device())
-        self.app_launcher = AppLauncher(args)
-        self.simulation_app = self.app_launcher.app
-
-        from isaaclab.envs import DirectMARLEnv, DirectRLEnv, ManagerBasedRLEnv, multi_agent_to_single_agent
-        from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry
-
-        for extension in extensions:
-            importlib.import_module(extension)
-
-        env_cfg = load_cfg_from_registry(id, "env_cfg_entry_point")
-        env_cfg.sim.device = args.device
-        if args.num_envs is not None:
-            env_cfg.scene.num_envs = args.num_envs
-        env_cfg.scene.num_envs = max(env_cfg.scene.num_envs // cusrl.utils.distributed.world_size(), 1)
-        isaaclab_env = gym.make(id, cfg=env_cfg, disable_env_checker=True, **kwargs)
-        if isinstance(isaaclab_env.unwrapped, DirectMARLEnv):
-            isaaclab_env = multi_agent_to_single_agent(isaaclab_env)
-        self.wrapped: ManagerBasedRLEnv | DirectRLEnv = isaaclab_env.unwrapped
-        self.device = self.wrapped.device
+        self.wrapped = wrapped
+        self.unwrapped: DirectRLEnv | ManagerBasedRLEnv = wrapped.unwrapped
+        self.device = self.unwrapped.device
         self.metrics = cusrl.utils.Metrics()
         super().__init__(
-            self.wrapped.num_envs,
+            self.unwrapped.num_envs,
             self._get_observation_dim(),
             self._get_action_dim(),
             self._get_state_dim(),
@@ -62,33 +35,31 @@ class IsaacLabEnvAdapter(Environment):
     def __del__(self):
         if hasattr(self, "wrapped"):
             self.wrapped.close()
-        if hasattr(self, "simulation_app"):
-            self.simulation_app.close()
 
     def _get_observation_dim(self) -> int:
-        if hasattr(self.wrapped, "observation_manager"):
-            shape = self.wrapped.observation_manager.group_obs_dim["policy"]
+        if hasattr(self.unwrapped, "observation_manager"):
+            shape = self.unwrapped.observation_manager.group_obs_dim["policy"]
         else:
-            shape = self.wrapped.single_observation_space["policy"].shape
+            shape = self.unwrapped.single_observation_space["policy"].shape
 
         if not len(shape) == 1:
             raise ValueError("Only 1D observation space is supported. ")
         return shape[0]
 
     def _get_action_dim(self) -> int:
-        if hasattr(self.wrapped, "action_manager"):
-            return self.wrapped.action_manager.total_action_dim
-        space = self.wrapped.single_action_space
+        if hasattr(self.unwrapped, "action_manager"):
+            return self.unwrapped.action_manager.total_action_dim
+        space = self.unwrapped.single_action_space
         if not len(space.shape) == 1:
             raise ValueError("Only 1D action space is supported. ")
         return space.shape[0]
 
     def _get_state_dim(self) -> int | None:
         shape = None
-        if hasattr(self.wrapped, "observation_manager"):
-            shape = self.wrapped.observation_manager.group_obs_dim.get("critic")
+        if hasattr(self.unwrapped, "observation_manager"):
+            shape = self.unwrapped.observation_manager.group_obs_dim.get("critic")
         else:
-            space = self.wrapped.single_observation_space.get("critic")
+            space = self.unwrapped.single_observation_space.get("critic")
             if space is not None:
                 shape = space.shape
 
@@ -101,14 +72,14 @@ class IsaacLabEnvAdapter(Environment):
     def reset(self, *, indices: Array | Slice | None = None):
         if indices is None:
             observation_dict, _ = self.wrapped.reset()
-            self.wrapped.episode_length_buf.random_(int(self.wrapped.max_episode_length))
+            self.unwrapped.episode_length_buf.random_(int(self.unwrapped.max_episode_length))
             observation = observation_dict.pop("policy")
             state = observation_dict.pop("critic", None)
             extras = observation_dict
         else:
             if isinstance(indices, slice):
                 indices = torch.arange(self.num_instances, device=self.device)[indices]
-            observation_dict, _ = self.wrapped.reset(env_ids=torch.as_tensor(indices, device=self.device))
+            observation_dict, _ = self.unwrapped.reset(env_ids=torch.as_tensor(indices, device=self.device))
 
             observation = observation_dict.pop("policy", None)
             state = observation_dict.pop("critic", None)
@@ -137,6 +108,46 @@ class IsaacLabEnvAdapter(Environment):
         return metrics
 
 
+class IsaacLabEnvLauncher(IsaacLabEnvAdapter):
+    def __init__(
+        self,
+        id: str,
+        argv: Sequence[str] | None = None,
+        extensions: Sequence[str] = (),
+        **kwargs: Any,
+    ):
+        from isaaclab.app import AppLauncher
+
+        parser = argparse.ArgumentParser(prog="--environment-args", description="IsaacLab environment")
+        parser.add_argument("--num_envs", type=int, metavar="N", help="Number of environments to simulate.")
+        AppLauncher.add_app_launcher_args(parser)
+        args = parser.parse_args(argv or [])
+        args.device = str(cusrl.device())
+        self.app_launcher = AppLauncher(args)
+        self.simulation_app = self.app_launcher.app
+
+        from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
+        from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry
+
+        for extension in extensions:
+            importlib.import_module(extension)
+
+        env_cfg = load_cfg_from_registry(id, "env_cfg_entry_point")
+        env_cfg.sim.device = args.device
+        if args.num_envs is not None:
+            env_cfg.scene.num_envs = args.num_envs
+        env_cfg.scene.num_envs = max(env_cfg.scene.num_envs // cusrl.utils.distributed.world_size(), 1)
+        wrapped = gym.make(id, cfg=env_cfg, disable_env_checker=True, **kwargs)
+        if isinstance(wrapped, DirectMARLEnv):
+            wrapped = multi_agent_to_single_agent(wrapped)
+        super().__init__(wrapped)
+
+    def __del__(self):
+        super().__del__()
+        if hasattr(self, "simulation_app"):
+            self.simulation_app.close()
+
+
 def make_isaaclab_env(
     id: str,
     argv: Sequence[str] | None = None,
@@ -147,4 +158,4 @@ def make_isaaclab_env(
         ids = id.split("-")
         ids.insert(-1, "Play")
         id = "-".join(ids)
-    return IsaacLabEnvAdapter(id, argv, **kwargs)
+    return IsaacLabEnvLauncher(id, argv, **kwargs)

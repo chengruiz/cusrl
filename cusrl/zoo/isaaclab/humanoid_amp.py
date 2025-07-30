@@ -10,7 +10,7 @@ __all__ = []
 class AgentFactory(cusrl.preset.amp.AgentFactory):
     def from_environment(self, environment: cusrl.environment.IsaacLabEnvAdapter) -> cusrl.ActorCritic:
         self.get_hook("AdversarialMotionPrior").dataset_source = partial(
-            environment.wrapped.collect_reference_motions, 200000
+            environment.unwrapped.collect_reference_motions, 200000
         )
         return super().from_environment(environment)
 
