@@ -8,6 +8,7 @@ def make_factory(
     log_dir: str | None = None,
     name: str | None = None,
     interval: int = 1,
+    add_datetime_prefix: bool = True,
     **kwargs,
 ) -> LoggerFactoryLike | None:
     if log_dir is None:
@@ -15,4 +16,10 @@ def make_factory(
     if logger_type is None or logger_type.lower() == "none":
         return Logger.Factory(log_dir=log_dir, name=name, interval=interval, **kwargs)
     logger_cls_dict = {cls.__name__.lower(): cls for cls in Logger.__subclasses__()}
-    return logger_cls_dict[logger_type.lower()].Factory(log_dir=log_dir, name=name, interval=interval, **kwargs)
+    return logger_cls_dict[logger_type.lower()].Factory(
+        log_dir=log_dir,
+        name=name,
+        interval=interval,
+        add_datetime_prefix=add_datetime_prefix,
+        **kwargs,
+    )

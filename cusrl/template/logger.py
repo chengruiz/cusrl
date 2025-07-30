@@ -2,6 +2,7 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import TypeAlias
 
 import torch
@@ -14,9 +15,15 @@ class LoggerFactory:
     log_dir: str
     name: str | None = None
     interval: int = 1
+    add_datetime_prefix: bool = True
 
     def __call__(self):
-        return Logger(self.log_dir, self.name, self.interval)
+        return Logger(
+            log_dir=self.log_dir,
+            name=self.name,
+            interval=self.interval,
+            add_datetime_prefix=self.add_datetime_prefix,
+        )
 
 
 LoggerFactoryLike: TypeAlias = Callable[[], "Logger"]
@@ -25,23 +32,28 @@ LoggerFactoryLike: TypeAlias = Callable[[], "Logger"]
 class Logger:
     Factory = LoggerFactory
 
-    def __init__(self, log_dir: str, name: str | None = None, interval: int = 1):
-        self.name = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        if name:
-            if "/" in name:
-                raise ValueError("'name' should not contain '/'.")
-            self.name += f":{name}"
+    def __init__(
+        self,
+        log_dir: str,
+        name: str | None = None,
+        interval: int = 1,
+        add_datetime_prefix: bool = True,
+    ):
+        self.name = name or ""
+        if "/" in self.name or "\\" in self.name:
+            raise ValueError("'name' should not contain '/' or '\\' characters.")
+        if add_datetime_prefix:
+            self.name = f"{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}:{self.name}"
 
-        self.log_dir = os.path.abspath(os.path.join(log_dir, self.name))
-        os.makedirs(self.log_dir)
-        symlink_path = os.path.join(log_dir, "latest")
-        if os.path.islink(symlink_path):
-            os.remove(symlink_path)
-        os.symlink(self.name, symlink_path, target_is_directory=True)
-        self.info_dir = os.path.join(self.log_dir, "info")
-        os.mkdir(self.info_dir)
-        self.ckpt_dir = os.path.join(self.log_dir, "ckpt")
-        os.mkdir(self.ckpt_dir)
+        self.log_dir = Path(os.path.join(log_dir, self.name)).absolute()
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        symlink_path = self.log_dir / ".." / "latest"
+        symlink_path.unlink(missing_ok=True)
+        symlink_path.symlink_to(self.log_dir.name, target_is_directory=True)
+        self.info_dir = self.log_dir / "info"
+        self.info_dir.mkdir(exist_ok=True)
+        self.ckpt_dir = self.log_dir / "ckpt"
+        self.ckpt_dir.mkdir(exist_ok=True)
 
         self.interval = interval
         self.data_list = []
@@ -57,10 +69,10 @@ class Logger:
         self._log_impl(data, iteration)
 
     def save_checkpoint(self, state_dict, iteration: int):
-        torch.save(state_dict, os.path.join(self.ckpt_dir, f"ckpt_{iteration}.pt"))
+        torch.save(state_dict, self.ckpt_dir / f"ckpt_{iteration}.pt")
 
     def save_info(self, info_str: str, filename: str):
-        with open(os.path.join(self.info_dir, filename), "w") as f:
+        with open(self.info_dir / filename, "w") as f:
             f.write(info_str)
 
     def _collect_data(self):

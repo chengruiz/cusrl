@@ -11,6 +11,7 @@ class WandbFactory:
         log_dir: str,
         name: str | None = None,
         interval: int = 1,
+        add_datetime_prefix: bool = True,
         project: str | None = None,
         dir: str | None = None,
         id: str | None = None,
@@ -24,6 +25,7 @@ class WandbFactory:
         self.log_dir = log_dir
         self.name = name
         self.interval = interval
+        self.add_datetime_prefix = add_datetime_prefix
         self.project = project
         self.dir = dir
         self.id = id
@@ -39,6 +41,7 @@ class WandbFactory:
             log_dir=self.log_dir,
             name=self.name,
             interval=self.interval,
+            add_datetime_prefix=self.add_datetime_prefix,
             project=self.project,
             dir=self.dir,
             id=self.id,
@@ -54,8 +57,20 @@ class WandbFactory:
 class Wandb(Logger):
     Factory = WandbFactory
 
-    def __init__(self, log_dir: str, name: str | None = None, interval: int = 1, **kwargs):
-        super().__init__(log_dir, name, interval)
+    def __init__(
+        self,
+        log_dir: str,
+        name: str | None = None,
+        interval: int = 1,
+        add_datetime_prefix: bool = True,
+        **kwargs,
+    ):
+        super().__init__(
+            log_dir=log_dir,
+            name=name,
+            interval=interval,
+            add_datetime_prefix=add_datetime_prefix,
+        )
         try:
             import wandb
         except ImportError:
