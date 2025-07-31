@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from cusrl.module.module import Module, ModuleFactory
+from cusrl.utils.helper import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = ["Sequential"]
@@ -51,7 +52,7 @@ class Sequential(Module):
                 input = layer(input, **kwargs)
             prefix = f"{i}/{type(layer).__name__}"
             self.intermediate_repr[f"{prefix}.output"] = input
-            self.intermediate_repr[f"{prefix}.intermediate_repr"] = layer.intermediate_repr
+            self.intermediate_repr.update(prefix_dict_keys(layer.intermediate_repr, f"{prefix}."))
         if memory:
             return input, tuple(memory)
         return input

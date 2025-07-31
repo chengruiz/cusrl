@@ -327,5 +327,5 @@ class ActorCritic(Agent):
                 continue
             try:
                 self.transition[key] = self.to_nested_tensor(value)
-            except Exception as e:
-                raise ValueError(f"Failed to convert '{key}' to tensor.") from e
+            except Exception as error:
+                raise ValueError(f"Failed to convert '{key}' to tensor.") from error

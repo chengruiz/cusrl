@@ -5,6 +5,7 @@ from torch import nn
 
 from cusrl.module.module import Module, ModuleFactory, ModuleFactoryLike
 from cusrl.utils import RunningMeanStd, make_distributed
+from cusrl.utils.helper import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = ["Value"]
@@ -63,7 +64,7 @@ class Value(Module):
             raise ValueError("State value function V(s) should not accept actions as input.")
         latent, memory = self.backbone(state, memory=memory, done=done, **kwargs)
         self.intermediate_repr["backbone.output"] = latent
-        self.intermediate_repr["backbone.intermediate_repr"] = self.backbone.intermediate_repr
+        self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         return self.value_head(latent), memory
 
     def step_memory(self, state, memory=None, **kwargs):

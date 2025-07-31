@@ -5,6 +5,7 @@ from torch import Tensor, nn
 
 from cusrl.module import Actor
 from cusrl.template import ActorCritic, Hook
+from cusrl.utils.helper import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = [
@@ -210,9 +211,9 @@ class SymmetricActor(Actor):
         self.intermediate_repr = self.wrapped.intermediate_repr
         self.intermediate_repr["action_mean"] = action_mean
         self.intermediate_repr["action_std"] = action_std
-        self.intermediate_repr["mirrored.intermediate_repr"] = mirrored_intermediate_repr
         self.intermediate_repr["mirrored.action_mean"] = mirrored_action_mean
         self.intermediate_repr["mirrored.action_std"] = mirrored_action_std
+        self.intermediate_repr.update(prefix_dict_keys(mirrored_intermediate_repr, "mirrored."))
 
         action_mean = (action_mean + self._mirror_action(mirrored_action_mean)) / 2
         action_std = (action_std + abs(self._mirror_action(mirrored_action_std))) / 2

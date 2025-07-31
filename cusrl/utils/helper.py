@@ -15,8 +15,15 @@ __all__ = [
     "float_fmt",
     "get_or",
     "import_module",
+    "prefix_dict_keys",
     "set_global_seed",
 ]
+
+
+_T = TypeVar("_T")
+_K = TypeVar("_K")
+_V = TypeVar("_V")
+_D = TypeVar("_D")
 
 
 def float_fmt(number, digit):
@@ -26,9 +33,9 @@ def float_fmt(number, digit):
     return " " + string[:-1]
 
 
-_K = TypeVar("_K")
-_V = TypeVar("_V")
-_D = TypeVar("_D")
+def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:
+    """Adds a prefix to all keys in the dictionary."""
+    return {f"{prefix}{key}": value for key, value in data.items()}
 
 
 @overload

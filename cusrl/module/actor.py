@@ -4,6 +4,7 @@ from torch import Tensor
 
 from cusrl.module.distribution import Distribution, DistributionFactoryLike
 from cusrl.module.module import Module, ModuleFactory, ModuleFactoryLike
+from cusrl.utils.helper import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = ["Actor"]
@@ -198,8 +199,8 @@ class Actor(Module):
         )
 
         self.intermediate_repr["backbone.output"] = latent
-        self.intermediate_repr["backbone.intermediate_repr"] = self.backbone.intermediate_repr
-        self.intermediate_repr["distribution.intermediate_repr"] = self.distribution.intermediate_repr
+        self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
+        self.intermediate_repr.update(prefix_dict_keys(self.distribution.intermediate_repr, "distribution."))
         return (action_mean, action_std), memory
 
     def _explore_impl(
@@ -235,8 +236,8 @@ class Actor(Module):
             )
 
         self.intermediate_repr["backbone.output"] = latent
-        self.intermediate_repr["backbone.intermediate_repr"] = self.backbone.intermediate_repr
-        self.intermediate_repr["distribution.intermediate_repr"] = self.distribution.intermediate_repr
+        self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
+        self.intermediate_repr.update(prefix_dict_keys(self.distribution.intermediate_repr, "distribution."))
         return (action_mean, action_std), (action, logp), memory
 
     def _act_impl(

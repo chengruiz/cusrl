@@ -7,6 +7,7 @@ import yaml
 from torch import nn
 
 from cusrl.module import Module
+from cusrl.utils.helper import prefix_dict_keys
 from cusrl.utils.nest import get_schema, iterate_nested, reconstruct_nested
 
 __all__ = ["ExportGraph"]
@@ -65,9 +66,7 @@ class ExportGraph(nn.Module):
             named_outputs = {name: output for name, output in zip(output_names, outputs, strict=True)}
             if isinstance(module, Module):
                 prefix = f"{module_name}." if module_name else ""
-                named_outputs.update({
-                    f"{prefix}{name}": value for name, value in module.intermediate_repr.items() if name not in outputs
-                })
+                named_outputs.update(prefix_dict_keys(module.intermediate_repr, prefix))
             kwargs.update(named_outputs)
             return (), kwargs
 
