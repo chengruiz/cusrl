@@ -29,13 +29,24 @@ class EnvironmentSpec:
     properties, transformation capabilities, and other environment characteristics.
 
     Attributes:
+        # Basic properties
+        num_instances (int):
+            Number of instances in the environment.
+        observation_dim (int):
+            Dimension of the observation space.
+        action_dim (int):
+            Dimension of the action space.
+        state_dim (int | None, optional):
+            Dimension of the state space. Defaults to None.
+        reward_dim (int):
+            The dimension of the reward. Defaults to 1.
+
+        # Additional properties
         autoreset (bool):
             Whether the environment automatically resets itself on terminal states
             inside `Environment.step`.
         final_state_is_missing (bool):
             Whether the environment omits the final state of an episode.
-        reward_dim (int):
-            The dimension of the reward. Defaults to 1.
         timestep (float | None):
             The time duration for one environment step.
 
@@ -82,6 +93,8 @@ class EnvironmentSpec:
 
     def __init__(
         self,
+        observation_dim: int,
+        action_dim: int,
         *,
         action_denormalization: tuple[Array, Array] | None = None,
         autoreset: bool = False,
@@ -89,15 +102,21 @@ class EnvironmentSpec:
         mirror_action: Optional["SymmetryDef"] = None,
         mirror_observation: Optional["SymmetryDef"] = None,
         mirror_state: Optional["SymmetryDef"] = None,
+        num_instances: int = 1,
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Sequence[tuple[int, int]] = (),
         observation_normalization: tuple[Array, Array] | None = None,
         reward_dim: int = 1,
+        state_dim: int | None = None,
         state_stat_groups: Sequence[tuple[int, int]] = (),
         state_normalization: tuple[Array, Array] | None = None,
         timestep: float | None = None,
         **kwargs,
     ):
+        self.observation_dim = observation_dim
+        self.action_dim = action_dim
+        self.num_instances = num_instances
+        self.state_dim = state_dim
         self.action_denormalization = action_denormalization
         self.autoreset = autoreset
         self.final_state_is_missing = final_state_is_missing
@@ -142,16 +161,16 @@ class Environment(ABC):
     """Environment class for defining the interface of an environment.
 
     Args:
-        num_instances (int):
-            Number of instances in the environment.
         observation_dim (int):
             Dimension of the observation space.
         action_dim (int):
             Dimension of the action space.
+        num_instances (int):
+            Number of instances in the environment.
         state_dim (int | None, optional):
             Dimension of the state space. Defaults to None.
-        spec (dict | None | EnvironmentSpec, optional):
-            Additional properties of the environment. Defaults to None.
+        **kwargs:
+            Additional properties of the environment.
 
     Key methods:
         reset(indices: Array | Slice | None = None) -> tuple[Observation, State, Info]:
@@ -171,19 +190,50 @@ class Environment(ABC):
 
     def __init__(
         self,
-        num_instances: int,
         observation_dim: int,
         action_dim: int,
+        *,
+        action_denormalization: tuple[Array, Array] | None = None,
+        autoreset: bool = False,
+        final_state_is_missing: bool = False,
+        mirror_action: Optional["SymmetryDef"] = None,
+        mirror_observation: Optional["SymmetryDef"] = None,
+        mirror_state: Optional["SymmetryDef"] = None,
+        num_instances: int = 1,
+        observation_is_subset_of_state: Array | Slice | None = None,
+        observation_stat_groups: Sequence[tuple[int, int]] = (),
+        observation_normalization: tuple[Array, Array] | None = None,
+        reward_dim: int = 1,
         state_dim: int | None = None,
-        spec: dict | None | EnvironmentSpec = None,
+        state_stat_groups: Sequence[tuple[int, int]] = (),
+        state_normalization: tuple[Array, Array] | None = None,
+        timestep: float | None = None,
+        **kwargs: Any,
     ):
         self.num_instances = num_instances
         self.observation_dim = observation_dim
         self.action_dim = action_dim
         self.state_dim = state_dim
-        if not isinstance(spec, EnvironmentSpec):
-            spec = EnvironmentSpec(**(spec or {}))
-        self.spec: EnvironmentSpec = spec
+        self.spec = EnvironmentSpec(
+            observation_dim=observation_dim,
+            action_dim=action_dim,
+            action_denormalization=action_denormalization,
+            autoreset=autoreset,
+            final_state_is_missing=final_state_is_missing,
+            mirror_action=mirror_action,
+            mirror_observation=mirror_observation,
+            mirror_state=mirror_state,
+            num_instances=num_instances,
+            observation_is_subset_of_state=observation_is_subset_of_state,
+            observation_stat_groups=observation_stat_groups,
+            observation_normalization=observation_normalization,
+            reward_dim=reward_dim,
+            state_dim=state_dim,
+            state_stat_groups=state_stat_groups,
+            state_normalization=state_normalization,
+            timestep=timestep,
+            **kwargs,
+        )
 
     # fmt: off
     @abstractmethod

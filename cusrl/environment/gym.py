@@ -33,7 +33,8 @@ class GymEnvAdapter(Environment):
             num_instances=1,
             observation_dim=wrapped.observation_space.shape[0],
             action_dim=action_dim,
-            spec={"gym_spec": wrapped.spec, "gym_metadata": wrapped.metadata},
+            gym_spec=wrapped.spec,
+            gym_metadata=wrapped.metadata,
         )
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
@@ -86,7 +87,8 @@ class GymVectorEnvAdapter(Environment):
             num_instances=wrapped.num_envs,
             observation_dim=wrapped.single_observation_space.shape[0],
             action_dim=action_dim,
-            spec={"gym_spec": wrapped.spec, "gym_metadata": wrapped.metadata},
+            gym_spec=wrapped.spec,
+            gym_metadata=wrapped.metadata,
         )
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped

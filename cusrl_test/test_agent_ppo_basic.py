@@ -43,7 +43,7 @@ def test_numpy_environment():
 
 
 def test_action_type():
-    agent = cusrl.preset.ppo.AgentFactory()(observation_dim=35, action_dim=12)
+    agent = cusrl.preset.ppo.AgentFactory()(cusrl.EnvironmentSpec(35, 12))
     action_numpy = agent.act(np.random.randn(8, 35).astype(np.float32))
     action_tensor_cpu = agent.act(torch.randn(8, 35))
     action_tensor_cuda = agent.act(torch.randn(8, 35).to(cusrl.device()))

@@ -7,7 +7,7 @@ import gymnasium as gym
 import torch
 
 import cusrl.utils
-from cusrl.template import Environment, EnvironmentSpec
+from cusrl.template import Environment
 from cusrl.utils.typing import Array, Slice
 
 __all__ = ["IsaacLabEnvAdapter", "IsaacLabEnvLauncher", "make_isaaclab_env"]
@@ -22,11 +22,12 @@ class IsaacLabEnvAdapter(Environment):
         self.device = self.unwrapped.device
         self.metrics = cusrl.utils.Metrics()
         super().__init__(
-            self.unwrapped.num_envs,
-            self._get_observation_dim(),
-            self._get_action_dim(),
-            self._get_state_dim(),
-            EnvironmentSpec(autoreset=True, final_state_is_missing=True),
+            num_instances=self.unwrapped.num_envs,
+            observation_dim=self._get_observation_dim(),
+            action_dim=self._get_action_dim(),
+            state_dim=self._get_state_dim(),
+            autoreset=True,
+            final_state_is_missing=True,
         )
 
         # Avoid terminal color issues

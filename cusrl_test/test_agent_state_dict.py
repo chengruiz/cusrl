@@ -16,7 +16,7 @@ agent_factory.register_hook(
 agent_factory.register_hook(cusrl.hook.StatePrediction(slice(16, 24)))
 
 
-agent = agent_factory(35, 12, 42)
+agent = agent_factory(cusrl.EnvironmentSpec(35, 12, state_dim=42))
 
 
 def print_state_dict(state_dict):

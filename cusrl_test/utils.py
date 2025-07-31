@@ -91,7 +91,7 @@ def create_dummy_env(
         observation_dim=16,
         action_dim=8,
         state_dim=24 if with_state else None,
-        spec={"reward_dim": reward_dim},
+        reward_dim=reward_dim,
     )
     if symmetric:
         env.spec.mirror_observation = create_random_symmetry_def(env.observation_dim)

@@ -42,22 +42,8 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         self.compile = compile
         self.autocast = autocast
 
-    def __call__(
-        self,
-        observation_dim: int,
-        action_dim: int,
-        state_dim: int | None = None,
-        parallelism: int | None = None,
-        environment_spec: EnvironmentSpec | None = None,
-    ):
-        return ActorCritic(
-            observation_dim=observation_dim,
-            action_dim=action_dim,
-            state_dim=state_dim,
-            parallelism=parallelism,
-            environment_spec=environment_spec,
-            **self.__dict__,
-        )
+    def __call__(self, environment_spec: EnvironmentSpec):
+        return ActorCritic(environment_spec=environment_spec, **self.__dict__)
 
     def register_hook(
         self,
@@ -94,11 +80,7 @@ class ActorCritic(Agent):
 
     def __init__(
         self,
-        observation_dim: int,
-        action_dim: int,
-        state_dim: int | None,
-        parallelism: int | None,
-        environment_spec: EnvironmentSpec | None,
+        environment_spec: EnvironmentSpec,
         actor_factory: Actor.Factory,
         critic_factory: Value.Factory,
         optimizer_factory: OptimizerFactory,
@@ -111,10 +93,6 @@ class ActorCritic(Agent):
         autocast: bool | torch.dtype = False,
     ):
         super().__init__(
-            observation_dim=observation_dim,
-            state_dim=state_dim,
-            action_dim=action_dim,
-            parallelism=parallelism,
             environment_spec=environment_spec,
             num_steps_per_update=num_steps_per_update,
             name=name,
@@ -265,7 +243,7 @@ class ActorCritic(Agent):
         actor = self.actor_factory(self.observation_dim, self.action_dim).to(device=self.device)
         actor.load_state_dict(self.actor.state_dict())
         graph = ExportGraph()
-        inputs = {"observation": torch.zeros(1, 1, self.observation_dim, device=self.device)}
+        inputs = {"observation": torch.zeros(1, 1, self.environment_spec.observation_dim, device=self.device)}
         input_names = {"observation": "observation"}
         output_names = ["action"]
         if actor.is_recurrent:
@@ -283,7 +261,7 @@ class ActorCritic(Agent):
             output_names=output_names,
             extra_kwargs={"forward_type": "act_deterministic"},
             info={
-                "observation_dim": self.observation_dim,
+                "observation_dim": self.environment_spec.observation_dim,
                 "action_dim": self.action_dim,
                 "is_recurrent": actor.is_recurrent,
             },

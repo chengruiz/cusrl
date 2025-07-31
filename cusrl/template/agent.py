@@ -9,7 +9,7 @@ from torch import nn
 
 import cusrl
 from cusrl.module.module import ModuleType
-from cusrl.template.environment import EnvironmentSpec
+from cusrl.template.environment import Environment
 from cusrl.utils import Metrics, distributed
 from cusrl.utils.typing import Array, NestedArray, NestedTensor, Observation, Reward, State, Terminated, Truncated
 
@@ -21,24 +21,11 @@ AgentType = TypeVar("AgentType", bound="Agent")
 
 class AgentFactory(ABC, Generic[AgentType]):
     @abstractmethod
-    def __call__(
-        self,
-        observation_dim: int,
-        action_dim: int,
-        state_dim: int | None = None,
-        parallelism: int | None = None,
-        environment_spec: EnvironmentSpec | None = None,
-    ) -> AgentType:
+    def __call__(self, environment_spec: Environment.Spec) -> AgentType:
         raise NotImplementedError
 
-    def from_environment(self, environment: "cusrl.Environment") -> AgentType:
-        return self(
-            environment.observation_dim,
-            environment.action_dim,
-            environment.state_dim,
-            environment.num_instances,
-            environment.spec,
-        )
+    def from_environment(self, environment: Environment) -> AgentType:
+        return self(environment.spec)
 
 
 class Agent(ABC):
@@ -64,15 +51,7 @@ class Agent(ABC):
             handled by `state_dict` and `load_state_dict`.
 
     Args:
-        observation_dim (int):
-            The dimensionality of the observation space.
-        action_dim (int):
-            The dimensionality of the action space.
-        state_dim (int | None):
-            The dimensionality of the state space, defaults to `observation_dim` if None.
-        parallelism (int | None):
-            The number of parallel environments the agent is expected to interact with.
-        environment_spec (EnvironmentSpec | None):
+        environment_spec (EnvironmentSpec):
             Specifications of the environment.
         num_steps_per_update (int):
             The number of environment steps before triggering an update.
@@ -93,23 +72,19 @@ class Agent(ABC):
 
     def __init__(
         self,
-        observation_dim: int,
-        action_dim: int,
-        state_dim: int | None,
-        parallelism: int | None,
-        environment_spec: EnvironmentSpec | None,
+        environment_spec: Environment.Spec,
         num_steps_per_update: int,
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
         autocast: bool | torch.dtype = False,
     ):
-        self.observation_dim = observation_dim
-        self.action_dim = action_dim
-        self.has_state = state_dim is not None
-        self.state_dim = state_dim or observation_dim
-        self.parallelism = parallelism
-        self.environment_spec = environment_spec or EnvironmentSpec()
+        self.observation_dim = environment_spec.observation_dim
+        self.action_dim = environment_spec.action_dim
+        self.has_state = environment_spec.state_dim is not None
+        self.state_dim = environment_spec.state_dim or self.observation_dim
+        self.parallelism = environment_spec.num_instances
+        self.environment_spec = environment_spec
 
         self.num_steps_per_update = num_steps_per_update
         self.name = name
