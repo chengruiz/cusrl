@@ -145,7 +145,7 @@ class ActorCritic(Agent):
         self.hook.pre_act(self.transition)
 
         with self.autocast():
-            (action_mean, action_std), (action, action_logp), next_actor_memory = self.actor.explore(
+            action_dist, (action, action_logp), next_actor_memory = self.actor.explore(
                 self.transition["observation"],
                 memory=self.actor_memory,
                 deterministic=self.deterministic,
@@ -153,8 +153,7 @@ class ActorCritic(Agent):
 
         self._save_transition(
             actor_memory=self.actor_memory,
-            action_mean=action_mean,
-            action_std=action_std,
+            action_dist=action_dist,
             action=action,
             action_logp=action_logp,
         )

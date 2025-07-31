@@ -42,21 +42,21 @@ def test_rnn_actor_consistency():
     done = torch.rand(seq_len, num_seqs, 1) > 0.8
     _, memory = rnn(input)
 
-    output1 = torch.zeros(seq_len, num_seqs, action_dim)
+    action_mean1 = torch.zeros(seq_len, num_seqs, action_dim)
     backbone_output1 = torch.zeros(seq_len, num_seqs, hidden_size)
     memory1 = memory
     for i in range(seq_len):
-        (output, _), memory1 = rnn(input[i], memory=memory1)
+        action_dist, memory1 = rnn(input[i], memory=memory1)
         rnn.reset_memory(memory1, done=done[i])
-        output1[i] = output
+        action_mean1[i] = action_dist["mean"]
         backbone_output1[i] = rnn.intermediate_repr["backbone.output"]
 
-    (output2, _), _ = rnn(input, memory=memory, done=done)
+    action_dist2, _ = rnn(input, memory=memory, done=done)
     backbone_output2 = rnn.intermediate_repr["backbone.output"]
     assert torch.allclose(
         backbone_output1, backbone_output2, atol=1e-5
     ), "Backbone outputs of RNN actor are not consistent"
-    assert torch.allclose(output1, output2, atol=1e-5), "Outputs for RNN actor are not consistent"
+    assert torch.allclose(action_mean1, action_dist2["mean"], atol=1e-5), "Outputs for RNN actor are not consistent"
 
 
 @pytest.mark.parametrize("rnn_type", ["GRU", "LSTM"])

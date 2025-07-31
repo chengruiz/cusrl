@@ -10,6 +10,7 @@ __all__ = [
     "Array",
     "ArrayType",
     "BoolArrayType",
+    "DistributionParams",
     "Done",
     "Info",
     "Memory",
@@ -44,4 +45,6 @@ Terminated: TypeAlias = NDArray[np.bool_] | torch.Tensor
 Truncated: TypeAlias = NDArray[np.bool_] | torch.Tensor
 BoolArrayType = TypeVar("BoolArrayType", NDArray[np.bool_], torch.Tensor)
 Info: TypeAlias = dict[str, Nested[Array]]
-Memory: TypeAlias = torch.Tensor | tuple[torch.Tensor, ...] | None
+ValidMemory: TypeAlias = torch.Tensor | tuple["ValidMemory", ...]
+Memory: TypeAlias = ValidMemory | None
+DistributionParams: TypeAlias = dict[str, Nested[Array]]

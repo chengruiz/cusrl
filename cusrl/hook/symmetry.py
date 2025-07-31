@@ -6,7 +6,7 @@ from torch import Tensor, nn
 from cusrl.module import Actor
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.helper import prefix_dict_keys
-from cusrl.utils.typing import Memory, Slice
+from cusrl.utils.typing import DistributionParams, Memory, Slice
 
 __all__ = [
     # Elements
@@ -86,14 +86,20 @@ class SymmetryLoss(SymmetryHook):
             return None
 
         actor = self.agent.actor
-        (mirrored_action_mean, mirrored_action_std), _ = actor(
+        mirrored_action_dist, _ = actor(
             self._mirror_observation(batch["observation"]),
             memory=batch.get("mirrored_actor_memory"),
             done=batch["done"],
         )
 
-        mean_loss = self.mse_loss(batch["curr_action_mean"], self._mirror_action(mirrored_action_mean))
-        std_loss = self.mse_loss(batch["curr_action_std"], self._mirror_action(mirrored_action_std))
+        mean_loss = self.mse_loss(
+            batch["curr_action_dist"]["mean"],
+            self._mirror_action(mirrored_action_dist["mean"]),
+        )
+        std_loss = self.mse_loss(
+            batch["curr_action_dist"]["std"],
+            self._mirror_action(mirrored_action_dist["std"]),
+        )
         symmetry_loss = self.weight * (mean_loss + std_loss)
         self.agent.record(symmetry_loss=symmetry_loss)
         return symmetry_loss
@@ -129,15 +135,13 @@ class SymmetricDataAugmentation(SymmetryHook):
     def objective(self, batch):
         actor = self.agent.actor
         with self.agent.autocast():
-            (mirrored_action_mean, mirrored_action_std), _ = actor(
+            mirrored_action_dist, _ = actor(
                 self._mirror_observation(batch["observation"]),
                 memory=batch.get("mirrored_actor_memory"),
                 done=batch["done"],
             )
-            mirrored_action_logp = actor.compute_logp(
-                mirrored_action_mean, mirrored_action_std, self._mirror_action(batch["action"])
-            )
-            mirrored_entropy = actor.compute_entropy(mirrored_action_mean, mirrored_action_std)
+            mirrored_action_logp = actor.compute_logp(mirrored_action_dist, self._mirror_action(batch["action"]))
+            mirrored_entropy = actor.compute_entropy(mirrored_action_dist)
             mirrored_action_logp_diff = mirrored_action_logp - batch["action_logp"]
 
         batch["advantage"] = torch.cat([batch["advantage"], batch["advantage"]], dim=0)
@@ -182,7 +186,7 @@ class SymmetricActor(Actor):
         done: Tensor | None = None,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[tuple[Tensor, Tensor], Memory]:
+    ) -> tuple[DistributionParams, Memory]:
         if memory is not None:
             memory, mirrored_memory = memory
         else:
@@ -190,7 +194,7 @@ class SymmetricActor(Actor):
 
         self.wrapped.intermediate_repr.clear()
         mirrored_observation = self._mirror_observation(observation)
-        (mirrored_action_mean, mirrored_action_std), mirrored_memory = self.wrapped(
+        mirrored_action_dist, mirrored_memory = self.wrapped(
             mirrored_observation,
             memory=mirrored_memory,
             done=done,
@@ -200,7 +204,7 @@ class SymmetricActor(Actor):
         mirrored_intermediate_repr = self.wrapped.intermediate_repr
 
         self.wrapped.intermediate_repr = {}
-        (action_mean, action_std), memory = self.wrapped(
+        original_action_dist, memory = self.wrapped(
             observation,
             memory=memory,
             done=done,
@@ -208,18 +212,18 @@ class SymmetricActor(Actor):
             distribution_kwargs=distribution_kwargs,
         )
 
-        self.intermediate_repr = self.wrapped.intermediate_repr
-        self.intermediate_repr["action_mean"] = action_mean
-        self.intermediate_repr["action_std"] = action_std
-        self.intermediate_repr["mirrored.action_mean"] = mirrored_action_mean
-        self.intermediate_repr["mirrored.action_std"] = mirrored_action_std
+        self.intermediate_repr["original.action_dist"] = original_action_dist
+        self.intermediate_repr.update(prefix_dict_keys(self.wrapped.intermediate_repr, "original."))
+        self.intermediate_repr["mirrored.observation"] = mirrored_observation
+        self.intermediate_repr["mirrored.action_dist"] = mirrored_action_dist
         self.intermediate_repr.update(prefix_dict_keys(mirrored_intermediate_repr, "mirrored."))
-
-        action_mean = (action_mean + self._mirror_action(mirrored_action_mean)) / 2
-        action_std = (action_std + abs(self._mirror_action(mirrored_action_std))) / 2
+        action_dist = {
+            "mean": (original_action_dist["mean"] + self._mirror_action(mirrored_action_dist["mean"])) / 2,
+            "std": (original_action_dist["std"] + abs(self._mirror_action(mirrored_action_dist["std"]))) / 2,
+        }
         if memory is None:
-            return (action_mean, action_std), None
-        return (action_mean, action_std), (memory, mirrored_memory)
+            return action_dist, None
+        return action_dist, (memory, mirrored_memory)
 
     def _explore_impl(
         self,
@@ -228,19 +232,29 @@ class SymmetricActor(Actor):
         deterministic: bool = False,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[tuple[Tensor, Tensor], tuple[Tensor, Tensor], Memory]:
-        (action_mean, action_std), memory = self(
+    ) -> tuple[DistributionParams, tuple[Tensor, Tensor], Memory]:
+        action_dist, memory = self(
             observation,
             memory=memory,
             backbone_kwargs=backbone_kwargs,
             distribution_kwargs=distribution_kwargs,
         )
         if deterministic:
-            action = action_mean  # FIXME: directly using action_mean may not be correct
-            logp = self.distribution.compute_logp(action_mean, action_std, action)
+            original_action = self.distribution.determine(
+                self.intermediate_repr["original.backbone.output"],
+                observation=observation,
+                **(distribution_kwargs or {}),
+            )
+            mirrored_action = self.distribution.determine(
+                self.intermediate_repr["mirrored.backbone.output"],
+                observation=self.intermediate_repr["mirrored.observation"],
+                **(distribution_kwargs or {}),
+            )
+            action = (original_action + self._mirror_action(mirrored_action)) / 2
+            logp = self.distribution.compute_logp(action_dist, action)
         else:
-            action, logp = self.distribution.sample_from_dist(action_mean, action_std)
-        return (action_mean, action_std), (action, logp), memory
+            action, logp = self.distribution.sample_from_dist(action_dist)
+        return action_dist, (action, logp), memory
 
     def step_memory(self, observation, memory=None, **kwargs):
         if memory is not None:

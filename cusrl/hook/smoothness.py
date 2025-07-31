@@ -53,13 +53,13 @@ class ActionSmoothnessLoss(Hook):
         self.conv_2nd_order = self.agent.to_tensor([[[-1.0, 2.0, -1.0]]])
 
     def objective(self, batch: dict[str, Any]):
-        if batch["curr_action_mean"].ndim != 3:
+        action_mean = batch["curr_action_dist"]["mean"]
+        if action_mean.ndim != 3:
             raise ValueError("Expected batch to be temporal.")
-        if batch["curr_action_mean"].size(0) < 3:
-            seq_len = batch["curr_action_mean"].size(0)
+        if (seq_len := action_mean.size(0)) < 3:
             raise ValueError(f"Expected sequences to have at least 3 time steps, but got {seq_len}.")
 
-        padded_action, mask = split_and_pad_sequences(batch["curr_action_mean"], batch["done"])
+        padded_action, mask = split_and_pad_sequences(action_mean, batch["done"])
         action_sequence = padded_action.permute(1, 2, 0).flatten(0, 1).unsqueeze(1)  # [N * C, 1, T]
         smoothness_loss = None
         if self.weight_1st_order is not None:

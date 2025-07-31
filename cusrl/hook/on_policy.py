@@ -24,23 +24,20 @@ class OnPolicyPreparation(Hook[ActorCritic]):
         actor = self.agent.actor
 
         with self.agent.autocast():
-            (action_mean, action_std), _ = actor(
+            action_dist, _ = actor(
                 batch["observation"],
                 memory=batch.get("actor_memory"),
                 done=batch["done"],
             )
-            action_logp = actor.compute_logp(action_mean, action_std, batch["action"])
-            entropy = actor.compute_entropy(action_mean, action_std)
+            action_logp = actor.compute_logp(action_dist, batch["action"])
+            entropy = actor.compute_entropy(action_dist)
             logp_diff = action_logp - batch["action_logp"]
         self.agent.record(ratio=logp_diff.abs(), entropy=entropy)
 
-        batch["curr_action_mean"] = action_mean
-        batch["curr_action_std"] = action_std
+        batch["curr_action_dist"] = action_dist
         batch["curr_action_logp"] = action_logp
         batch["curr_entropy"] = entropy
         batch["action_logp_diff"] = logp_diff
         batch["action_prob_ratio"] = logp_diff.exp()
         if self.calculate_kl_divergence:
-            batch["kl_divergence"] = actor.distribution.compute_kl_div(
-                batch["action_mean"], batch["action_std"], action_mean, action_std
-            )
+            batch["kl_divergence"] = actor.distribution.compute_kl_div(batch["action_dist"], action_dist)

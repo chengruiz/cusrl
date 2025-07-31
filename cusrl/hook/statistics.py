@@ -25,18 +25,10 @@ class OnPolicyStatistics(Hook[ActorCritic]):
 
     @torch.inference_mode()
     def post_update(self):
-        agent = self.agent
-        for batch in self.sampler(agent.buffer):
-            with agent.autocast():
-                (action_mean, action_std), _ = agent.actor(
-                    batch["observation"],
-                    memory=batch.get("actor_memory"),
-                    done=batch["done"],
-                )
-
-            agent.record(
-                kl_divergence=agent.actor.distribution.compute_kl_div(
-                    batch["action_mean"], batch["action_std"], action_mean, action_std
-                ),
-                action_std=action_std,
-            )
+        actor = self.agent.actor
+        for batch in self.sampler(self.agent.buffer):
+            with self.agent.autocast():
+                action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
+            self.agent.record(kl_divergence=actor.compute_kl_div(batch["action_dist"], action_dist))
+            if "std" in action_dist:
+                self.agent.record(action_std=action_dist["std"])

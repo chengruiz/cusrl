@@ -2,7 +2,13 @@ from .actor import Actor
 from .attention import FeedForward, MultiheadSelfAttention, TransformerEncoderLayer
 from .cnn import Cnn
 from .critic import Value
-from .distribution import AdaptiveNormalDist, Distribution, DistributionFactoryLike, NormalDist, OneHotCategoricalDist
+from .distribution import (
+    AdaptiveNormalDist,
+    Distribution,
+    DistributionFactoryLike,
+    NormalDist,
+    OneHotCategoricalDist,
+)
 from .inference import InferenceModule
 from .mlp import Mlp
 from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike

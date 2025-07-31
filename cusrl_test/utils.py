@@ -118,7 +118,7 @@ def test_module_consistency(backbone_factory=None, is_recurrent=False, atol=1e-4
     class ConsistencyHook(cusrl.Hook):
         def objective(self, batch):
             if batch["epoch_index"] == 0 and batch["mini_batch_index"] == 0:
-                max_error = (batch["curr_action_mean"] - batch["action_mean"]).abs().max()
+                max_error = (batch["curr_action_dist"]["mean"] - batch["action_dist"]["mean"]).abs().max()
                 assert max_error < atol, f"Max error {max_error} exceeds tolerance {atol}"
 
     if is_recurrent:

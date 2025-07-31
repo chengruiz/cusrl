@@ -5,7 +5,7 @@ from torch import Tensor
 from cusrl.module.distribution import Distribution, DistributionFactoryLike
 from cusrl.module.module import Module, ModuleFactory, ModuleFactoryLike
 from cusrl.utils.helper import prefix_dict_keys
-from cusrl.utils.typing import Memory, Slice
+from cusrl.utils.typing import DistributionParams, Memory, Slice
 
 __all__ = ["Actor"]
 
@@ -98,7 +98,7 @@ class Actor(Module):
         deterministic: bool = False,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[tuple[Tensor, Tensor], tuple[Tensor, Tensor], Memory]:
+    ) -> tuple[DistributionParams, tuple[Tensor, Tensor], Memory]:
         """Generates an action for exploration, returning full distribution details.
 
         This method is typically used during training to collect experience. It returns
@@ -122,7 +122,7 @@ class Actor(Module):
 
         Returns:
             A tuple containing:
-            - (tuple[Tensor, Tensor]): A tuple of (action_mean, action_std).
+            - (DistributionParams): A dict of distribution parameters.
             - (tuple[Tensor, Tensor]): A tuple of (sampled_action, log_probability).
             - Memory: The updated recurrent state.
         """
@@ -184,7 +184,7 @@ class Actor(Module):
         done: Tensor | None = None,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[tuple[Tensor, Tensor], Memory]:
+    ) -> tuple[DistributionParams, Memory]:
         latent, memory = self.backbone(
             observation,
             memory=memory,
@@ -192,7 +192,7 @@ class Actor(Module):
             **(backbone_kwargs or {}),
         )
 
-        action_mean, action_std = self.distribution(
+        dist_params = self.distribution(
             latent,
             observation=observation,
             **(distribution_kwargs or {}),
@@ -201,7 +201,7 @@ class Actor(Module):
         self.intermediate_repr["backbone.output"] = latent
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         self.intermediate_repr.update(prefix_dict_keys(self.distribution.intermediate_repr, "distribution."))
-        return (action_mean, action_std), memory
+        return dist_params, memory
 
     def _explore_impl(
         self,
@@ -210,14 +210,14 @@ class Actor(Module):
         deterministic: bool = False,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[tuple[Tensor, Tensor], tuple[Tensor, Tensor], Memory]:
+    ) -> tuple[DistributionParams, tuple[Tensor, Tensor], Memory]:
         latent, memory = self.backbone(
             observation,
             memory=memory,
             **(backbone_kwargs or {}),
         )
         if deterministic:
-            action_mean, action_std = self.distribution(
+            dist_params = self.distribution(
                 latent,
                 observation=observation,
                 **(distribution_kwargs or {}),
@@ -227,9 +227,9 @@ class Actor(Module):
                 observation=observation,
                 **(distribution_kwargs or {}),
             )
-            logp = self.distribution.compute_logp(action_mean, action_std, action)
+            logp = self.distribution.compute_logp(dist_params, action)
         else:
-            action_mean, action_std, action, logp = self.distribution.sample(
+            dist_params, (action, logp) = self.distribution.sample(
                 latent,
                 observation=observation,
                 **(distribution_kwargs or {}),
@@ -238,7 +238,7 @@ class Actor(Module):
         self.intermediate_repr["backbone.output"] = latent
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         self.intermediate_repr.update(prefix_dict_keys(self.distribution.intermediate_repr, "distribution."))
-        return (action_mean, action_std), (action, logp), memory
+        return dist_params, (action, logp), memory
 
     def _act_impl(
         self,
@@ -257,13 +257,16 @@ class Actor(Module):
         )
         return action, memory
 
-    def compute_logp(self, action_mean, action_std, action):
-        return self.distribution.compute_logp(action_mean, action_std, action)
+    def compute_logp(self, dist_params: DistributionParams, action):
+        return self.distribution.compute_logp(dist_params, action)
 
-    def compute_entropy(self, action_mean, action_std):
-        return self.distribution.compute_entropy(action_mean, action_std)
+    def compute_entropy(self, dist_params: DistributionParams):
+        return self.distribution.compute_entropy(dist_params)
 
-    def step_memory(self, observation, memory=None, **kwargs):
+    def compute_kl_div(self, dist_params1: DistributionParams, dist_params2: DistributionParams):
+        return self.distribution.compute_kl_div(dist_params1, dist_params2)
+
+    def step_memory(self, observation: Tensor, memory: Memory = None, **kwargs):
         return self.backbone.step_memory(observation, memory, **kwargs)
 
     def reset_memory(self, memory: Memory, done: Slice | Tensor | None = None):
