@@ -1,7 +1,7 @@
 import itertools
 import os
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, Literal
 
 import torch
 
@@ -252,7 +252,14 @@ class ActorCritic(Agent):
         self.buffer_capacity = capacity
         self.buffer.resize(capacity)
 
-    def export(self, output_dir, dynamo=False, verbose=True, **kwargs):
+    def export(
+        self,
+        output_dir: str,
+        target_format: Literal["onnx", "jit"] = "onnx",
+        dynamo: bool = False,
+        verbose: bool = True,
+        **kwargs,
+    ):
         os.makedirs(output_dir, exist_ok=True)
 
         actor = self.actor_factory(self.observation_dim, self.action_dim).to(device=self.device)
@@ -306,7 +313,13 @@ class ActorCritic(Agent):
                 output_names="action",
                 expose_outputs=False,
             )
-        graph.export(inputs, output_dir, graph_name="actor", dynamo=dynamo, verbose=verbose)
+
+        if target_format == "onnx":
+            graph.export_onnx(inputs, output_dir, graph_name="actor", dynamo=dynamo, verbose=verbose)
+        elif target_format == "jit":
+            graph.export_jit(inputs, output_dir, graph_name="actor")
+        else:
+            raise ValueError(f"Unsupported export format '{target_format}'.")
 
     def _save_transition(self, **kwargs: NestedArray | None):
         for key, value in kwargs.items():

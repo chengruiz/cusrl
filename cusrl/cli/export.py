@@ -16,10 +16,12 @@ def configure_parser(parser):
                         help="Path to a checkpoint to export")
     parser.add_argument("--output-dir", type=str, default="exported", metavar="DIR",
                         help="Directory to save exported files to (default: exported)")
+    parser.add_argument("--format", type=str, choices=["onnx", "jit"], default="onnx",
+                        help="Target format for export (default: onnx)")
     parser.add_argument("--silent", action="store_true",
                         help="Whether to suppress output messages")
     parser.add_argument("--dynamo", action="store_true",
-                        help="Whether to use PyTorch Dynamo for exporting")
+                        help="Whether to use PyTorch Dynamo for onnx export")
     parser.add_argument("--load-experiment-spec", action="store_true",
                         help="Whether to load experiment spec from checkpoint directory")
     parser.add_argument("--environment-args", type=str, metavar="ARG",
@@ -45,6 +47,7 @@ def main(args):
     agent.export(
         os.path.join(args.output_dir, experiment.name, getattr(trial, "name", "dummy")),
         dynamo=args.dynamo,
+        target_format=args.format,
         verbose=not args.silent,
     )
 

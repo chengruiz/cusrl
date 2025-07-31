@@ -1,5 +1,5 @@
 import os
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 import torch
@@ -7,6 +7,7 @@ import yaml
 from torch import nn
 
 from cusrl.module import Module
+from cusrl.utils.nest import get_schema, iterate_nested, reconstruct_nested
 
 __all__ = ["ExportGraph"]
 
@@ -79,7 +80,43 @@ class ExportGraph(nn.Module):
 
         self.register_forward_pre_hook(hook, prepend=prepend, with_kwargs=True)
 
-    def export(
+    def export_jit(
+        self,
+        inputs: dict[str, Any],
+        output_dir: str,
+        graph_name: str,
+    ):
+        class Wrapper(nn.Module):
+            def __init__(self, module: ExportGraph, input_schema, output_names: Sequence[str]):
+                super().__init__()
+                self.module = module
+                self.input_schema = input_schema
+                self.output_names = output_names
+
+            def forward(self, inputs):
+                inputs = reconstruct_nested(inputs, self.input_schema)
+                # Convert outputs to a flatten dictionary keyed by corresponding output names
+                return dict(iterate_nested(dict(zip(self.output_names, self.module(**inputs)))))
+
+        self.eval()
+        wrapper = Wrapper(self, get_schema(inputs), self.output_names)
+
+        # Flatten inputs
+        inputs = dict(iterate_nested(inputs))
+
+        # Trace the module and save it
+        traced_module = torch.jit.trace_module(wrapper, inputs={"forward": (inputs,)}, strict=False)
+        torch.jit.save(traced_module, f"{output_dir}/{graph_name}.pt")
+
+        # Save additional information
+        info = self.info.copy()
+        outputs = wrapper(inputs)
+        info["inputs"] = [{name: tuple(value.shape)} for name, value in inputs.items()]
+        info["outputs"] = [{name: tuple(value.shape)} for name, value in outputs.items()]
+        with open(f"{output_dir}/{graph_name}.yml", "w") as f:
+            yaml.safe_dump(info, f)
+
+    def export_onnx(
         self,
         inputs: dict[str, Any],
         output_dir: str,
@@ -87,19 +124,22 @@ class ExportGraph(nn.Module):
         dynamo: bool = False,
         verbose: bool = True,
     ):
+        self.eval()
         outputs = self(**inputs)
         input_names, output_names = [], []
+        # Get the actual name for each input / output tensor
         for name, input in inputs.items():
             if (num_tensors := get_num_tensors(input)) == 1:
                 input_names.append(name)
             else:
-                input_names.extend(f"{name}_{i}" for i in range(num_tensors))
+                input_names.extend(f"{name}.{i}" for i in range(num_tensors))
         for output, name in zip(outputs, self.output_names):
             if (num_tensors := get_num_tensors(output)) == 1:
                 output_names.append(name)
             else:
-                output_names.extend(f"{name}_{i}" for i in range(num_tensors))
+                output_names.extend(f"{name}.{i}" for i in range(num_tensors))
 
+        # Export the model to ONNX format
         unoptimized_model_path = f"{output_dir}/{graph_name}_unoptimized.onnx"
         optimized_model_path = f"{output_dir}/{graph_name}.onnx"
         torch.onnx.export(
@@ -118,15 +158,22 @@ class ExportGraph(nn.Module):
             artifacts_dir=output_dir,
         )
 
+        # Save additional information
         import onnx
 
         onnx.checker.check_model(unoptimized_model_path, full_check=True)
         onnx_model = onnx.load(unoptimized_model_path)
-        self.info["input_name"] = [input.name for input in onnx_model.graph.input]
-        self.info["output_name"] = [output.name for output in onnx_model.graph.output]
+        info = self.info.copy()
+        info["inputs"] = [
+            {input.name: self._get_onnx_tensor_shape(input.type.tensor_type)} for input in onnx_model.graph.input
+        ]
+        info["outputs"] = [
+            {output.name: self._get_onnx_tensor_shape(output.type.tensor_type)} for output in onnx_model.graph.output
+        ]
         with open(f"{output_dir}/{graph_name}.yml", "w") as f:
-            yaml.safe_dump(self.info, f)
+            yaml.safe_dump(info, f)
 
+        # Optimize the ONNX model
         optimizers = ["onnxslim", "onnxoptimizer"]
         for optimizer in optimizers:
             try:
@@ -143,6 +190,20 @@ class ExportGraph(nn.Module):
                 print("\033[1;33mFailed to optimize ONNX model.\033[0m")
             os.rename(unoptimized_model_path, optimized_model_path)
         onnx.checker.check_model(optimized_model_path, full_check=True)
+
+    @staticmethod
+    def _get_onnx_tensor_shape(tensor_type: Any) -> tuple[int | str, ...]:
+        if not tensor_type.HasField("shape"):
+            raise ValueError("Tensor type does not have a shape defined.")
+        shape = []
+        for dim in tensor_type.shape.dim:
+            if dim.HasField("dim_value"):
+                shape.append(dim.dim_value)
+            elif dim.HasField("dim_param"):
+                shape.append(dim.dim_param)
+            else:
+                shape.append("?")
+        return tuple(shape)
 
     def _optimize_onnx_model_with_onnxslim(self, onnx_model, output_path: str, verbose: bool = True):
         import onnxslim

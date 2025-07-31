@@ -115,7 +115,7 @@ class EnvironmentSpec:
         if "action_stats" in kwargs:
             raise ValueError("'action_stats' is removed. Use 'action_denormalization' instead.")
         if "action_normalization" in kwargs:
-            raise ValueError("'action_stats' is removed. Use 'action_denormalization' instead.")
+            raise ValueError("'action_normalization' is removed. Use 'action_denormalization' instead.")
         if "observation_stats" in kwargs:
             raise ValueError("'observation_stats' is removed. Use 'observation_normalization' instead.")
         if "observation_denormalization" in kwargs:
