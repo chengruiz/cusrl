@@ -27,6 +27,15 @@ class DistributionFactory(ModuleFactory[DistributionType]):
 
 
 class Distribution(Module):
+    """Abstract base class for probability distributions.
+
+    Args:
+        input_dim (int):
+            The dimensionality of the input latent space.
+        output_dim (int):
+            The dimensionality of the output action space.
+    """
+
     Factory = DistributionFactory
 
     def __init__(self, input_dim: int, output_dim: int):
@@ -34,6 +43,21 @@ class Distribution(Module):
         self.mean_head = nn.Linear(input_dim, output_dim)
 
     def forward(self, latent, **kwargs) -> tuple[Tensor, Tensor]:
+        """Computes the parameters of the distribution from a latent tensor.
+
+        This method must be implemented by subclasses. It should return the
+        parameters that define the distribution (e.g., mean and standard deviation).
+
+        Args:
+            latent (Tensor):
+                The input tensor from the latent space.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+             tuple[Tensor, Tensor]:
+                A tuple containing the distribution's parameters (e.g., mean, std).
+        """
         raise NotImplementedError
 
     def sample(self, latent, **kwargs) -> tuple[Tensor, Tensor, Tensor, Tensor]:
@@ -45,22 +69,74 @@ class Distribution(Module):
         raise NotImplementedError
 
     @classmethod
-    def calc_logp(cls, mean, std, sample) -> Tensor:
+    def compute_logp(cls, mean, std, sample) -> Tensor:
+        """Computes the log probability of a sample given the distribution parameters.
+
+        Args:
+            mean (Tensor):
+                The mean of the distribution.
+            std (Tensor):
+                The standard deviation of the distribution.
+            sample (Tensor):
+                The sample for which to compute the log probability.
+
+        Returns:
+            Tensor:
+                The log probability of the sample.
+        """
         raise NotImplementedError
 
     @classmethod
-    def calc_entropy(cls, mean, std) -> Tensor:
+    def compute_entropy(cls, mean, std) -> Tensor:
+        """Computes the entropy of the distribution.
+
+        Args:
+            mean (Tensor):
+                The mean of the distribution.
+            std (Tensor):
+                The standard deviation of the distribution.
+
+        Returns:
+            The entropy of the distribution.
+        """
         raise NotImplementedError
 
     @classmethod
-    def calc_kl_div(cls, mean1, std1, mean2, std2) -> Tensor:
-        r"""
+    def compute_kl_div(cls, mean1, std1, mean2, std2) -> Tensor:
+        r"""Computes the KL divergence between two distributions P and Q.
+
         .. math::
             D_{KL}(P || Q) = \int P(x) \log \frac{P(x)}{Q(x)} dx
+
+        Args:
+            mean1 (Tensor):
+                The mean of the first distribution (P).
+            std1 (Tensor):
+                The standard deviation of the first distribution (P).
+            mean2 (Tensor):
+                The mean of the second distribution (Q).
+            std2 (Tensor):
+                The standard deviation of the second distribution (Q).
+
+        Returns:
+            Tensor:
+                The KL divergence between the two distributions.
         """
         raise NotImplementedError
 
     def determine(self, latent: Tensor, **kwargs) -> Tensor:
+        """Returns the deterministic action (the mean) for a given latent state.
+
+        Args:
+            latent (Tensor):
+                The input tensor from the latent space.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            Tensor:
+                The mean of the distribution, representing the deterministic action.
+        """
         return self.mean_head(latent)
 
     def deterministic(self):
@@ -97,15 +173,15 @@ class _Normal(Distribution):
         return sample, logp
 
     @classmethod
-    def calc_logp(cls, mean, std, sample) -> Tensor:
+    def compute_logp(cls, mean, std, sample) -> Tensor:
         return cls._dist(mean, std).log_prob(sample).sum(dim=-1, keepdim=True)
 
     @classmethod
-    def calc_entropy(cls, mean, std) -> Tensor:
+    def compute_entropy(cls, mean, std) -> Tensor:
         return cls._dist(mean, std).entropy().sum(dim=-1, keepdim=True)
 
     @classmethod
-    def calc_kl_div(cls, mean1, std1, mean2, std2) -> Tensor:
+    def compute_kl_div(cls, mean1, std1, mean2, std2) -> Tensor:
         kl = distributions.kl_divergence(cls._dist(mean1, std1), cls._dist(mean2, std2))
         return kl.sum(dim=-1, keepdim=True)
 
@@ -250,14 +326,14 @@ class OneHotCategoricalDist(Distribution):
         return action, logp
 
     @classmethod
-    def calc_logp(cls, mode: Tensor, logit: Tensor, sample: Tensor) -> Tensor:
+    def compute_logp(cls, mode: Tensor, logit: Tensor, sample: Tensor) -> Tensor:
         logp = cls._dist(logit).log_prob(sample).unsqueeze(-1)
         return logp
 
     @classmethod
-    def calc_entropy(cls, mode: Tensor, logit: Tensor) -> Tensor:
+    def compute_entropy(cls, mode: Tensor, logit: Tensor) -> Tensor:
         return cls._dist(logit).entropy().unsqueeze(-1)
 
     @classmethod
-    def calc_kl_div(cls, mode1: Tensor, logit1: Tensor, mode2: Tensor, logit2: Tensor) -> Tensor:
+    def compute_kl_div(cls, mode1: Tensor, logit1: Tensor, mode2: Tensor, logit2: Tensor) -> Tensor:
         return distributions.kl_divergence(cls._dist(logit1), cls._dist(logit2)).unsqueeze(-1)

@@ -226,7 +226,7 @@ class Actor(Module):
                 observation=observation,
                 **(distribution_kwargs or {}),
             )
-            logp = self.distribution.calc_logp(action_mean, action_std, action)
+            logp = self.distribution.compute_logp(action_mean, action_std, action)
         else:
             action_mean, action_std, action, logp = self.distribution.sample(
                 latent,
@@ -256,11 +256,11 @@ class Actor(Module):
         )
         return action, memory
 
-    def calc_logp(self, action_mean, action_std, action):
-        return self.distribution.calc_logp(action_mean, action_std, action)
+    def compute_logp(self, action_mean, action_std, action):
+        return self.distribution.compute_logp(action_mean, action_std, action)
 
-    def calc_entropy(self, action_mean, action_std):
-        return self.distribution.calc_entropy(action_mean, action_std)
+    def compute_entropy(self, action_mean, action_std):
+        return self.distribution.compute_entropy(action_mean, action_std)
 
     def step_memory(self, observation, memory=None, **kwargs):
         return self.backbone.step_memory(observation, memory, **kwargs)

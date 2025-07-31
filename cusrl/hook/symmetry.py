@@ -133,10 +133,10 @@ class SymmetricDataAugmentation(SymmetryHook):
                 memory=batch.get("mirrored_actor_memory"),
                 done=batch["done"],
             )
-            mirrored_action_logp = actor.calc_logp(
+            mirrored_action_logp = actor.compute_logp(
                 mirrored_action_mean, mirrored_action_std, self._mirror_action(batch["action"])
             )
-            mirrored_entropy = actor.calc_entropy(mirrored_action_mean, mirrored_action_std)
+            mirrored_entropy = actor.compute_entropy(mirrored_action_mean, mirrored_action_std)
             mirrored_action_logp_diff = mirrored_action_logp - batch["action_logp"]
 
         batch["advantage"] = torch.cat([batch["advantage"], batch["advantage"]], dim=0)
@@ -236,7 +236,7 @@ class SymmetricActor(Actor):
         )
         if deterministic:
             action = action_mean  # FIXME: directly using action_mean may not be correct
-            logp = self.distribution.calc_logp(action_mean, action_std, action)
+            logp = self.distribution.compute_logp(action_mean, action_std, action)
         else:
             action, logp = self.distribution.sample_from_dist(action_mean, action_std)
         return (action_mean, action_std), (action, logp), memory

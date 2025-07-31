@@ -35,7 +35,7 @@ class OnPolicyStatistics(Hook[ActorCritic]):
                 )
 
             agent.record(
-                kl_divergence=agent.actor.distribution.calc_kl_div(
+                kl_divergence=agent.actor.distribution.compute_kl_div(
                     batch["action_mean"], batch["action_std"], action_mean, action_std
                 ),
                 action_std=action_std,
