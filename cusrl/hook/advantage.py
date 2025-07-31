@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Literal
+from typing import Literal, cast
 
 import torch
 from torch import Tensor
@@ -84,11 +84,11 @@ class AdvantageNormalization(Hook[ActorCritic]):
 
     def pre_update(self, buffer):
         if not self.mini_batch_wise:
-            self.normalize_(buffer["advantage"])
+            self.normalize_(cast(torch.Tensor, buffer["advantage"]))
 
     def objective(self, batch):
         if self.mini_batch_wise:
-            self.normalize_(batch["advantage"])
+            self.normalize_(cast(torch.Tensor, batch["advantage"]))
 
     @torch.no_grad()
     def normalize_(self, advantage: Tensor):

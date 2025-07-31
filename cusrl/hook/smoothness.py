@@ -52,7 +52,7 @@ class ActionSmoothnessLoss(Hook):
         self.conv_1st_order = self.agent.to_tensor([[[-1.0, 1.0]]])
         self.conv_2nd_order = self.agent.to_tensor([[[-1.0, 2.0, -1.0]]])
 
-    def objective(self, batch: dict[str, Any]):
+    def objective(self, batch):
         action_mean = batch["curr_action_dist"]["mean"]
         if action_mean.ndim != 3:
             raise ValueError("Expected batch to be temporal.")

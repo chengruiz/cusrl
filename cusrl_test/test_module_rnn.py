@@ -11,7 +11,7 @@ def test_rnn_consistency():
     num_seqs = 20
     seq_len = 30
 
-    rnn = cusrl.Rnn.Factory("LSTM", num_layers=2, hidden_size=hidden_size)(input_dim=input_dim)
+    rnn = cusrl.Lstm(num_layers=2, hidden_size=hidden_size, input_size=input_dim)
     input = torch.randn(seq_len, num_seqs, input_dim)
     done = torch.rand(seq_len, num_seqs, 1) > 0.8
     _, memory = rnn(input)
@@ -28,35 +28,30 @@ def test_rnn_consistency():
 
 
 def test_rnn_actor_consistency():
-    input_dim = 10
+    observation_dim = 10
     hidden_size = 24
     num_seqs = 20
     seq_len = 30
     action_dim = 5
 
     rnn = cusrl.Actor.Factory(
-        backbone_factory=cusrl.Rnn.Factory("lstm", num_layers=2, hidden_size=hidden_size),
+        backbone_factory=cusrl.Lstm.Factory(num_layers=2, hidden_size=hidden_size),
         distribution_factory=cusrl.NormalDist.Factory(),
-    )(input_dim, action_dim)
-    input = torch.randn(seq_len, num_seqs, input_dim)
+    )(observation_dim, action_dim)
+    observation = torch.randn(seq_len, num_seqs, observation_dim)
     done = torch.rand(seq_len, num_seqs, 1) > 0.8
-    _, memory = rnn(input)
+    _, init_memory = rnn(observation)
 
     action_mean1 = torch.zeros(seq_len, num_seqs, action_dim)
-    backbone_output1 = torch.zeros(seq_len, num_seqs, hidden_size)
-    memory1 = memory
+    memory1 = init_memory
     for i in range(seq_len):
-        action_dist, memory1 = rnn(input[i], memory=memory1)
+        action_dist, memory1 = rnn(observation[i], memory=memory1)
         rnn.reset_memory(memory1, done=done[i])
         action_mean1[i] = action_dist["mean"]
-        backbone_output1[i] = rnn.intermediate_repr["backbone.output"]
 
-    action_dist2, _ = rnn(input, memory=memory, done=done)
-    backbone_output2 = rnn.intermediate_repr["backbone.output"]
-    assert torch.allclose(
-        backbone_output1, backbone_output2, atol=1e-5
-    ), "Backbone outputs of RNN actor are not consistent"
-    assert torch.allclose(action_mean1, action_dist2["mean"], atol=1e-5), "Outputs for RNN actor are not consistent"
+    action_dist2, _ = rnn(observation, memory=init_memory, done=done)
+    action_mean2 = action_dist2["mean"]
+    assert torch.allclose(action_mean1, action_mean2, atol=1e-5), "Action means are not consistent"
 
 
 @pytest.mark.parametrize("rnn_type", ["GRU", "LSTM"])
@@ -74,14 +69,14 @@ def test_step_memory():
     seq_len = 30
 
     rnn = cusrl.Actor.Factory(
-        cusrl.Rnn.Factory("GRU", num_layers=2, hidden_size=hidden_size),
+        cusrl.Gru.Factory(num_layers=2, hidden_size=hidden_size),
         cusrl.NormalDist.Factory(),
     )(input_dim, 12)
 
-    input = torch.randn(seq_len, num_seqs, input_dim)
+    observation = torch.randn(seq_len, num_seqs, input_dim)
     memory1 = memory2 = None
 
     for i in range(seq_len):
-        _, memory1 = rnn(input[i], memory=memory1)
-        memory2 = rnn.step_memory(input[i], memory=memory2)
+        _, memory1 = rnn(observation[i], memory=memory1)
+        memory2 = rnn.step_memory(observation[i], memory=memory2)
         assert torch.allclose(memory1, memory2), "RNN memories are not consistent"

@@ -20,7 +20,7 @@ class OnPolicyPreparation(Hook[ActorCritic]):
     def __init__(self, calculate_kl_divergence: bool = False):
         self.calculate_kl_divergence = calculate_kl_divergence
 
-    def objective(self, batch: dict[str, Any]):
+    def objective(self, batch):
         actor = self.agent.actor
 
         with self.agent.autocast():
@@ -40,4 +40,4 @@ class OnPolicyPreparation(Hook[ActorCritic]):
         batch["action_logp_diff"] = logp_diff
         batch["action_prob_ratio"] = logp_diff.exp()
         if self.calculate_kl_divergence:
-            batch["kl_divergence"] = actor.distribution.compute_kl_div(batch["action_dist"], action_dist)
+            batch["kl_divergence"] = actor.compute_kl_div(batch["action_dist"], action_dist)

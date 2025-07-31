@@ -128,7 +128,7 @@ class ValueLoss(Hook[ActorCritic]):
         self.weight = weight
         self.loss_clip = loss_clip
 
-    def objective(self, batch: dict[str, Any]):
+    def objective(self, batch):
         critic = self.agent.critic
         with self.agent.autocast():
             curr_value = batch.get("curr_value")

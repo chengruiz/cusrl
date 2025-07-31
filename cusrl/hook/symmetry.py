@@ -3,10 +3,10 @@ from collections.abc import Sequence
 import torch
 from torch import Tensor, nn
 
-from cusrl.module import Actor
+from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.helper import prefix_dict_keys
-from cusrl.utils.typing import DistributionParams, Memory, Slice
+from cusrl.utils.typing import Memory, NestedTensor, Slice
 
 __all__ = [
     # Elements
@@ -173,6 +173,8 @@ class SymmetricActor(Actor):
         mirror_action: SymmetryDef,
     ):
         super().__init__(wrapped.backbone, wrapped.distribution)
+        if not isinstance(self.distribution, (NormalDist, AdaptiveNormalDist)):
+            raise ValueError("SymmetricActor can only be used with Normal distributions.")
 
         self.wrapped = wrapped
         self._mirror_observation = mirror_observation
@@ -186,7 +188,7 @@ class SymmetricActor(Actor):
         done: Tensor | None = None,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[DistributionParams, Memory]:
+    ) -> tuple[NestedTensor, Memory]:
         if memory is not None:
             memory, mirrored_memory = memory
         else:
@@ -232,7 +234,7 @@ class SymmetricActor(Actor):
         deterministic: bool = False,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[DistributionParams, tuple[Tensor, Tensor], Memory]:
+    ) -> tuple[NestedTensor, tuple[Tensor, Tensor], Memory]:
         action_dist, memory = self(
             observation,
             memory=memory,

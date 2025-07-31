@@ -9,7 +9,7 @@ from torch.nn.functional import one_hot
 from cusrl import utils
 from cusrl.module.bijector import Bijector, get_bijector
 from cusrl.module.module import Module, ModuleFactory
-from cusrl.utils.typing import DistributionParams, Nested
+from cusrl.utils.typing import Nested, NestedTensor
 
 __all__ = [
     "AdaptiveNormalDist",
@@ -43,7 +43,7 @@ class Distribution(Module):
         super().__init__(input_dim, output_dim)
         self.mean_head = nn.Linear(input_dim, output_dim)
 
-    def forward(self, latent, **kwargs) -> DistributionParams:
+    def forward(self, latent: Tensor, **kwargs) -> NestedTensor:
         """Computes the parameters of the distribution from a latent tensor.
 
         This method must be implemented by subclasses. It should return the
@@ -56,25 +56,25 @@ class Distribution(Module):
                 Additional keyword arguments.
 
         Returns:
-            dist_params (DistributionParams):
+            dist_params (NestedTensor):
                 A dictionary containing the distribution parameters.
         """
         raise NotImplementedError
 
-    def sample(self, latent, **kwargs) -> tuple[DistributionParams, tuple[Tensor, Tensor]]:
+    def sample(self, latent: Tensor, **kwargs) -> tuple[NestedTensor, tuple[Tensor, Tensor]]:
         dist_params = self(latent, **kwargs)
         action, logp = self.sample_from_dist(dist_params)
         return dist_params, (action, logp)
 
-    def sample_from_dist(self, dist_params: DistributionParams) -> tuple[Tensor, Tensor]:
+    def sample_from_dist(self, dist_params: NestedTensor) -> tuple[Tensor, Tensor]:
         raise NotImplementedError
 
     @classmethod
-    def compute_logp(cls, dist_params: DistributionParams, sample: torch.Tensor) -> Tensor:
+    def compute_logp(cls, dist_params: NestedTensor, sample: torch.Tensor) -> Tensor:
         """Computes the log probability of a sample given the distribution parameters.
 
         Args:
-            dist_params (Tensor):
+            dist_params (NestedTensor):
                 The parameters of the distribution.
             sample (Tensor):
                 The sample for which to compute the log probability.
@@ -86,11 +86,11 @@ class Distribution(Module):
         raise NotImplementedError
 
     @classmethod
-    def compute_entropy(cls, dist_params: dict[str, Nested]) -> Tensor:
+    def compute_entropy(cls, dist_params: NestedTensor) -> Tensor:
         """Computes the entropy of the distribution.
 
         Args:
-            dist_params (Tensor):
+            dist_params (NestedTensor):
                 The parameters of the distribution.
 
         Returns:
@@ -100,7 +100,7 @@ class Distribution(Module):
         raise NotImplementedError
 
     @classmethod
-    def compute_kl_div(cls, dist_params1, dist_params2) -> Tensor:
+    def compute_kl_div(cls, dist_params1: NestedTensor, dist_params2: NestedTensor) -> Tensor:
         r"""Computes the KL divergence between two distributions P and Q.
 
         .. math::
@@ -157,10 +157,10 @@ class DeterministicWrapper(nn.Module):
 
 class _Normal(Distribution):
     @classmethod
-    def _dist(cls, dist_params: DistributionParams) -> distributions.Normal:
+    def _dist(cls, dist_params: NestedTensor) -> distributions.Normal:
         return distributions.Normal(dist_params["mean"], dist_params["std"], validate_args=False)
 
-    def sample_from_dist(self, dist_params: DistributionParams) -> tuple[Tensor, Tensor]:
+    def sample_from_dist(self, dist_params: NestedTensor) -> tuple[Tensor, Tensor]:
         dist = self._dist(dist_params)
         sample = dist.rsample()
         logp = dist.log_prob(sample).sum(dim=-1, keepdim=True)
@@ -221,7 +221,7 @@ class NormalDist(_Normal):
         super().__init__(input_dim, output_dim)
         self.std = StddevVector(output_dim, bijector=bijector)
 
-    def forward(self, latent, **kwargs) -> DistributionParams:
+    def forward(self, latent: Tensor, **kwargs) -> NestedTensor:
         return {"mean": self.mean_head(latent), "std": self.std(latent)}
 
     def to_distributed(self):
@@ -279,7 +279,7 @@ class AdaptiveNormalDist(_Normal):
         if isinstance(self.std_head, Module):
             self.std_head.clear_intermediate_repr()
 
-    def forward(self, latent, **kwargs) -> DistributionParams:
+    def forward(self, latent: Tensor, **kwargs) -> NestedTensor:
         action_mean = self.mean_head(latent)
         if not self.backward:
             latent = latent.detach()
@@ -299,7 +299,7 @@ class OneHotCategoricalDistFactory(DistributionFactory["OneHotCategoricalDist"])
 class OneHotCategoricalDist(Distribution):
     Factory = OneHotCategoricalDistFactory
 
-    def forward(self, latent: Tensor, **kwargs) -> DistributionParams:
+    def forward(self, latent: Tensor, **kwargs) -> NestedTensor:
         logit: Tensor = self.mean_head(latent)
         return {"logit": logit}
 
@@ -309,24 +309,24 @@ class OneHotCategoricalDist(Distribution):
         return mode
 
     @classmethod
-    def _dist(cls, dist_params: DistributionParams) -> distributions.OneHotCategorical:
+    def _dist(cls, dist_params: NestedTensor) -> distributions.OneHotCategorical:
         return distributions.OneHotCategorical(logits=dist_params["logit"], validate_args=False)
 
-    def sample_from_dist(self, dist_params: DistributionParams) -> tuple[Tensor, Tensor]:
+    def sample_from_dist(self, dist_params: NestedTensor) -> tuple[Tensor, Tensor]:
         dist = self._dist(dist_params)
         action = dist.sample()
         logp = dist.log_prob(action).unsqueeze(-1)
         return action, logp
 
     @classmethod
-    def compute_logp(cls, dist_params: DistributionParams, sample: Tensor) -> Tensor:
+    def compute_logp(cls, dist_params: NestedTensor, sample: Tensor) -> Tensor:
         logp = cls._dist(dist_params).log_prob(sample).unsqueeze(-1)
         return logp
 
     @classmethod
-    def compute_entropy(cls, dist_params: DistributionParams) -> Tensor:
+    def compute_entropy(cls, dist_params: NestedTensor) -> Tensor:
         return cls._dist(dist_params).entropy().unsqueeze(-1)
 
     @classmethod
-    def compute_kl_div(cls, dist_params1: DistributionParams, dist_params2: DistributionParams) -> Tensor:
+    def compute_kl_div(cls, dist_params1: NestedTensor, dist_params2: NestedTensor) -> Tensor:
         return distributions.kl_divergence(cls._dist(dist_params1), cls._dist(dist_params2)).unsqueeze(-1)

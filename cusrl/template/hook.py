@@ -8,6 +8,7 @@ import cusrl
 from cusrl.template.agent import AgentType
 from cusrl.utils import distributed
 from cusrl.utils.export import ExportGraph
+from cusrl.utils.typing import NestedTensor
 
 __all__ = ["Hook", "HookComposite"]
 
@@ -98,19 +99,19 @@ class Hook(Generic[AgentType]):
     def post_init(self):
         pass
 
-    def pre_act(self, transition: dict[str, torch.Tensor | Any]):
+    def pre_act(self, transition: dict[str, NestedTensor]):
         pass
 
-    def post_act(self, transition: dict[str, torch.Tensor | Any]):
+    def post_act(self, transition: dict[str, NestedTensor]):
         pass
 
-    def post_step(self, transition: dict[str, torch.Tensor | Any]):
+    def post_step(self, transition: dict[str, NestedTensor]):
         pass
 
     def pre_update(self, buffer: "cusrl.Buffer"):
         pass
 
-    def objective(self, batch: dict[str, torch.Tensor | Any]) -> torch.Tensor | None:
+    def objective(self, batch: dict[str, NestedTensor | Any]) -> torch.Tensor | None:
         return None
 
     def pre_optim(self, optimizer: torch.optim.Optimizer):
@@ -216,7 +217,7 @@ class HookComposite(Hook):
         for hook in self.active_hooks():
             hook.pre_update(buffer)
 
-    def objective(self, batch: dict[str, Any]) -> torch.Tensor | None:
+    def objective(self, batch: dict[str, NestedTensor | Any]) -> torch.Tensor | None:
         objectives = []
         for hook in self.active_hooks():
             if (obj := hook.objective(batch)) is not None:

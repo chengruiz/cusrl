@@ -40,7 +40,7 @@ class PpoSurrogateLoss(Hook):
         super().__init__()
         self.clip_ratio = clip_ratio
 
-    def objective(self, batch: dict[str, Any]):
+    def objective(self, batch):
         if (advantage := batch["advantage"]).size(-1) != 1:
             raise ValueError(f"Expected advantage to have shape [..., 1], got {advantage.shape}.")
         with self.agent.autocast():
@@ -73,5 +73,5 @@ class EntropyLoss(Hook):
     def __init__(self, weight: float = 0.01):
         self.weight = weight
 
-    def objective(self, batch: dict[str, Any]):
+    def objective(self, batch):
         return -self.weight * batch["curr_entropy"].mean()

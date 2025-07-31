@@ -21,7 +21,7 @@ class EpochIndexCondition:
             epoch_index = [epoch_index]
         self.epoch_index = set(epoch_index)
 
-    def __call__(self, agent: ActorCritic, batch: dict[str, Any]) -> bool:
+    def __call__(self, agent: ActorCritic, batch) -> bool:
         return batch["epoch_index"] in self.epoch_index
 
 

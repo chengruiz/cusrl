@@ -5,7 +5,7 @@ from torch import Tensor
 from cusrl.module.distribution import Distribution, DistributionFactoryLike
 from cusrl.module.module import Module, ModuleFactory, ModuleFactoryLike
 from cusrl.utils.helper import prefix_dict_keys
-from cusrl.utils.typing import DistributionParams, Memory, Slice
+from cusrl.utils.typing import Memory, NestedTensor, Slice
 
 __all__ = ["Actor"]
 
@@ -98,7 +98,7 @@ class Actor(Module):
         deterministic: bool = False,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[DistributionParams, tuple[Tensor, Tensor], Memory]:
+    ) -> tuple[NestedTensor, tuple[Tensor, Tensor], Memory]:
         """Generates an action for exploration, returning full distribution details.
 
         This method is typically used during training to collect experience. It returns
@@ -121,10 +121,12 @@ class Actor(Module):
                 to None.
 
         Returns:
-            A tuple containing:
-            - (DistributionParams): A dict of distribution parameters.
-            - (tuple[Tensor, Tensor]): A tuple of (sampled_action, log_probability).
-            - Memory: The updated recurrent state.
+            action_dist (NestedTensor):
+                Distribution parameters.
+            action (tuple[Tensor, Tensor]):
+                A tuple of (sampled_action, log_probability).
+            memory (Memory):
+                The updated recurrent state.
         """
         return self(
             observation,
@@ -164,9 +166,10 @@ class Actor(Module):
                 to None.
 
         Returns:
-            A tuple containing:
-            - Tensor: The generated action.
-            - Memory: The updated recurrent state.
+            action (Tensor):
+                A tuple of (sampled_action, log_probability).
+            memory (Memory):
+                The updated recurrent state.
         """
         return self(
             observation,
@@ -184,7 +187,7 @@ class Actor(Module):
         done: Tensor | None = None,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[DistributionParams, Memory]:
+    ) -> tuple[NestedTensor, Memory]:
         latent, memory = self.backbone(
             observation,
             memory=memory,
@@ -210,7 +213,7 @@ class Actor(Module):
         deterministic: bool = False,
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
-    ) -> tuple[DistributionParams, tuple[Tensor, Tensor], Memory]:
+    ) -> tuple[NestedTensor, tuple[Tensor, Tensor], Memory]:
         latent, memory = self.backbone(
             observation,
             memory=memory,
@@ -257,13 +260,13 @@ class Actor(Module):
         )
         return action, memory
 
-    def compute_logp(self, dist_params: DistributionParams, action):
+    def compute_logp(self, dist_params: NestedTensor, action):
         return self.distribution.compute_logp(dist_params, action)
 
-    def compute_entropy(self, dist_params: DistributionParams):
+    def compute_entropy(self, dist_params: NestedTensor):
         return self.distribution.compute_entropy(dist_params)
 
-    def compute_kl_div(self, dist_params1: DistributionParams, dist_params2: DistributionParams):
+    def compute_kl_div(self, dist_params1: NestedTensor, dist_params2: NestedTensor):
         return self.distribution.compute_kl_div(dist_params1, dist_params2)
 
     def step_memory(self, observation: Tensor, memory: Memory = None, **kwargs):

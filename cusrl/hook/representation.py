@@ -30,7 +30,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.predictor = self.predictor_factory(self.agent.actor.latent_dim, 1)
         self.predictor = self.agent.setup_module(self.predictor)
 
-    def objective(self, batch: dict[str, Any]):
+    def objective(self, batch):
         latent = self.agent.actor.intermediate_repr["backbone.output"]
         target = batch["value"] if self.predicts_value_instead_of_return else batch["return"]
         with self.agent.autocast():
@@ -71,7 +71,7 @@ class StatePrediction(Hook[ActorCritic]):
         self.predictor = self.predictor_factory(self.agent.actor.latent_dim, target_dim)
         self.predictor = self.agent.setup_module(self.predictor)
 
-    def objective(self, batch: dict[str, Any]):
+    def objective(self, batch):
         with self.agent.autocast():
             latent = self.agent.actor.intermediate_repr["backbone.output"]
             target = batch["state"][..., self.target_indices]
@@ -124,7 +124,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         )
         self.predictor = self.agent.setup_module(self.predictor)
 
-    def objective(self, batch: dict[str, Any]):
+    def objective(self, batch):
         with self.agent.autocast():
             latent = self.agent.actor.intermediate_repr["backbone.output"]
             target = batch["next_state"][..., self.target_indices]
