@@ -6,7 +6,7 @@ import torch
 from cusrl.hook.symmetry import SymmetryDef
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils import RunningMeanStd, mean_var_count
-from cusrl.utils.export import ExportGraph
+from cusrl.utils.export import GraphBuilder
 from cusrl.utils.typing import Slice
 
 __all__ = ["ObservationNormalization"]
@@ -162,7 +162,7 @@ class ObservationNormalization(Hook[ActorCritic]):
             else:
                 self.observation_rms.synchronize()
 
-    def pre_export(self, graph: ExportGraph):
+    def pre_export(self, graph: GraphBuilder):
         graph.add_module_to_graph(
             self.observation_rms,
             module_name="observation_rms",

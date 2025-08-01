@@ -12,7 +12,7 @@ from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
-from cusrl.utils.export import ExportGraph
+from cusrl.utils.export import GraphBuilder
 from cusrl.utils.typing import NestedArray, NestedTensor, Observation, Reward, State, Terminated, Truncated
 
 __all__ = ["ActorCritic"]
@@ -245,7 +245,7 @@ class ActorCritic(Agent):
 
         actor = self.actor_factory(self.observation_dim, self.action_dim).to(device=self.device)
         actor.load_state_dict(self.actor.state_dict())
-        graph = ExportGraph()
+        graph = GraphBuilder(graph_name="actor")
         inputs = {"observation": torch.zeros(1, 1, self.environment_spec.observation_dim, device=self.device)}
         input_names = {"observation": "observation"}
         output_names = ["action"]
@@ -296,9 +296,9 @@ class ActorCritic(Agent):
             )
 
         if target_format == "onnx":
-            graph.export_onnx(inputs, output_dir, graph_name="actor", dynamo=dynamo, verbose=verbose)
+            graph.export_onnx(inputs, output_dir, dynamo=dynamo, verbose=verbose)
         elif target_format == "jit":
-            graph.export_jit(inputs, output_dir, graph_name="actor")
+            graph.export_jit(inputs, output_dir)
         else:
             raise ValueError(f"Unsupported export format '{target_format}'.")
         if verbose:

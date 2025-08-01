@@ -46,9 +46,9 @@ def main(args):
         agent.load_state_dict(checkpoint["agent"])
         environment.load_state_dict(checkpoint["environment"])
         if args.output_dir is None:
-            args.output_dir = trial.home / "export"
+            args.output_dir = trial.home / "exported"
     if args.output_dir is None:
-        args.output_dir = "export"
+        args.output_dir = "exported"
     agent.export(
         output_dir=args.output_dir,
         dynamo=args.dynamo,

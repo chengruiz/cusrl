@@ -5,7 +5,7 @@ from torch import nn
 
 from cusrl.module import LayerFactoryLike
 from cusrl.template import ActorCritic, Hook
-from cusrl.utils.export import ExportGraph
+from cusrl.utils.export import GraphBuilder
 from cusrl.utils.typing import Slice
 
 __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]
@@ -39,7 +39,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.agent.record(return_prediction_loss=return_prediction_loss)
         return return_prediction_loss
 
-    def post_export(self, graph: ExportGraph):
+    def post_export(self, graph: GraphBuilder):
         graph.add_module_to_graph(
             self.predictor,
             module_name="return_predictor",
@@ -79,7 +79,7 @@ class StatePrediction(Hook[ActorCritic]):
         self.agent.record(state_prediction_loss=state_prediction_loss)
         return state_prediction_loss
 
-    def post_export(self, graph: ExportGraph):
+    def post_export(self, graph: GraphBuilder):
         graph.add_module_to_graph(
             self.predictor,
             module_name="state_predictor",
@@ -133,7 +133,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         self.agent.record(next_state_prediction_loss=next_state_prediction_loss)
         return next_state_prediction_loss
 
-    def post_export(self, graph: ExportGraph):
+    def post_export(self, graph: GraphBuilder):
         graph.add_module_to_graph(
             self.predictor,
             module_name="next_state_predictor",

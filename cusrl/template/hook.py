@@ -7,7 +7,7 @@ from torch import nn
 import cusrl
 from cusrl.template.agent import AgentType
 from cusrl.utils import distributed
-from cusrl.utils.export import ExportGraph
+from cusrl.utils.export import GraphBuilder
 from cusrl.utils.typing import NestedTensor
 
 __all__ = ["Hook", "HookComposite"]
@@ -128,10 +128,10 @@ class Hook(Generic[AgentType]):
             raise ValueError(f"Attribute '{name}' is not mutable for hook {self.name}.")
         setattr(self, name, value)
 
-    def pre_export(self, graph: ExportGraph):
+    def pre_export(self, graph: GraphBuilder):
         pass
 
-    def post_export(self, graph: ExportGraph):
+    def post_export(self, graph: GraphBuilder):
         pass
 
     @classmethod
@@ -238,11 +238,11 @@ class HookComposite(Hook):
         for hook in self.active_hooks():
             hook.apply_schedule(iteration)
 
-    def pre_export(self, graph: ExportGraph):
+    def pre_export(self, graph: GraphBuilder):
         for hook in self:
             hook.pre_export(graph)
 
-    def post_export(self, graph: ExportGraph):
+    def post_export(self, graph: GraphBuilder):
         for hook in self:
             hook.post_export(graph)
 
