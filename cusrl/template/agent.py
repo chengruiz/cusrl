@@ -27,12 +27,17 @@ class AgentFactory(ABC, Generic[AgentType]):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
-        autocast: bool | torch.dtype = False,
+        autocast: bool | str | torch.dtype = False,
     ):
         self.num_steps_per_update = num_steps_per_update
         self.name = name
         self.device = device
         self.compile = compile
+        if isinstance(autocast, str):
+            dtype = getattr(torch, autocast, None)
+            if dtype is None or not isinstance(dtype, torch.dtype):
+                raise ValueError(f"Invalid autocast datatype '{autocast}'.")
+            autocast = dtype
         self.autocast = autocast
 
     def override(self, **kwargs: Any) -> Self:

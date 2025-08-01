@@ -32,8 +32,8 @@ def configure_parser(parser):
                         help="Path to a checkpoint to resume training from")
     parser.add_argument("--device", type=str,
                         help="Device to use for training")
-    parser.add_argument("--autocast", action="store_true",
-                        help="Whether to use automatic mixed precision")
+    parser.add_argument("--autocast", nargs="?", const=True, metavar="DTYPE",
+                        help="Datatype for automatic mixed precision (default: disabled)")
     parser.add_argument("--compile", action="store_true",
                         help="Whether to use `torch.compile`")
     parser.add_argument("--environment-args", type=str, metavar="ARG",

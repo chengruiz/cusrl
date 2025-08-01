@@ -44,7 +44,7 @@ class Metrics(defaultdict[str, Metric]):
         """
         self.update(kwargs)
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def update(self, other: Mapping[str, Any], /, **kwargs):
         for name, value in chain(other.items(), kwargs.items()):
             if value is None:

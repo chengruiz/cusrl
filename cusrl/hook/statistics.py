@@ -23,7 +23,7 @@ class OnPolicyStatistics(Hook[ActorCritic]):
     def __init__(self, sampler: Sampler | None = None):
         self.sampler = sampler if sampler is not None else Sampler()
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def post_update(self):
         actor = self.agent.actor
         for batch in self.sampler(self.agent.buffer):

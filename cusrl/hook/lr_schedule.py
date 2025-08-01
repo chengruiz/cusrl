@@ -170,7 +170,7 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
         pass
 
     def objective(self, batch):
-        with torch.inference_mode():
+        with torch.no_grad():
             kl_divergence = batch["kl_divergence"].mean()
         distributed.reduce_mean_(kl_divergence)
         scale = self._compute_scale(kl_divergence.item())
