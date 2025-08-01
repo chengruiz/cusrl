@@ -8,7 +8,7 @@ from torch import nn
 
 from cusrl.module import Module
 from cusrl.utils.helper import prefix_dict_keys
-from cusrl.utils.nest import get_schema, iterate_nested, reconstruct_nested
+from cusrl.utils.nest import flatten_nested, get_schema, iterate_nested, reconstruct_nested
 from cusrl.utils.typing import NestedTensor
 
 __all__ = ["GraphBuilder"]
@@ -89,7 +89,7 @@ class GraphBuilder(nn.Module):
         self.eval()
 
         # Flatten inputs
-        flattened_inputs: dict[str, torch.Tensor] = dict(iterate_nested(example_inputs))
+        flattened_inputs: dict[str, torch.Tensor] = flatten_nested(example_inputs)
 
         # Build the wrappers, trace and save them
         stateless_wrapper = StatelessWrapper(self, example_inputs, self.output_names)
@@ -230,10 +230,10 @@ class StatelessWrapper(nn.Module):
         self.output_names = output_names
 
     @torch.no_grad()
-    def forward(self, inputs: dict[str, torch.Tensor]):
+    def forward(self, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         inputs = reconstruct_nested(inputs, self.input_schema)
         # Convert outputs to a flatten dictionary keyed by corresponding output names
-        return dict(iterate_nested(dict(zip(self.output_names, self.module(**inputs)))))
+        return flatten_nested(dict(zip(self.output_names, self.module(**inputs))))
 
 
 class StatefulWrapper(nn.Module):
@@ -266,7 +266,7 @@ class StatefulWrapper(nn.Module):
         self.module = stateless_wrapper
 
         input_names = []
-        output_names = list(stateless_wrapper(dict(iterate_nested(example_inputs))).keys())
+        output_names = list(stateless_wrapper(flatten_nested(example_inputs)).keys())
         memory_names = []
         for name, value in iterate_nested(example_inputs):
             if not name.startswith("memory_in"):

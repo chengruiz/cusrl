@@ -12,7 +12,17 @@ import cusrl
 from cusrl.module.module import ModuleType
 from cusrl.template.environment import Environment
 from cusrl.utils import Metrics, distributed
-from cusrl.utils.typing import Array, NestedArray, NestedTensor, Observation, Reward, State, Terminated, Truncated
+from cusrl.utils.typing import (
+    Array,
+    ListOrTuple,
+    NestedArray,
+    NestedTensor,
+    Observation,
+    Reward,
+    State,
+    Terminated,
+    Truncated,
+)
 
 __all__ = ["Agent", "AgentType", "AgentFactory"]
 
@@ -176,7 +186,7 @@ class Agent(ABC):
     @overload
     def to_nested_tensor(self, input: Array) -> torch.Tensor: ...
     @overload
-    def to_nested_tensor(self, input: tuple[NestedArray, ...] | list[NestedArray]) -> tuple[NestedTensor, ...]: ...
+    def to_nested_tensor(self, input: ListOrTuple[NestedArray]) -> tuple[NestedTensor, ...]: ...
     @overload
     def to_nested_tensor(self, input: Mapping[str, NestedArray]) -> dict[str, NestedTensor]: ...
 

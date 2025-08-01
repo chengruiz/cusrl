@@ -10,6 +10,7 @@ import numpy as np
 import torch
 
 from cusrl.utils import CONFIG, distributed
+from cusrl.utils.typing import ListOrTuple
 
 __all__ = [
     "float_fmt",
@@ -57,7 +58,7 @@ def import_module(
     module_name: str | None = None,
     package: str | None = None,
     path: str | None = None,
-    args: list[str] | tuple[str, ...] | None = None,
+    args: ListOrTuple[str] | None = None,
 ):
     """Dynamically imports a Python module by name or from a file path, optionally passing arguments.
 
@@ -68,7 +69,7 @@ def import_module(
             The package name to use as the anchor for relative imports (used with `module_name`).
         path (str | None):
             The file path to the module to import. Cannot be specified together with `module_name`.
-        args (list[str] | tuple[str, ...] | None):
+        args (ListOrTuple[str] | None):
             Arguments to pass as `sys.argv` to the module during import.
 
     Returns:

@@ -1,9 +1,10 @@
 from collections.abc import Callable, Iterator, Mapping
 from typing import TypeVar, overload
 
-from cusrl.utils.typing import Nested
+from cusrl.utils.typing import ListOrTuple, Nested
 
 __all__ = [
+    "flatten_nested",
     "get_schema",
     "iterate_nested",
     "map_nested",
@@ -34,7 +35,7 @@ def get_schema(value: Nested[_T], prefix: str = "") -> Nested[str]:
             recursive use. Defaults to "".
 
     Returns:
-        Nested[str]:
+        schema (Nested[str]):
             A nested structure with the same structure as the input, where
             each leaf value is a string representing its path.
 
@@ -71,7 +72,7 @@ def iterate_nested(data: Nested[_T], prefix: str = "") -> Iterator[tuple[str, _T
             recursive use. Defaults to "".
 
     Yields:
-        Iterator[tuple[str, _T]]:
+        generator (Iterator[tuple[str, _T]]):
             An iterator that yields tuples, where each tuple contains a dot-
             separated key path and the corresponding leaf value.
 
@@ -101,6 +102,29 @@ def iterate_nested(data: Nested[_T], prefix: str = "") -> Iterator[tuple[str, _T
         yield prefix, data
 
 
+def flatten_nested(data: Nested[_T], prefix: str = "") -> dict[str, _T]:
+    """Flattens a nested data structure into a flat dictionary.
+
+    Args:
+        data (Nested[_T]):
+            The nested structure to flatten.
+        prefix (str, optional):
+            A prefix to be added to all keys in the flattened dictionary.
+            Defaults to "".
+
+    Returns:
+        flattened_data (dict[str, _T]):
+            A new dictionary with flattened key-value pairs. Keys represent
+            the path to the value in the original nested structure.
+
+    Example:
+        >>> data = {'a': 1, 'b': {'c': 2, 'd': 3}}
+        >>> flatten_nested(data)
+        {'a': 1, 'b.c': 2, 'b.d': 3}
+    """
+    return dict(iterate_nested(data, prefix))
+
+
 def map_nested(data: Nested[_T], func: Callable[[_T], _V]) -> Nested[_V]:
     """Applies a function to each leaf element of a nested structure.
 
@@ -127,16 +151,14 @@ def map_nested(data: Nested[_T], func: Callable[[_T], _V]) -> Nested[_V]:
 
 
 @overload
-def reconstruct_nested(storage: dict[str, _T], schema: str) -> _T: ...
+def reconstruct_nested(flattened_data: dict[str, _T], schema: str) -> _T: ...
 @overload
-def reconstruct_nested(storage: dict[str, _T], schema: Mapping[str, Nested[str]]) -> dict[str, Nested[_T]]: ...
+def reconstruct_nested(flattened_data: dict[str, _T], schema: Mapping[str, Nested[str]]) -> dict[str, Nested[_T]]: ...
 @overload
-def reconstruct_nested(
-    storage: dict[str, _T], schema: tuple[Nested[str], ...] | list[Nested[str]]
-) -> tuple[_T, ...]: ...
+def reconstruct_nested(flattened_data: dict[str, _T], schema: ListOrTuple[Nested[str]]) -> tuple[_T, ...]: ...
 
 
-def reconstruct_nested(storage: dict[str, _T], schema: Nested[str]) -> Nested[_T]:
+def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Nested[_T]:
     """Reconstructs a nested structure from a flat dictionary and a schema.
 
     This function takes a flat dictionary of key-value pairs and a nested
@@ -154,7 +176,7 @@ def reconstruct_nested(storage: dict[str, _T], schema: Nested[str]) -> Nested[_T
             keys that are present in the `storage` dict.
 
     Returns:
-        Nested[_T]:
+        reconstructed_data (Nested[_T]):
             A new nested structure with the same structure as `schema`, but with the
             string keys at the leaves replaced by their corresponding values from
             `storage`.
@@ -166,17 +188,17 @@ def reconstruct_nested(storage: dict[str, _T], schema: Nested[str]) -> Nested[_T
         {'a': 10, 'b': (20, 30)}
     """
     if isinstance(schema, Mapping):
-        return {key: reconstruct_nested(storage, name) for key, name in schema.items()}
+        return {key: reconstruct_nested(flattened_data, name) for key, name in schema.items()}
     if isinstance(schema, (tuple, list)):
-        return tuple(reconstruct_nested(storage, name) for name in schema)
-    return storage[schema]
+        return tuple(reconstruct_nested(flattened_data, name) for name in schema)
+    return flattened_data[schema]
 
 
 def zip_nested(*args: Nested[_T]) -> Iterator[tuple[str, tuple[_T, ...]]]:
     if not args:
         return
 
-    flat_args = [dict(iterate_nested(arg)) for arg in args]
+    flat_args = [flatten_nested(arg) for arg in args]
     keys = sorted(flat_args[0].keys())
 
     if not all(sorted(flat_arg.keys()) == keys for flat_arg in flat_args[1:]):

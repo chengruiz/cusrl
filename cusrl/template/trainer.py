@@ -15,7 +15,8 @@ from cusrl.template.environment import Environment, get_done_indices, update_obs
 from cusrl.template.logger import LoggerFactoryLike
 from cusrl.template.trial import Trial
 from cusrl.utils import CONFIG, Timer, distributed, is_main_process
-from cusrl.utils.helper import float_fmt
+from cusrl.utils.helper import float_fmt, prefix_dict_keys
+from cusrl.utils.nest import flatten_nested
 from cusrl.utils.typing import Slice
 
 __all__ = ["Trainer"]
@@ -60,16 +61,16 @@ class EnvironmentStats:
         self.episode_len[indices] = 0.0
 
     @property
-    def mean_step_reward(self) -> float | list[float]:
+    def mean_step_reward(self) -> float | tuple[float, ...]:
         mean_reward = self.reward / self.num_steps if self.num_steps else self.reward
-        return mean_reward.tolist() if self.reward_dim > 1 else mean_reward.item()
+        return tuple(mean_reward.tolist()) if self.reward_dim > 1 else mean_reward.item()
 
     @property
-    def mean_episode_reward(self) -> float | list[float]:
+    def mean_episode_reward(self) -> float | tuple[float, ...]:
         if self.num_episodes == 0:
-            return 0.0 if self.reward_dim == 1 else [0.0] * self.reward_dim
+            return 0.0 if self.reward_dim == 1 else (0.0,) * self.reward_dim
         mean_episode_reward = self.rew_buffer[: self.num_episodes].mean(dim=0)
-        return mean_episode_reward.tolist() if self.reward_dim > 1 else mean_episode_reward.item()
+        return tuple(mean_episode_reward.tolist()) if self.reward_dim > 1 else mean_episode_reward.item()
 
     @property
     def mean_episode_length(self) -> float:
@@ -271,11 +272,17 @@ class Trainer:
         save_version_info(f"{self.logger.info_dir}/workspace")
         save_version_info(f"{self.logger.info_dir}/cusrl", cusrl.__path__[0])
 
-    def _log_info(self, info: dict):
-        info.update(self.environment.get_metrics())
+    def _log_info(self, info: dict[str, float]):
+        info.update(prefix_dict_keys(self.environment.get_metrics(), "Environment/"))
         info["Metric/episode_length"] = self.stats.mean_episode_length
-        info["Metric/episode_reward"] = self.stats.mean_episode_reward
-        info["Metric/reward"] = self.stats.mean_step_reward
+        if isinstance(mean_episode_reward := self.stats.mean_episode_reward, tuple):
+            info.update(prefix_dict_keys(flatten_nested(mean_episode_reward), "Metric/episode_reward."))
+        else:
+            info["Metric/episode_reward"] = mean_episode_reward
+        if isinstance(mean_step_reward := self.stats.mean_step_reward, tuple):
+            info.update(prefix_dict_keys(flatten_nested(mean_step_reward), "Metric/reward."))
+        else:
+            info["Metric/reward"] = mean_step_reward
         info["Perf/environment_time"] = self.timer["environment"]
         info["Perf/agent_time"] = self.timer["agent"]
         info = distributed.average_dict(info)
@@ -285,26 +292,25 @@ class Trainer:
         info["Perf/environment_step"] = self.stats.total_steps * world_size
         info["Perf/environment_fps"] = num_steps / info["Perf/environment_time"]
         info["Perf/agent_fps"] = num_steps / info["Perf/agent_time"]
-        self.timer.clear()
-        self.stats.clear_step_info()
 
         if self.logger is not None:
             self.logger.log(info, self.iteration)
+        if self.verbose:
+            episode_length_str = float_fmt(self.stats.mean_episode_length, 6)
+            episode_reward_str = float_fmt(np.sum(self.stats.mean_episode_reward), 6)
+            step_reward_str = float_fmt(np.sum(self.stats.mean_step_reward), 6)
+            environment_time = float_fmt(info["Perf/environment_time"], 4)
+            agent_time = float_fmt(info["Perf/agent_time"], 4)
+            header = f" Iteration {self.iteration + 1} / {self.num_iterations} "
+            print(
+                f"┌{header.center(34, '─')}┐",
+                f"│ mean episode length     {episode_length_str:<8} │",
+                f"│ mean episode reward     {episode_reward_str:<8} │",
+                f"│ mean step reward        {step_reward_str   :<8} │",
+                f"│ time consumption     {environment_time} / {agent_time} │",
+                f"└{'─' * 34}┘",
+                sep="\n",
+            )
 
-        if not self.verbose:
-            return
-        episode_length_str = float_fmt(info["Metric/episode_length"], 6)
-        episode_reward_str = float_fmt(np.sum(info["Metric/episode_reward"]), 6)
-        step_reward_str = float_fmt(np.sum(info["Metric/reward"]), 6)
-        environment_time = float_fmt(info["Perf/environment_time"], 4)
-        agent_time = float_fmt(info["Perf/agent_time"], 4)
-        header = f" Iteration {self.iteration + 1} / {self.num_iterations} "
-        print(
-            f"┌{header.center(34, '─')}┐",
-            f"│ mean episode length     {episode_length_str:<8} │",
-            f"│ mean episode reward     {episode_reward_str:<8} │",
-            f"│ mean step reward        {step_reward_str   :<8} │",
-            f"│ time consumption     {environment_time} / {agent_time} │",
-            f"└{'─' * 34}┘",
-            sep="\n",
-        )
+        self.timer.clear()
+        self.stats.clear_step_info()

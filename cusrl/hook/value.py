@@ -149,10 +149,8 @@ class ValueLoss(Hook[ActorCritic]):
         with torch.no_grad():
             if critic.value_rms is not None:
                 curr_value = critic.value_rms.unnormalize(curr_value)
-            self.agent.record(
-                value=curr_value[..., 0],
-                **{f"value_{i}": curr_value[..., i] for i in range(1, curr_value.size(-1))},
-                value_loss=value_loss,
-            )
+            self.agent.record(value=curr_value, value_loss=value_loss)
+            if (value_dim := curr_value.size(-1)) != 1:
+                self.agent.record(**{f"value.{i}": curr_value[..., i] for i in range(value_dim)})
 
         return value_loss

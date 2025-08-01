@@ -12,6 +12,7 @@ __all__ = [
     "BoolArrayType",
     "Done",
     "Info",
+    "ListOrTuple",
     "Memory",
     "Nested",
     "NestedArray",
@@ -30,7 +31,8 @@ Slice: TypeAlias = slice | Sequence[int]
 ArrayType = TypeVar("ArrayType", np.ndarray, torch.Tensor)
 
 _T = TypeVar("_T")
-Nested: TypeAlias = _T | tuple["Nested[_T]", ...] | list["Nested[_T]"] | Mapping[str, "Nested[_T]"]
+ListOrTuple: TypeAlias = list[_T] | tuple[_T, ...]
+Nested: TypeAlias = _T | ListOrTuple["Nested[_T]"] | Mapping[str, "Nested[_T]"]
 NestedArray = Nested[Array]
 NestedTensor = Nested[torch.Tensor]
 
