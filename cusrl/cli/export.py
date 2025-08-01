@@ -2,6 +2,7 @@ import argparse
 import os
 
 from cusrl.cli import utils as cli_utils
+from cusrl.template import Agent
 
 __all__ = ["configure_parser", "main"]
 
@@ -14,8 +15,8 @@ def configure_parser(parser):
                         help="Name of the algorithm used during training")
     parser.add_argument("--checkpoint", type=str, metavar="PATH",
                         help="Path to a checkpoint to export")
-    parser.add_argument("--output-dir", type=str, default="exported", metavar="DIR",
-                        help="Directory to save exported files to (default: exported)")
+    parser.add_argument("--output-dir", type=str, metavar="DIR",
+                        help="Directory to save exported files to")
     parser.add_argument("--format", type=str, choices=["onnx", "jit"], default="onnx",
                         help="Target format for export (default: onnx)")
     parser.add_argument("--silent", action="store_true",
@@ -39,13 +40,17 @@ def main(args):
     experiment = cli_utils.load_experiment_spec_from_args(args, trial)
     environment = experiment.make_playing_env(cli_utils.process_environment_args(args))
     agent_factory = experiment.make_agent_factory()
-    agent = agent_factory.from_environment(environment)
+    agent: Agent = agent_factory.from_environment(environment)
     if trial is not None:
         checkpoint = trial.load_checkpoint(map_location=agent.device)
         agent.load_state_dict(checkpoint["agent"])
         environment.load_state_dict(checkpoint["environment"])
+        if args.output_dir is None:
+            args.output_dir = trial.home / "export"
+    if args.output_dir is None:
+        args.output_dir = "export"
     agent.export(
-        os.path.join(args.output_dir, experiment.name, getattr(trial, "name", "dummy")),
+        output_dir=args.output_dir,
         dynamo=args.dynamo,
         target_format=args.format,
         verbose=not args.silent,

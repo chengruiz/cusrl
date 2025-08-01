@@ -301,6 +301,8 @@ class ActorCritic(Agent):
             graph.export_jit(inputs, output_dir, graph_name="actor")
         else:
             raise ValueError(f"Unsupported export format '{target_format}'.")
+        if verbose:
+            print(f"Agent exported to \033[4m{output_dir}\033[0m in '{target_format}' format.")
 
     def _save_transition(self, **kwargs: NestedArray | None):
         for key, value in kwargs.items():

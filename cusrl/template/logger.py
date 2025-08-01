@@ -43,7 +43,8 @@ class Logger:
         if "/" in self.name or "\\" in self.name:
             raise ValueError("'name' should not contain '/' or '\\' characters.")
         if add_datetime_prefix:
-            self.name = f"{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}:{self.name}"
+            timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            self.name = f"{timestamp}:{self.name}" if self.name else timestamp
 
         self.log_dir = Path(os.path.join(log_dir, self.name)).absolute()
         self.log_dir.mkdir(parents=True, exist_ok=True)
