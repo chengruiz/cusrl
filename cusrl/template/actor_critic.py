@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from typing import Any, Literal
 
 import torch
+from typing_extensions import Self
 
 from cusrl.module import Actor, Denormalization, Normalization, Value
 from cusrl.template.agent import Agent, AgentFactory
@@ -20,27 +21,29 @@ __all__ = ["ActorCritic"]
 class ActorCriticFactory(AgentFactory["ActorCritic"]):
     def __init__(
         self,
-        num_steps_per_update: int,
         actor_factory: Actor.Factory,
         critic_factory: Value.Factory,
         optimizer_factory: OptimizerFactory,
         sampler: Sampler,
         hooks: Iterable[Hook],
+        num_steps_per_update: int,
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
         autocast: bool | torch.dtype = False,
     ):
-        self.num_steps_per_update = num_steps_per_update
+        super().__init__(
+            num_steps_per_update=num_steps_per_update,
+            name=name,
+            device=device,
+            compile=compile,
+            autocast=autocast,
+        )
         self.actor_factory = actor_factory
         self.critic_factory = critic_factory
         self.optimizer_factory = optimizer_factory
         self.sampler = sampler
         self.hooks = list(hooks)
-        self.name = name
-        self.device = device
-        self.compile = compile
-        self.autocast = autocast
 
     def __call__(self, environment_spec: EnvironmentSpec):
         return ActorCritic(environment_spec=environment_spec, **self.__dict__)
@@ -51,7 +54,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         index: int | None = None,
         before: str | None = None,
         after: str | None = None,
-    ):
+    ) -> Self:
         if (index is not None) + (before is not None) + (after is not None) > 1:
             raise ValueError("Only one of index, before, or after can be specified.")
 
@@ -62,6 +65,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         elif index is None:
             index = len(self.hooks)
         self.hooks.insert(index, hook)
+        return self
 
     def get_hook(self, hook_name: str):
         return self.hooks[self.__get_hook_index(hook_name)]

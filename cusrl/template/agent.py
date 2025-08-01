@@ -6,6 +6,7 @@ from typing import Any, Generic, TypeVar, overload
 import numpy as np
 import torch
 from torch import nn
+from typing_extensions import Self
 
 import cusrl
 from cusrl.module.module import ModuleType
@@ -20,6 +21,27 @@ AgentType = TypeVar("AgentType", bound="Agent")
 
 
 class AgentFactory(ABC, Generic[AgentType]):
+    def __init__(
+        self,
+        num_steps_per_update: int,
+        name: str = "Agent",
+        device: torch.device | str | None = None,
+        compile: bool = False,
+        autocast: bool | torch.dtype = False,
+    ):
+        self.num_steps_per_update = num_steps_per_update
+        self.name = name
+        self.device = device
+        self.compile = compile
+        self.autocast = autocast
+
+    def override(self, **kwargs: Any) -> Self:
+        for key, value in kwargs.items():
+            if not hasattr(self, key):
+                raise ValueError(f"Invalid argument '{key}' for {self.__class__.__name__}.")
+            setattr(self, key, value)
+        return self
+
     @abstractmethod
     def __call__(self, environment_spec: Environment.Spec) -> AgentType:
         raise NotImplementedError
