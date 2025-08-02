@@ -19,17 +19,17 @@ def _ppo_surrogate_loss(
 class PpoSurrogateLoss(Hook):
     """Calculates the PPO surrogate loss.
 
-    This hook implements the clipped surrogate objective function from the Proximal
-    Policy Optimization (PPO) algorithm. It computes the loss based on the
-    advantage estimates and the ratio of the new policy's action probabilities
-    to the old policy's action probabilities. The objective is clipped to
-    discourage large policy updates.
+    This hook implements the clipped surrogate objective function from the
+    Proximal Policy Optimization (PPO) algorithm. It computes the loss based on
+    the advantage estimates and the ratio of the new policy's action
+    probabilities to the old policy's action probabilities. The objective is
+    clipped to discourage large policy updates.
 
     Args:
         clip_ratio (float, optional):
             The clipping parameter for the PPO surrogate loss. It determines
-            the range `[1 - clip_ratio, 1 + clip_ratio]` within which the probability
-            ratio is clipped. Defaults to 0.2.
+            the range `[1 - clip_ratio, 1 + clip_ratio]` within which the
+            probability ratio is clipped. Defaults to 0.2.
     """
 
     # Mutable attributes
@@ -57,16 +57,16 @@ class PpoSurrogateLoss(Hook):
 class EntropyLoss(Hook):
     """Calculates the entropy loss to encourage exploration.
 
-    This hook implements the entropy bonus, a common component in policy gradient
-    algorithms like PPO. By adding the negative entropy of the policy's action
-    distribution to the main objective, it encourages the policy to maintain
-    high entropy, thus promoting exploration and preventing premature convergence
-    to a suboptimal deterministic policy.
+    This hook implements the entropy bonus, a common component in policy
+    gradient algorithms like PPO. By adding the negative entropy of the policy's
+    action distribution to the main objective, it encourages the policy to
+    maintain high entropy, thus promoting exploration and preventing premature
+    convergence to a suboptimal deterministic policy.
 
     Args:
         weight (float, optional):
-            The coefficient for the entropy loss term. A larger value results in a
-            stronger incentive for exploration. Defaults to 0.01.
+            The coefficient for the entropy loss term. A larger value results in
+            a stronger incentive for exploration. Defaults to 0.01.
     """
 
     # Mutable attributes

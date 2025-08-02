@@ -21,16 +21,18 @@ _T = TypeVar("_T")
 
 
 class Buffer(MutableMapping[str, NestedTensor]):
-    """A circular, step-based storage for time-series or batched data with flexible,
-    nested fields. Implements the Mapping[str, NestedTensor] interface to allow intuitive
-    indexing, iteration, and membership checks over stored fields.
+    """A circular, step-based storage for time-series or batched data with
+    flexible, nested fields. Implements the Mapping[str, NestedTensor] interface
+    to allow intuitive indexing, iteration, and membership checks over stored
+    fields.
 
     Args:
         capacity (int):
-            Maximum number of time steps the buffer can hold before wrapping around.
+            Maximum number of time steps the buffer can hold before wrapping
+            around.
         parallelism (int | None):
-            Expected size of the penultimate dimension (e.g. number of agents or batch size).
-            If None, this is inferred from the first pushed data.
+            Expected size of the penultimate dimension (e.g. number of agents or
+            batch size). If None, this is inferred from the first pushed data.
         device (str | torch.device):
             The torch device on which all tensors will be allocated.
 
@@ -75,13 +77,16 @@ class Buffer(MutableMapping[str, NestedTensor]):
             Append a new time step; wraps around when capacity is reached.
         add_field(name: str, data: NestedArray, temporal: bool = True) -> None:
             Add or overwrite a custom field (temporal or static).
-        sample(sampler: Callable[[str, FieldSpec, torch.Tensor], torch.Tensor]) -> dict[str, NestedTensor]:
-            Apply a sampling function to each stored tensor and return a batch with original nesting.
+        sample(sampler: Callable[[str, FieldSpec, torch.Tensor], torch.Tensor])
+            -> dict[str, NestedTensor]:
+            Apply a sampling function to each stored tensor and return a batch
+            with original nesting.
 
         ValueError:
             On shape mismatches, capacity violations, or schema inconsistencies.
         KeyError:
-            When attempting to push data into a custom-flagged field, vice versa.
+            When attempting to push data into a custom-flagged field, or vice
+            versa.
     """
 
     FieldSpec = FieldSpec
@@ -104,7 +109,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
         return self.parallelism
 
     def clear(self):
-        """Clears all stored data and resetting control variables."""
+        """Clears all stored data and resets control variables."""
         self.parallelism = None
         self.cursor = 0
         self.full = False
@@ -169,14 +174,19 @@ class Buffer(MutableMapping[str, NestedTensor]):
         """Adds data of a step to the buffer.
 
         Parameters:
-            data (dict[str, NestedArray]): A dictionary containing named arrays to be added to the buffer.
+            data (dict[str, NestedArray]):
+                A dictionary containing named arrays to be added to the buffer.
 
         Raises:
-            ValueError: If the passed data does not match the expected shape ([ [..., ] parallelism, num_channels ]).
+            ValueError:
+                If the passed data does not match the expected shape
+                ([ ..., parallelism, num_channels ]).
 
         Notes:
-            - If the buffer reaches its capacity, it wraps around and starts overwriting from the beginning.
-            - The buffer's `full` attribute is set to True when the buffer reaches its capacity for the first time.
+            - If the buffer reaches its capacity, it wraps around and starts
+              overwriting from the beginning.
+            - The buffer's `full` attribute is set to True when the buffer
+              reaches its capacity for the first time.
         """
         if self.cursor == self.capacity:
             self.cursor = 0
@@ -221,15 +231,18 @@ class Buffer(MutableMapping[str, NestedTensor]):
             storage.copy_(self._as_tensor(value))
 
     def sample(self, sampler: Callable[[str, FieldSpec, torch.Tensor], torch.Tensor]) -> dict[str, NestedTensor]:
-        """Samples a batch of data from the storage using the provided sampler function.
+        """Samples a batch of data from the storage using the provided sampler
+        function.
 
         Args:
             sampler (Callable[[str, FieldSpec, torch.Tensor], torch.Tensor]):
-                A function that takes a name, a spec and a tensor, and returns a sampled tensor.
+                A function that takes a name, a spec and a tensor, and returns a
+                sampled tensor.
 
         Returns:
             dict[str, NestedTensor]:
-                A dictionary mapping string keys to NestedTensor objects, containing the sampled data from the storage.
+                A dictionary mapping string keys to NestedTensor objects,
+                containing the sampled data from the storage.
         """
 
         batch = {key: sampler(key, self.spec[key.split(".", 1)[0]], self.storage[key]) for key in self.storage}

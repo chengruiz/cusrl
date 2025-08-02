@@ -39,7 +39,8 @@ class SimbaBlock(nn.Sequential):
 
 class Simba(Module):
     """A network architecture described in:
-    "SimBa: Simplicity Bias for Scaling Up Parameters in Deep Reinforcement Learning",
+    "SimBa: Simplicity Bias for Scaling Up Parameters in Deep Reinforcement
+    Learning",
     https://arxiv.org/abs/2410.09754
     """
 

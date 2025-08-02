@@ -26,8 +26,10 @@ def mean_var_count(input: ArrayType, *, uncentered: bool = False) -> tuple[Array
     """Calculates mean, variance and count of the input array.
 
     Args:
-        input: Input array with shape (N, D)
-        uncentered: Whether to calculate uncentered variance
+        input (np.ndarray | torch.Tensor):
+            Input array with shape (N, D).
+        uncentered (bool, optional):
+            Whether to calculate uncentered variance. Defaults to False.
 
     Returns:
         Tuple of (mean, variance, count)
@@ -101,7 +103,7 @@ def merge_mean_var_(
 
 
 class RunningMeanStd(nn.Module):
-    """A class to track the running mean and standard deviation of a data stream.
+    """Tracks the running mean and standard deviation of a datastream.
     See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm.
     """
 
@@ -143,7 +145,8 @@ class RunningMeanStd(nn.Module):
         self.groups.clear()
 
     def register_stat_group(self, start_index: int, end_index: int):
-        """Registers a group of indices where statistics will be shared/averaged during updates."""
+        """Registers a group of indices where statistics will be shared and
+        averaged during updates."""
         self.groups.append((start_index, end_index))
 
     def update(
@@ -156,9 +159,12 @@ class RunningMeanStd(nn.Module):
         """Updates statistics with new data.
 
         Args:
-            input: Input tensor
-            uncentered: Whether to calculate uncentered variance
-            synchronize: Whether to synchronize across devices
+            input (torch.Tensor):
+                Input tensor.
+            uncentered (bool, optional):
+                Whether to calculate uncentered variance. Defaults to False.
+            synchronize (bool, optional):
+                Whether to synchronize across devices. Defaults to True.
         """
         self.update_from_stats(
             *mean_var_count(input, uncentered=uncentered),

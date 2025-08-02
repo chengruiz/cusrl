@@ -36,11 +36,12 @@ class Metrics(defaultdict[str, Metric]):
     def record(self, **kwargs: Any | None):
         """Records statistics for multiple metrics.
 
-        Each keyword argument represents a metric name and its corresponding value,
-        which can be converted to a tensor via torch.as_tensor.
+        Each keyword argument represents a metric name and its corresponding
+        value, which can be converted to a tensor via torch.as_tensor.
 
         Args:
-            **kwargs: Metric names mapped to values convertible to torch tensors.
+            **kwargs:
+                Metric names mapped to values convertible to torch tensors.
         """
         self.update(kwargs)
 

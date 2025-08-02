@@ -25,10 +25,10 @@ class ActorFactory(ModuleFactory["Actor"]):
 class Actor(Module):
     """An actor model for reinforcement learning.
 
-    The Actor class encapsulates a policy network, which maps observations to actions.
-    It is composed of a `backbone` module that processes observations to produce a
-    latent representation, and a `distribution` module that defines the action
-    distribution based on this latent representation.
+    The Actor class encapsulates a policy network, which maps observations to
+    actions. It is composed of a `backbone` module that processes observations
+    to produce a latent representation, and a `distribution` module that defines
+    the action distribution based on this latent representation.
 
     The class provides different forward methods for training (`forward`),
     exploration (`explore`), and deployment (`act`).
@@ -76,7 +76,8 @@ class Actor(Module):
         forward_type: str | None = "forward",
         **kwargs,
     ):
-        """Main forward pass for the actor, dispatching to specific implementations.
+        """Main forward pass for the actor, dispatching to specific
+        implementations.
 
         This method acts as a router to different functionalities based on the
         `forward_type` argument.
@@ -99,11 +100,11 @@ class Actor(Module):
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
     ) -> tuple[NestedTensor, tuple[Tensor, Tensor], Memory]:
-        """Generates an action for exploration, returning full distribution details.
+        """Generates an action for exploration.
 
-        This method is typically used during training to collect experience. It returns
-        the parameters of the action distribution, the sampled action, and its
-        log probability.
+        This method is typically used during training to collect experience. It
+        returns the parameters of the action distribution, the sampled action,
+        and its log probability.
 
         Args:
             observation (Tensor):
@@ -111,14 +112,14 @@ class Actor(Module):
             memory (Memory, optional):
                 The recurrent state for the backbone. Defaults to None.
             deterministic (bool, optional):
-                If True, returns the mean of the distribution as the action instead of
-                sampling. Defaults to False.
+                If True, returns the mean of the distribution as the action
+                instead of sampling. Defaults to False.
             backbone_kwargs (dict | None, optional):
-                Additional keyword arguments for the backbone's forward pass. Defaults
-                to None.
+                Additional keyword arguments for the backbone's forward pass.
+                Defaults to None.
             distribution_kwargs (dict | None, optional):
-                Additional keyword arguments for the distribution's forward pass. Defaults
-                to None.
+                Additional keyword arguments for the distribution's forward
+                pass. Defaults to None.
 
         Returns:
             action_dist (NestedTensor):
@@ -147,8 +148,8 @@ class Actor(Module):
     ) -> tuple[Tensor, Memory]:
         """Generates an action for interacting with the environment.
 
-        This is a simplified version of `explore` intended for deployment or evaluation,
-        returning only the action and the updated memory state.
+        This is a simplified version of `explore` intended for deployment or
+        evaluation, returning only the action and the updated memory state.
 
         Args:
             observation (Tensor):
@@ -156,14 +157,14 @@ class Actor(Module):
             memory (Memory, optional):
                 The recurrent state for the backbone. Defaults to None.
             deterministic (bool, optional):
-                If True, returns the mean of the distribution as the action instead of
-                sampling. Defaults to False.
+                If True, returns the mean of the distribution as the action
+                instead of sampling. Defaults to False.
             backbone_kwargs (dict | None, optional):
-                Additional keyword arguments for the backbone's forward pass. Defaults
-                to None.
+                Additional keyword arguments for the backbone's forward pass.
+                Defaults to None.
             distribution_kwargs (dict | None):
-                Additional keyword arguments for the distribution's forward pass. Defaults
-                to None.
+                Additional keyword arguments for the distribution's forward
+                pass. Defaults to None.
 
         Returns:
             action (Tensor):

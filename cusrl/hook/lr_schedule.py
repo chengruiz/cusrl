@@ -91,18 +91,21 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
 
 
 class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
-    """Adaptively adjusts the learning rate based on accumulated KL divergence error.
+    """Adaptively adjusts the learning rate based on accumulated KL divergence
+    error.
 
     Args:
         desired_kl_divergence (float, optional):
             Target KL divergence to maintain. Defaults to 0.01.
         threshold (float, optional):
-            Positive threshold for accumulated log-error before scaling. Defaults to 1.0.
+            Positive threshold for accumulated log-error before scaling.
+            Defaults to 1.0.
         scale_factor (float, optional):
-            Positive coefficient controlling adjustment magnitude. Defaults to 0.2.
+            Positive coefficient controlling adjustment magnitude. Defaults to
+            0.2.
         scale_all_params (bool, optional):
-            If True, scales all optimizer parameter groups; otherwise only scales actor
-            parameter groups. Defaults to False.
+            If True, scales all optimizer parameter groups; otherwise only
+            scales the parameter group of the actor. Defaults to False.
     """
 
     def __init__(

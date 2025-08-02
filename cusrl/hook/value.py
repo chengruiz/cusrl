@@ -20,7 +20,8 @@ class ValueComputation(Hook[ActorCritic]):
         termination_value (float):
             The value to assign to terminal states.
         bootstrap_truncated_states (bool):
-            If `True`, bootstraps the value of truncated states using the critic.
+            If `True`, bootstraps the value of truncated states using the
+            critic.
     """
 
     def __init__(

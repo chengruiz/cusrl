@@ -81,15 +81,16 @@ class Module(nn.Module):
             The dimensionality of the input. Required if `like` is not provided.
             Defaults to None.
         output_dim (int | None, optional):
-            The dimensionality of the output. Required if `like` is not provided.
-            Defaults to None.
+            The dimensionality of the output. Required if `like` is not
+            provided. Defaults to None.
         is_recurrent (bool, optional):
-            Whether the module is recurrent. Dsefaults to False.
+            Whether the module is recurrent. Defaults to False.
         like (Optional["Module"], optional):
-            Another module instance from which to copy `input_dim`, `output_dim`,
-            and `is_recurrent` attributes. Defaults to None.
+            Another module instance from which to copy `input_dim`,
+            `output_dim`, and `is_recurrent` attributes. Defaults to None.
         intermediate_repr (dict[str, Any] | None, optional):
-            An initial dictionary for intermediate representations. Defaults to None.
+            An initial dictionary for intermediate representations. Defaults to
+            None.
     """
 
     Factory = ModuleFactory
@@ -169,8 +170,8 @@ class Module(nn.Module):
                 tensors. If None, the method does nothing.
             done (SliceType | torch.Tensor | None, optional):
                 A mask or slice indicating which parts of the memory to reset.
-                If it's a boolean tensor, it should correspond to the environments
-                that are finished. Defaults to None.
+                If it's a boolean tensor, it should correspond to the
+                environments that are finished. Defaults to None.
         """
         if memory is None:
             return

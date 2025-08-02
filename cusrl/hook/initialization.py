@@ -12,35 +12,37 @@ __all__ = ["ModuleInitialization"]
 class ModuleInitialization(Hook[ActorCritic]):
     """A hook to initialize the weights of the actor and critic networks.
 
-    This hook applies orthogonal initialization to linear, recurrent, and multi-head
-    attention layers, and Kaiming normal initialization to convolutional layers.
-    This is a common practice in reinforcement learning to improve training stability.
+    This hook applies orthogonal initialization to linear, recurrent, and multi-
+    head attention layers, and Kaiming normal initialization to convolutional
+    layers. This is a common practice in reinforcement learning to improve
+    training stability.
 
     Args:
         scale (float, optional):
-            The gain factor for orthogonal initialization. Defaults to `sqrt(2)`.
+            The gain factor for orthogonal initialization. Defaults to
+            `sqrt(2)`.
         scale_dist (float, optional):
-            The gain factor for the final linear layer of the actor's distribution head.
-            A smaller value is often used to ensure small initial action outputs.
-            Defaults to `sqrt(2) * 0.1`.
+            The gain factor for the final linear layer of the actor's
+            distribution head. A smaller value is often used to ensure small
+            initial action outputs. Defaults to `sqrt(2) * 0.1`.
         zero_bias (bool, optional):
-            If True, all bias terms in the initialized layers will be set to zero.
-            Defaults to True.
+            If True, all bias terms in the initialized layers will be set to
+            zero. Defaults to True.
         conv_a (float, optional):
-            The 'a' parameter (negative slope) for Kaiming initialization, used with
-            leaky_relu. Defaults to 0.0.
+            The 'a' parameter (negative slope) for Kaiming initialization, used
+            with leaky_relu. Defaults to 0.0.
         conv_mode (Literal["fan_in", "fan_out"], optional):
             The mode for Kaiming initialization. Defaults to "fan_in".
         conv_nonlinearity (Literal["relu", "leaky_relu"], optional):
-            The nonlinearity to use for calculating the Kaiming gain. Defaults to
-            "leaky_relu".
+            The nonlinearity to use for calculating the Kaiming gain. Defaults
+            to "leaky_relu".
         init_actor (bool, optional):
             Whether to initialize the actor network. Defaults to True.
         init_critic (bool, optional):
             Whether to initialize the critic network. Defaults to True.
         distribution_std (float | None, optional):
-            If provided, sets a fixed standard deviation for the action distribution.
-            Defaults to None.
+            If provided, sets the initial standard deviation for the action
+            distribution. Defaults to None.
     """
 
     def __init__(
