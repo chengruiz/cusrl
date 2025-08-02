@@ -55,7 +55,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             alpha. Defaults to None, which means no normalization is applied.
     """
 
-    MODULES = ["value_rms"]
     MUTABLE_ATTRS = ["gamma", "lamda"]
 
     def __init__(
@@ -83,11 +82,10 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
 
     def init(self):
         if self.popart_alpha is not None:
-            self.value_rms = self.__make_normalizer(self.agent.value_dim)
-            self.agent.critic.value_rms = self.__make_normalizer(self.agent.value_dim)
-
-    def __make_normalizer(self, num_channels: int):
-        return ExponentialMovingNormalizer(num_channels, alpha=self.popart_alpha).to(self.agent.device)
+            self.register_module("value_rms", ExponentialMovingNormalizer(self.agent.value_dim, self.popart_alpha))
+            self.agent.critic.value_rms = self.agent.setup_module(
+                ExponentialMovingNormalizer(self.agent.value_dim, self.popart_alpha)
+            )
 
     def pre_update(self, buffer):
         if not self.recompute:

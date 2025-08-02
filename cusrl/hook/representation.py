@@ -10,7 +10,6 @@ __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]
 
 
 class ReturnPrediction(Hook[ActorCritic]):
-    MODULES = ["predictor"]
     predictor: nn.Module
 
     def __init__(
@@ -26,8 +25,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.criterion = nn.MSELoss()
 
     def init(self):
-        self.predictor = self.predictor_factory(self.agent.actor.latent_dim, 1)
-        self.predictor = self.agent.setup_module(self.predictor)
+        self.register_module("predictor", self.predictor_factory(self.agent.actor.latent_dim, 1))
 
     def objective(self, batch):
         latent = self.agent.actor.intermediate_repr["backbone.output"]
@@ -49,7 +47,6 @@ class ReturnPrediction(Hook[ActorCritic]):
 
 
 class StatePrediction(Hook[ActorCritic]):
-    MODULES = ["predictor"]
     predictor: nn.Module
 
     def __init__(
@@ -68,8 +65,7 @@ class StatePrediction(Hook[ActorCritic]):
         if not self.agent.has_state:
             raise ValueError("StatePrediction: State is not defined for the agent.")
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
-        self.predictor = self.predictor_factory(self.agent.actor.latent_dim, target_dim)
-        self.predictor = self.agent.setup_module(self.predictor)
+        self.register_module("predictor", self.predictor_factory(self.agent.actor.latent_dim, target_dim))
 
     def objective(self, batch):
         with self.agent.autocast():
@@ -101,7 +97,6 @@ class ActionAwarePredictor(nn.Module):
 
 
 class NextStatePrediction(Hook[ActorCritic]):
-    MODULES = ["predictor"]
     predictor: nn.Module
 
     def __init__(
@@ -120,10 +115,8 @@ class NextStatePrediction(Hook[ActorCritic]):
         if not self.agent.has_state:
             raise ValueError("NextStatePrediction: State is not defined for the agent.")
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
-        self.predictor = ActionAwarePredictor(
-            self.predictor_factory(self.agent.actor.latent_dim + self.agent.action_dim, target_dim)
-        )
-        self.predictor = self.agent.setup_module(self.predictor)
+        predictor = self.predictor_factory(self.agent.actor.latent_dim + self.agent.action_dim, target_dim)
+        self.register_module("predictor", ActionAwarePredictor(predictor))
 
     def objective(self, batch):
         with self.agent.autocast():

@@ -51,7 +51,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
 
     dataset: torch.Tensor
     discriminator: Module
-    MODULES = ["discriminator"]
+    transition_rms: RunningMeanStd
     MUTABLE_ATTRS = ["reward_scale", "loss_weight", "grad_penalty_weight"]
 
     def __init__(
@@ -88,9 +88,9 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             self.dataset = self.agent.to_tensor(self.dataset_source())
         else:
             raise ValueError(f"Unsupported dataset_path type: {type(self.dataset_source)}.")
-        self.discriminator = self.discriminator_factory(self.dataset.size(-1), 1)
-        self.discriminator = self.agent.setup_module(self.discriminator)
-        self.transition_rms = RunningMeanStd(self.dataset.size(-1)).to(self.agent.device)
+
+        self.register_module("discriminator", self.discriminator_factory(self.dataset.size(-1), 1))
+        self.register_module("transition_rms", RunningMeanStd(self.dataset.size(-1)))
 
     @torch.no_grad()
     def post_step(self, transition):

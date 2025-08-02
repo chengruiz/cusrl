@@ -31,7 +31,6 @@ class RandomNetworkDistillation(Hook):
 
     target: Module
     predictor: Module
-    MODULES = ["target", "predictor"]
     MUTABLE_ATTRS = ["reward_scale"]
 
     def __init__(
@@ -50,15 +49,15 @@ class RandomNetworkDistillation(Hook):
 
     def init(self):
         input_dim = torch.ones(1, self.agent.state_dim)[..., self.state_indices].numel()
-        self.target = self.module_factory(input_dim, self.output_dim)
-        self.predictor = self.module_factory(input_dim, self.output_dim)
+        target = self.module_factory(input_dim, self.output_dim)
+        predictor = self.module_factory(input_dim, self.output_dim)
 
-        for module in itertools.chain(self.target.modules(), self.predictor.modules()):
+        for module in itertools.chain(target.modules(), predictor.modules()):
             if isinstance(module, nn.Linear):
                 nn.init.xavier_normal_(module.weight)
                 nn.init.zeros_(module.bias)
-        self.target = self.agent.setup_module(self.target)
-        self.predictor = self.agent.setup_module(self.predictor)
+        self.register_module("target", target)
+        self.register_module("predictor", predictor)
         self.target.requires_grad_(False)
 
     @torch.no_grad()

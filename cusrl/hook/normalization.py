@@ -46,7 +46,6 @@ class ObservationNormalization(Hook[ActorCritic]):
     _mirror_state: SymmetryDef | None = None
     _observation_is_subset_of_state: Slice | torch.Tensor | None = None
 
-    MODULES = ["observation_rms", "state_rms"]
     MUTABLE_ATTRS = ["frozen"]
 
     def __init__(self, max_count: int | None = None, defer_synchronization: bool = False):
@@ -70,21 +69,22 @@ class ObservationNormalization(Hook[ActorCritic]):
                 observation_is_subset_of_state = self.agent.to_tensor(np.asarray(observation_is_subset_of_state))
         self._observation_is_subset_of_state = observation_is_subset_of_state
 
+        observation_dim = self.agent.observation_dim
         if self._observation_is_subset_of_state is not None:
-            self.observation_rms = self.__make_rms(self.agent.observation_dim)
+            self.register_module("observation_rms", self._make_rms(observation_dim))
         else:
-            self.observation_rms = self.__make_rms(
-                self.agent.observation_dim, self.max_count, env_spec.observation_stat_groups
-            )
+            observation_rms = self._make_rms(observation_dim, self.max_count, env_spec.observation_stat_groups)
+            self.register_module("observation_rms", observation_rms)
         if self.agent.has_state:
-            self.state_rms = self.__make_rms(self.agent.state_dim, self.max_count, env_spec.state_stat_groups)
+            state_rms = self._make_rms(self.agent.state_dim, self.max_count, env_spec.state_stat_groups)
+            self.register_module("state_rms", state_rms)
         self._mirror_observation = env_spec.mirror_observation
         self._mirror_state = env_spec.mirror_state
 
     def pre_act(self, transition: dict):
         observation, state = transition["observation"], transition.get("state")
         if self._last_done is None or not self.agent.environment_spec.final_state_is_missing:
-            self.__update_rms(observation, state, self._last_done)
+            self._update_rms(observation, state, self._last_done)
 
         transition["original_observation"] = observation
         transition["observation"] = self.observation_rms.normalize(observation)
@@ -94,7 +94,7 @@ class ObservationNormalization(Hook[ActorCritic]):
 
     def post_step(self, transition: dict):
         next_observation, next_state = transition["next_observation"], transition.get("next_state")
-        self.__update_rms(next_observation, next_state)
+        self._update_rms(next_observation, next_state)
         self._last_done = transition["done"].squeeze(-1)
 
         transition["original_next_observation"] = next_observation
@@ -103,7 +103,7 @@ class ObservationNormalization(Hook[ActorCritic]):
             transition["original_next_state"] = next_state
             transition["next_state"] = self.state_rms.normalize(next_state)
 
-    def __make_rms(
+    def _make_rms(
         self,
         num_channels: int,
         max_count: int | None = None,
@@ -114,7 +114,7 @@ class ObservationNormalization(Hook[ActorCritic]):
             normalizer.register_stat_group(*group)
         return normalizer
 
-    def __update_rms(
+    def _update_rms(
         self,
         observation: torch.Tensor,
         state: torch.Tensor | None,
@@ -125,16 +125,16 @@ class ObservationNormalization(Hook[ActorCritic]):
             return
 
         if state is not None:
-            self.__update_rms_impl(state, self.state_rms, self._mirror_state, indices)
+            self._update_rms_impl(state, self.state_rms, self._mirror_state, indices)
         if self._observation_is_subset_of_state is not None:
             self.observation_rms.mean.copy_(self.state_rms.mean[self._observation_is_subset_of_state])
             self.observation_rms.var.copy_(self.state_rms.var[self._observation_is_subset_of_state])
             self.observation_rms.std.copy_(self.state_rms.std[self._observation_is_subset_of_state])
             self.observation_rms.count = self.state_rms.count
         else:
-            self.__update_rms_impl(observation, self.observation_rms, self._mirror_observation, indices)
+            self._update_rms_impl(observation, self.observation_rms, self._mirror_observation, indices)
 
-    def __update_rms_impl(
+    def _update_rms_impl(
         self,
         observation: torch.Tensor,
         rms: RunningMeanStd,

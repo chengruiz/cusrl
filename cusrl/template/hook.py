@@ -15,8 +15,6 @@ __all__ = ["Hook", "HookComposite"]
 
 class Hook(Generic[AgentType]):
     agent: AgentType
-    MODULES: list[str] = []
-    PARAMETERS: list[str] = []
     MUTABLE_ATTRS: list[str] = []
     active: bool = True
 
@@ -24,30 +22,32 @@ class Hook(Generic[AgentType]):
     def name(self) -> str:
         return self.__class__.__name__
 
+    def __init__(self):
+        self._modules: dict[str, nn.Module | None] = {}
+
+    def register_module(self, name: str, module: nn.Module | None):
+        if module is not None:
+            module = self.agent.setup_module(module)
+        setattr(self, name, module)
+        self._modules[name] = module
+
     def named_parameters(self, prefix: str = "") -> Iterator[tuple[str, nn.Parameter]]:
         if prefix:
             prefix += "."
-        for module_name in self.MODULES:
-            if (module := getattr(self, module_name, None)) is not None:
+        for module_name, module in self._modules.items():
+            if module is not None:
                 yield from module.named_parameters(prefix=f"{prefix}{module_name}")
-        for param_name in self.PARAMETERS:
-            if (param := getattr(self, param_name, None)) is not None:
-                yield f"{prefix}{param_name}", param
 
     def state_dict(self):
         result = {}
-        for module_name in self.MODULES:
-            if (module := getattr(self, module_name, None)) is not None:
+        for module_name, module in self._modules.items():
+            if module is not None:
                 result[module_name] = module.state_dict()
-        for param_name in self.PARAMETERS:
-            if (param := getattr(self, param_name, None)) is not None:
-                result[param_name] = param
         return result
 
     def load_state_dict(self, state_dict):
         keys = set(state_dict.keys())
-        for module_name in self.MODULES:
-            module: nn.Module | None = getattr(self, module_name, None)
+        for module_name, module in self._modules.items():
             if module is None:
                 continue
             if module_name not in keys:
@@ -60,31 +60,17 @@ class Hook(Generic[AgentType]):
                 self.warn(f"Mismatched state_dict for '{module_name}': {error}")
                 continue
 
-        for param_name in self.PARAMETERS:
-            param: nn.Parameter | None = getattr(self, param_name, None)
-            if param is None:
-                continue
-            if param_name not in keys:
-                self.warn(f"Missing state_dict for '{param_name}'.")
-                continue
-            keys.discard(param_name)
-            try:
-                param[:] = state_dict[param_name]
-            except RuntimeError as error:
-                self.warn(f"Mismatched state_dict for '{param_name}': {error}")
-                continue
-
         if keys:
             self.warn(f"Unused state_dict keys: {keys}.")
 
     def compile(self):
-        for module_name in self.MODULES:
-            if hasattr((module := getattr(self, module_name, None)), "compile"):
+        for module in self._modules.values():
+            if module is not None and hasattr(module, "compile"):
                 module.compile()
 
     def train(self, mode: bool = True):
-        for module_name in self.MODULES:
-            if hasattr((module := getattr(self, module_name, None)), "train"):
+        for module in self._modules.values():
+            if module is not None and hasattr(module, "train"):
                 module.train(mode)
 
     def eval(self):
