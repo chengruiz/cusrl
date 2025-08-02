@@ -13,7 +13,7 @@ from cusrl.utils import CONFIG, distributed
 from cusrl.utils.typing import ListOrTuple
 
 __all__ = [
-    "float_fmt",
+    "format_float",
     "get_or",
     "import_module",
     "prefix_dict_keys",
@@ -27,8 +27,8 @@ _V = TypeVar("_V")
 _D = TypeVar("_D")
 
 
-def float_fmt(number, digit):
-    string = f"{number:.{digit}f}"[:digit]
+def format_float(number, width):
+    string = f"{number:.{width}f}"[:width]
     if string[-1] != ".":
         return string
     return " " + string[:-1]

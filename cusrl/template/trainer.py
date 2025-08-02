@@ -15,7 +15,7 @@ from cusrl.template.environment import Environment, get_done_indices, update_obs
 from cusrl.template.logger import LoggerFactoryLike
 from cusrl.template.trial import Trial
 from cusrl.utils import CONFIG, Timer, distributed, is_main_process
-from cusrl.utils.helper import float_fmt, prefix_dict_keys
+from cusrl.utils.helper import format_float, prefix_dict_keys
 from cusrl.utils.nest import flatten_nested
 from cusrl.utils.typing import Slice
 
@@ -296,11 +296,11 @@ class Trainer:
         if self.logger is not None:
             self.logger.log(info, self.iteration)
         if self.verbose:
-            episode_length_str = float_fmt(self.stats.mean_episode_length, 6)
-            episode_reward_str = float_fmt(np.sum(self.stats.mean_episode_reward), 6)
-            step_reward_str = float_fmt(np.sum(self.stats.mean_step_reward), 6)
-            environment_time = float_fmt(info["Perf/environment_time"], 4)
-            agent_time = float_fmt(info["Perf/agent_time"], 4)
+            episode_length_str = format_float(self.stats.mean_episode_length, 6)
+            episode_reward_str = format_float(np.sum(self.stats.mean_episode_reward), 6)
+            step_reward_str = format_float(np.sum(self.stats.mean_step_reward), 6)
+            environment_time = format_float(info["Perf/environment_time"], 4)
+            agent_time = format_float(info["Perf/agent_time"], 4)
             header = f" Iteration {self.iteration + 1} / {self.num_iterations} "
             print(
                 f"┌{header.center(34, '─')}┐",

@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import cast
 
 import torch
 from torch import nn
@@ -78,7 +78,8 @@ class ValueComputation(Hook[ActorCritic]):
                 # fmt: off
                 next_memory = map_nested(
                     next_memory,
-                    lambda mem: mem        # [ N, ..., B, C]
+                    lambda memory:
+                        memory             # [ N, ..., B, C]
                         .unsqueeze(1)      # [ N, 1, ..., B, C]
                         .transpose(1, -2)  # [ N, B, ..., 1, C]
                         [truncated]        # [ M, ..., 1, C]

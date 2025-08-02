@@ -1,5 +1,3 @@
-from typing import Any
-
 from cusrl.template import ActorCritic, Hook
 
 __all__ = ["OnPolicyPreparation"]

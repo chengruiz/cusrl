@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from typing import Any
 
 import torch
 from torch import nn

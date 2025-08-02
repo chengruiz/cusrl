@@ -1,5 +1,4 @@
 import argparse
-import os
 
 from cusrl.cli import utils as cli_utils
 from cusrl.template import Agent

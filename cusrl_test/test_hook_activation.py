@@ -1,7 +1,4 @@
 from collections.abc import Iterable
-from typing import Any
-
-import torch
 
 import cusrl
 from cusrl_test import create_dummy_env
