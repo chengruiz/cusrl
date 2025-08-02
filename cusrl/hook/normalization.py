@@ -46,14 +46,15 @@ class ObservationNormalization(Hook[ActorCritic]):
     _mirror_state: SymmetryDef | None = None
     _observation_is_subset_of_state: Slice | torch.Tensor | None = None
 
-    MUTABLE_ATTRS = ["frozen"]
+    # Mutable attributes
+    frozen: bool
 
     def __init__(self, max_count: int | None = None, defer_synchronization: bool = False):
         if max_count is not None and max_count <= 0:
             raise ValueError("'max_count' must be positive or None.")
         super().__init__()
         self.max_count = max_count
-        self.frozen: bool = False
+        self.register_mutable("frozen", False)
         self.defer_synchronization = defer_synchronization
         self._last_done: torch.Tensor | None = None
 

@@ -52,14 +52,19 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
     dataset: torch.Tensor
     discriminator: Module
     transition_rms: RunningMeanStd
-    MUTABLE_ATTRS = ["reward_scale", "loss_weight", "grad_penalty_weight"]
+
+    # Mutable attributes
+    batch_size: int | None
+    reward_scale: float
+    loss_weight: float
+    grad_penalty_weight: float
 
     def __init__(
         self,
         discriminator_factory: ModuleFactoryLike,
         dataset_source: str | Array | Callable[[], Array],
         state_indices: Slice | None = None,
-        batch_size: int = 512,
+        batch_size: int | None = 512,
         reward_scale: float = 1.0,
         loss_weight: float = 1.0,
         grad_penalty_weight: float = 5.0,
@@ -68,10 +73,10 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         self.discriminator_factory = discriminator_factory
         self.dataset_source = dataset_source
         self.state_indices = state_indices
-        self.batch_size = batch_size
-        self.reward_scale = reward_scale
-        self.loss_weight = loss_weight
-        self.grad_penalty_weight = grad_penalty_weight
+        self.register_mutable("batch_size", batch_size)
+        self.register_mutable("reward_scale", reward_scale)
+        self.register_mutable("loss_weight", loss_weight)
+        self.register_mutable("grad_penalty_weight", grad_penalty_weight)
         self.bce_with_logits_loss = nn.BCEWithLogitsLoss()
 
     def init(self):

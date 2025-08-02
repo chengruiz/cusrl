@@ -21,19 +21,22 @@ class ActionSmoothnessLoss(Hook):
     - 2nd order (acceleration): `[-1, 2, -1]`
 
     Args:
-        weight_1st_order (torch.Tensor | None, optional):
-            Weight for the 1st order smoothness loss. Can be a scalar or a tensor
-            matching the action dimension. Defaults to None.
-        weight_2nd_order (torch.Tensor | None, optional):
-            Weight for the 2nd order smoothness loss. Can be a scalar or a tensor
-            matching the action dimension. Defaults to None.
+        weight_1st_order (float | Sequence[float] | None, optional):
+            Weight for the 1st order smoothness loss. Could be a scalar or a
+            tensor matching the action dimension. Defaults to None.
+        weight_2nd_order (float | Sequence[float] | None, optional):
+            Weight for the 2nd order smoothness loss. Could be a scalar or a
+            tensor matching the action dimension. Defaults to None.
     """
 
-    weight_1st_order: torch.Tensor | None
-    weight_2nd_order: torch.Tensor | None
+    w1: torch.Tensor | None
+    w2: torch.Tensor | None
     conv_1st_order: torch.Tensor
     conv_2nd_order: torch.Tensor
-    MUTABLE_ATTRS = ["weight_1st_order", "weight_2nd_order"]
+
+    # Mutable attributes
+    weight_1st_order: float | Sequence[float] | None
+    weight_2nd_order: float | Sequence[float] | None
 
     def __init__(
         self,
@@ -41,14 +44,12 @@ class ActionSmoothnessLoss(Hook):
         weight_2nd_order: float | Sequence[float] | None = None,
     ):
         super().__init__()
-        self.weight_1st_order = None if weight_1st_order is None else torch.tensor(weight_1st_order)
-        self.weight_2nd_order = None if weight_2nd_order is None else torch.tensor(weight_2nd_order)
+        self.register_mutable("weight_1st_order", weight_1st_order)
+        self.register_mutable("weight_2nd_order", weight_2nd_order)
 
     def init(self):
-        if self.weight_1st_order is not None:
-            self.weight_1st_order = self.weight_1st_order.to(self.agent.device)
-        if self.weight_2nd_order is not None:
-            self.weight_2nd_order = self.weight_2nd_order.to(self.agent.device)
+        self.w1 = None if self.weight_1st_order is None else self.agent.to_tensor(self.weight_1st_order)
+        self.w2 = None if self.weight_2nd_order is None else self.agent.to_tensor(self.weight_2nd_order)
         self.conv_1st_order = self.agent.to_tensor([[[-1.0, 1.0]]])
         self.conv_2nd_order = self.agent.to_tensor([[[-1.0, 2.0, -1.0]]])
 
@@ -88,9 +89,8 @@ class ActionSmoothnessLoss(Hook):
         return smoothness_loss
 
     def update_attribute(self, name, value):
+        super().update_attribute(name, value)
         if name == "weight_1st_order":
-            self.weight_1st_order = self.agent.to_tensor(value)
+            self.w1 = None if value is None else self.agent.to_tensor(value)
         elif name == "weight_2nd_order":
-            self.weight_2nd_order = self.agent.to_tensor(value)
-        else:
-            raise ValueError(f"Attribute '{name}' is not mutable for hook {self.name}.")
+            self.w2 = None if value is None else self.agent.to_tensor(value)

@@ -23,8 +23,6 @@ class RewardShaping(Hook):
             is applied. Defaults to None.
     """
 
-    MUTABLE_ATTRS = ["scale"]
-
     def __init__(
         self,
         scale: float = 1.0,

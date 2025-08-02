@@ -15,7 +15,6 @@ __all__ = ["Hook", "HookComposite"]
 
 class Hook(Generic[AgentType]):
     agent: AgentType
-    MUTABLE_ATTRS: list[str] = []
     active: bool = True
 
     @property
@@ -24,12 +23,17 @@ class Hook(Generic[AgentType]):
 
     def __init__(self):
         self._modules: dict[str, nn.Module | None] = {}
+        self._mutable: set[str] = set()
 
     def register_module(self, name: str, module: nn.Module | None):
         if module is not None:
             module = self.agent.setup_module(module)
         setattr(self, name, module)
         self._modules[name] = module
+
+    def register_mutable(self, name: str, mutable: Any):
+        setattr(self, name, mutable)
+        self._mutable.add(name)
 
     def named_parameters(self, prefix: str = "") -> Iterator[tuple[str, nn.Parameter]]:
         if prefix:
@@ -110,7 +114,7 @@ class Hook(Generic[AgentType]):
         pass
 
     def update_attribute(self, name, value):
-        if name not in self.MUTABLE_ATTRS:
+        if name not in self._mutable:
             raise ValueError(f"Attribute '{name}' is not mutable for hook {self.name}.")
         setattr(self, name, value)
 

@@ -32,11 +32,14 @@ class PpoSurrogateLoss(Hook):
             ratio is clipped. Defaults to 0.2.
     """
 
-    MUTABLE_ATTRS = ["clip_ratio"]
+    # Mutable attributes
+    clip_ratio: float
 
     def __init__(self, clip_ratio: float = 0.2):
+        if clip_ratio <= 0:
+            raise ValueError("'clip_ratio' must be positive.")
         super().__init__()
-        self.clip_ratio = clip_ratio
+        self.register_mutable("clip_ratio", clip_ratio)
 
     def objective(self, batch):
         if (advantage := batch["advantage"]).size(-1) != 1:
@@ -66,11 +69,14 @@ class EntropyLoss(Hook):
             stronger incentive for exploration. Defaults to 0.01.
     """
 
-    MUTABLE_ATTRS = ["weight"]
+    # Mutable attributes
+    weight: float
 
     def __init__(self, weight: float = 0.01):
+        if weight < 0:
+            raise ValueError("'weight' must be non-negative.")
         super().__init__()
-        self.weight = weight
+        self.register_mutable("weight", weight)
 
     def objective(self, batch):
         return -self.weight * batch["curr_entropy"].mean()

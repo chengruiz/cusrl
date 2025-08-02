@@ -124,12 +124,18 @@ class ValueLoss(Hook[ActorCritic]):
             Defaults to None, which means standard MSE is used.
     """
 
-    MUTABLE_ATTRS = ["weight", "value_loss_clip"]
+    # Mutable attributes
+    weight: float
+    loss_clip: float | None
 
     def __init__(self, weight: float = 0.5, loss_clip: float | None = None):
+        if weight <= 0:
+            raise ValueError("'weight' must be positive.")
+        if loss_clip is not None and loss_clip <= 0:
+            raise ValueError("'loss_clip' must be positive or None.")
         super().__init__()
-        self.weight = weight
-        self.loss_clip = loss_clip
+        self.register_mutable("weight", weight)
+        self.register_mutable("loss_clip", loss_clip)
 
     def objective(self, batch):
         critic = self.agent.critic

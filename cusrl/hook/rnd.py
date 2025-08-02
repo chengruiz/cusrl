@@ -31,7 +31,8 @@ class RandomNetworkDistillation(Hook):
 
     target: Module
     predictor: Module
-    MUTABLE_ATTRS = ["reward_scale"]
+    # Mutable attributes
+    reward_scale: float
 
     def __init__(
         self,
@@ -42,7 +43,7 @@ class RandomNetworkDistillation(Hook):
     ):
         super().__init__()
         self.output_dim = output_dim
-        self.reward_scale = reward_scale
+        self.register_mutable("reward_scale", reward_scale)
         self.module_factory = module_factory
         self.state_indices = slice(None) if state_indices is None else state_indices
         self.criterion = nn.MSELoss()

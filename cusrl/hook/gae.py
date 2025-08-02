@@ -55,7 +55,10 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             alpha. Defaults to None, which means no normalization is applied.
     """
 
-    MUTABLE_ATTRS = ["gamma", "lamda"]
+    # Mutable attributes
+    gamma: float
+    lamda: float
+    lamda_value: float | None
 
     def __init__(
         self,
@@ -73,9 +76,9 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             raise ValueError(f"Invalid lambda value for value function {lamda_value}, which should be in [0, 1].")
 
         super().__init__()
-        self.gamma = gamma
-        self.lamda = lamda
-        self.lamda_value = lamda_value
+        self.register_mutable("gamma", gamma)
+        self.register_mutable("lamda", lamda)
+        self.register_mutable("lamda_value", lamda_value)
         self.recompute = recompute
         self.popart_alpha = popart_alpha
         self.value_rms: ExponentialMovingNormalizer | None = None

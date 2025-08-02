@@ -66,11 +66,12 @@ class SymmetryLoss(SymmetryHook):
             Scaling factor for the symmetry loss. If None, symmetry loss is not applied.
     """
 
-    MUTABLE_ATTRS = ["weight"]
+    # Mutable attributes
+    weight: float | None
 
     def __init__(self, weight: float | None):
         super().__init__()
-        self.weight = weight
+        self.register_mutable("weight", weight)
         self.mse_loss = nn.MSELoss()
         self.mirrored_actor_memory = None
 

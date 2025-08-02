@@ -9,7 +9,8 @@ __all__ = ["AdaptiveLRSchedule", "MiniBatchWiseLRSchedule", "ThresholdLRSchedule
 
 
 class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
-    MUTABLE_ATTRS = ["desired_kl_divergence"]
+    # Mutable attributes
+    desired_kl_divergence: float
 
     def __init__(
         self,
@@ -20,7 +21,7 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
             raise ValueError("'desired_kl_divergence' must be positive.")
 
         super().__init__()
-        self.desired_kl_divergence = desired_kl_divergence
+        self.register_mutable("desired_kl_divergence", desired_kl_divergence)
         self.scale_all_params = scale_all_params
         self._lr_scale = 1.0
 
@@ -65,8 +66,6 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
             scales actor parameter groups. Defaults to False.
     """
 
-    MUTABLE_ATTRS = ["desired_kl_divergence"]
-
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
@@ -105,8 +104,6 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
             If True, scales all optimizer parameter groups; otherwise only scales actor
             parameter groups. Defaults to False.
     """
-
-    MUTABLE_ATTRS = ["desired_kl_divergence"]
 
     def __init__(
         self,
