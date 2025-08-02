@@ -18,6 +18,8 @@ def configure_parser(parser):
                         help="Directory to save exported files to")
     parser.add_argument("--format", type=str, choices=["onnx", "jit"], default="onnx",
                         help="Target format for export (default: onnx)")
+    parser.add_argument("--no-optimize", action="store_false", dest="optimize",
+                        help="Whether to disable optimization during export")
     parser.add_argument("--silent", action="store_true",
                         help="Whether to suppress output messages")
     parser.add_argument("--dynamo", action="store_true",
@@ -50,8 +52,9 @@ def main(args):
         args.output_dir = "exported"
     agent.export(
         output_dir=args.output_dir,
-        dynamo=args.dynamo,
         target_format=args.format,
+        optimize=args.optimize,
+        dynamo=args.dynamo,
         verbose=not args.silent,
     )
 

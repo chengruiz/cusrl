@@ -237,6 +237,7 @@ class ActorCritic(Agent):
         self,
         output_dir: str,
         target_format: Literal["onnx", "jit"] = "onnx",
+        optimize: bool = True,
         dynamo: bool = False,
         verbose: bool = True,
         **kwargs,
@@ -296,9 +297,9 @@ class ActorCritic(Agent):
             )
 
         if target_format == "onnx":
-            graph.export_onnx(inputs, output_dir, dynamo=dynamo, verbose=verbose)
+            graph.export_onnx(inputs, output_dir, optimize=optimize, dynamo=dynamo, verbose=verbose)
         elif target_format == "jit":
-            graph.export_jit(inputs, output_dir)
+            graph.export_jit(inputs, output_dir, optimize=optimize)
         else:
             raise ValueError(f"Unsupported export format '{target_format}'.")
         if verbose:

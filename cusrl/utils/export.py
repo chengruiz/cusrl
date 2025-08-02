@@ -1,4 +1,3 @@
-import os
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
@@ -85,6 +84,7 @@ class GraphBuilder(nn.Module):
         self,
         example_inputs: dict[str, Any],
         output_dir: str,
+        optimize: bool = True,
     ):
         self.eval()
 
@@ -96,8 +96,8 @@ class GraphBuilder(nn.Module):
         traced_stateless_module = torch.jit.trace_module(
             stateless_wrapper, inputs={"forward": (flattened_inputs,)}, strict=False
         )
-        torch.jit.save(traced_stateless_module, f"{output_dir}/{self.graph_name}_stateless_unoptimized.pt")
-        traced_stateless_module = torch.jit.optimize_for_inference(traced_stateless_module)
+        if optimize:
+            traced_stateless_module = torch.jit.optimize_for_inference(traced_stateless_module)
         torch.jit.save(traced_stateless_module, f"{output_dir}/{self.graph_name}_stateless.pt")
 
         stateful_wrapper = StatefulWrapper(stateless_wrapper, example_inputs)
@@ -105,8 +105,8 @@ class GraphBuilder(nn.Module):
         traced_stateful_module = torch.jit.trace_module(
             stateful_wrapper, inputs={"forward": non_memory_inputs, "reset": ()}, strict=False
         )
-        torch.jit.save(traced_stateful_module, f"{output_dir}/{self.graph_name}_unoptimized.pt")
-        traced_stateful_module = torch.jit.optimize_for_inference(traced_stateful_module)
+        if optimize:
+            traced_stateful_module = torch.jit.optimize_for_inference(traced_stateful_module)
         torch.jit.save(traced_stateful_module, f"{output_dir}/{self.graph_name}.pt")
 
         # Save additional information
@@ -122,6 +122,7 @@ class GraphBuilder(nn.Module):
         example_inputs: dict[str, Any],
         output_dir: str,
         dynamo: bool = False,
+        optimize: bool = True,
         verbose: bool = True,
     ):
         self.eval()
@@ -133,12 +134,11 @@ class GraphBuilder(nn.Module):
         output_names = [name for name, _ in iterate_nested(dict(zip(self.output_names, example_outputs)))]
 
         # Export the model to ONNX format
-        unoptimized_model_path = f"{output_dir}/{self.graph_name}_unoptimized.onnx"
-        optimized_model_path = f"{output_dir}/{self.graph_name}.onnx"
+        model_path = f"{output_dir}/{self.graph_name}.onnx"
         torch.onnx.export(
             self,
             args=tuple(example_inputs.items()),
-            f=unoptimized_model_path,
+            f=model_path,
             verbose=verbose,
             input_names=input_names,
             output_names=output_names,
@@ -154,61 +154,70 @@ class GraphBuilder(nn.Module):
         # Save additional information
         import onnx
 
-        onnx.checker.check_model(unoptimized_model_path, full_check=True)
-        onnx_model = onnx.load(unoptimized_model_path)
+        onnx.checker.check_model(model_path, full_check=True)
+        onnx_model = onnx.load(model_path)
         info = self.info.copy()
         info["inputs"] = [
-            {input.name: self._get_onnx_tensor_shape(input.type.tensor_type)} for input in onnx_model.graph.input
+            {input.name: _get_onnx_tensor_shape(input.type.tensor_type)} for input in onnx_model.graph.input
         ]
         info["outputs"] = [
-            {output.name: self._get_onnx_tensor_shape(output.type.tensor_type)} for output in onnx_model.graph.output
+            {output.name: _get_onnx_tensor_shape(output.type.tensor_type)} for output in onnx_model.graph.output
         ]
         with open(f"{output_dir}/{self.graph_name}.yml", "w") as f:
             yaml.safe_dump(info, f)
 
         # Optimize the ONNX model
-        optimizers = ["onnxslim", "onnxoptimizer"]
-        for optimizer in optimizers:
-            try:
-                getattr(self, f"_optimize_onnx_model_with_{optimizer}")(onnx_model, optimized_model_path, verbose)
-            except Exception as error:
-                if verbose:
-                    print(f"\033[1;33mFailed to optimize ONNX model with {optimizer}: {error}.\033[0m")
-                continue
-            if verbose:
-                print(f"\033[1;32mOptimized ONNX model with {optimizer}.\033[0m")
-            break
+        if optimize and _optimize_onnx_model(onnx_model, model_path, verbose):
+            onnx.checker.check_model(model_path, full_check=True)
+
+
+def _get_onnx_tensor_shape(tensor_type: Any) -> tuple[int | str, ...]:
+    """Extracts the shape of an ONNX tensor type."""
+    if not tensor_type.HasField("shape"):
+        raise ValueError("Tensor type does not have a shape defined.")
+    shape = []
+    for dim in tensor_type.shape.dim:
+        if dim.HasField("dim_value"):
+            shape.append(dim.dim_value)
+        elif dim.HasField("dim_param"):
+            shape.append(dim.dim_param)
         else:
-            if verbose:
-                print("\033[1;33mFailed to optimize ONNX model.\033[0m")
-            os.rename(unoptimized_model_path, optimized_model_path)
-        onnx.checker.check_model(optimized_model_path, full_check=True)
+            shape.append("?")
+    return tuple(shape)
 
-    @staticmethod
-    def _get_onnx_tensor_shape(tensor_type: Any) -> tuple[int | str, ...]:
-        if not tensor_type.HasField("shape"):
-            raise ValueError("Tensor type does not have a shape defined.")
-        shape = []
-        for dim in tensor_type.shape.dim:
-            if dim.HasField("dim_value"):
-                shape.append(dim.dim_value)
-            elif dim.HasField("dim_param"):
-                shape.append(dim.dim_param)
-            else:
-                shape.append("?")
-        return tuple(shape)
 
-    def _optimize_onnx_model_with_onnxslim(self, onnx_model, output_path: str, verbose: bool = True):
+def _optimize_onnx_model(onnx_model, output_path: str, verbose: bool = True) -> bool:
+    """Attempts to optimize the ONNX model using available optimizers."""
+
+    def print_if_verbose(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
+
+    try:
         import onnxslim
 
         onnxslim.slim(onnx_model, output_path, verbose=verbose)
+        print_if_verbose("\033[1;32mOptimized ONNX model with onnxslim.\033[0m")
+        return True
+    except ModuleNotFoundError:
+        pass
 
-    def _optimize_onnx_model_with_onnxoptimizer(self, onnx_model: Any, output_path: str, verbose: bool = True):
+    try:
         import onnx
         import onnxoptimizer
 
         optimized_model = onnxoptimizer.optimize(onnx_model)
         onnx.save(optimized_model, output_path)
+        print_if_verbose("\033[1;32mOptimized ONNX model with onnxoptimizer.\033[0m")
+        return True
+    except ModuleNotFoundError:
+        pass
+
+    print_if_verbose(
+        "\033[1;33mFailed to optimize ONNX model. Run `pip install onnxslim`"
+        "or `pip install onnxoptimizer` to install an optimizer.\033[0m"
+    )
+    return False
 
 
 def get_num_tensors(tensor_list: GetNumTensorsInputType) -> int:
