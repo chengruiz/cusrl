@@ -52,10 +52,11 @@ class Rnn(Module):
         rnn (type[RnnLike] | RnnLike):
             The RNN class (e.g., `nn.LSTM`) or an instantiated RNN module.
         output_dim (int | None, optional):
-            The dimension of the output. If not None, an linear layer is added to
-            project the RNN's output to this dimension. Defaults to None.
+            The dimension of the output. If not None, an linear layer is added
+            to project the RNN's output to this dimension. Defaults to None.
         **kwargs:
-            Additional keyword arguments passed to the RNN constructor if `rnn` is a class.
+            Additional keyword arguments passed to the RNN constructor if `rnn`
+            is a class.
     """
 
     Factory = RnnFactory
@@ -176,25 +177,28 @@ class Gru(Rnn):
 
 
 def scatter_memory(memory: Memory, done: torch.Tensor):
-    """Restructures memory tensors from a batch of sequences into a batch of episodes.
+    """Restructures memory tensors from a batch of sequences into a batch of
+    episodes.
 
-    This function takes RNN hidden states (`memory`) collected from a batch of parallel
-    environments and a `done` tensor that marks episode boundaries. It reorganizes the
-    memory so that each element in the new batch dimension corresponds to a single,
-    complete or partial episode.
+    This function takes RNN hidden states (`memory`) collected from a batch of
+    parallel environments and a `done` tensor that marks episode boundaries. It
+    reorganizes the memory so that each element in the new batch dimension
+    corresponds to a single, complete or partial episode.
 
     Args:
         memory (Memory):
-            The memory tensor(s) to be scattered. The tensor shape is expected to be
-            `(..., N, C)`, where `N` is the number of environments, and `C` is the
-            channel dimension.
+            The memory tensor(s) to be scattered. The tensor shape is expected
+            to be `(..., N, C)`, where `N` is the number of environments, and
+            `C` is the channel dimension.
         done (torch.Tensor):
-            A boolean tensor of shape `(T, C, 1)` indicating episode terminations.
+            A boolean tensor of shape `(T, C, 1)` indicating episode
+            terminations.
 
     Returns:
-        Memory:
-            The scattered memory tensor(s) with shape `(..., M, C)`, where `M` is the total
-            number of episodes across all environments in the batch.
+        memory (Memory):
+            The scattered memory tensor(s) with shape `(..., M, C)`, where `M`
+            is the total number of episodes across all environments in the
+            batch.
     """
     if memory is None:
         return None

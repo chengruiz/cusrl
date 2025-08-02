@@ -23,30 +23,31 @@ class PlayerHook:
 
 
 class Player:
-    """Orchestrates a playing loop between an Agent and an Environment,
-    also manages initialization, checkpoint loading, stepping, and hook callbacks.
+    """Orchestrates a playing loop between an Agent and an Environment, also
+    manages initialization, checkpoint loading, stepping, and hook callbacks.
 
     Args:
         environment (Environment | Environment.Factory):
             An Environment instance or a factory that produces one.
         agent (Agent | Agent.Factory):
-            An Agent instance or a factory that produces one for the given environment.
+            An Agent instance or a factory that produces one for the given
+            environment.
         checkpoint_path (str | Trial | None, optional):
-            Path to a saved checkpoint or a Trial object. If provided, loads agent and
-            environment states from the checkpoint.
+            Path to a saved checkpoint or a Trial object. If provided, loads
+            agent and environment states from the checkpoint.
         num_steps (int | None, optional):
             Maximum number of steps to execute. If None, runs indefinitely.
         timestep (float | None, optional):
             Time interval between steps in seconds. Defaults to
             `environment.spec.timestep` if not provided.
         deterministic (bool):
-            Whether to run the agent in deterministic mode. If False, the agent will
-            sample actions stochastically.
+            Whether to run the agent in deterministic mode. If False, the agent
+            will sample actions stochastically.
         verbose (bool):
             Whether to enable verbose logging.
         hooks (Iterable[PlayerHook], optional):
-            A sequence of PlayerHook classes or instances to be initialized and called
-            at each step and reset event.
+            A sequence of PlayerHook classes or instances to be initialized and
+            called at each step and reset event.
 
     Methods:
         register_hook(hook: PlayerHook) -> None

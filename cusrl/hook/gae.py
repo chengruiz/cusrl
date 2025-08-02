@@ -25,14 +25,16 @@ def _generalized_advantage_estimation(
 
 
 class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
-    """A hook that computes advantages and returns using Generalized Advantage Estimation (GAE).
+    """A hook that computes advantages and returns using Generalized Advantage
+    Estimation (GAE).
 
     GAE is described in:
-    "High-Dimensional Continuous Control Using Generalized Advantage Estimation",
+    "High-Dimensional Continuous Control Using Generalized Advantage
+    Estimation",
     https://arxiv.org/abs/1506.02438
 
-    Distinct lambda values can be enabled to individually control the bias-variance trade-offs
-    for policy and value function, described in:
+    Distinct lambda values can be enabled to individually control the bias-
+    variance trade-offs for policy and value function, described in:
     "DNA: Proximal Policy Optimization with a Dual Network Architecture"
     https://proceedings.neurips.cc/paper_files/paper/2022/hash/e95475f5fb8edb9075bf9e25670d4013-Abstract-Conference.html
 
@@ -44,15 +46,18 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         gamma (float, optional):
             Discount factor for future rewards, in [0, 1). Defaults to 0.99.
         lamda (float, optional):
-            Smoothing factor for advantage estimation, in [0, 1]. Defaults to 0.95.
+            Smoothing factor for advantage estimation, in [0, 1]. Defaults to
+            0.95.
         lamda_value (float | None, optional):
             Smoothing factor for value function calculation, in [0, 1].
             If None, the same value as `lamda` is used. Defaults to None.
         recompute (bool, optional):
-            If True, recompute advantages and returns after each update. Defaults to False.
+            If True, recompute advantages and returns after each update.
+            Defaults to False.
         popart_alpha (float | None, optional):
-            If not None, applies PopArt normalization to the value function with the specified
-            alpha. Defaults to None, which means no normalization is applied.
+            If not None, applies PopArt normalization to the value function with
+            the specified alpha. Defaults to None, which means no normalization
+            is applied.
     """
 
     # Mutable attributes

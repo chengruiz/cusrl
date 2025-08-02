@@ -10,18 +10,18 @@ class Trial:
 
     This class provides a convenient way to interact with the output of a
     training run (a "trial"). It can be initialized with a path to:
-      - An experiment's home directory (e.g., `DummyEnv:DummyAlgo/`)
-      - A trial's home directory (e.g., `DummyEnv:DummyAlgo/trial_1/`)
-      - A specific checkpoint file (e.g., `DummyEnv:DummyAlgo/trial_1/ckpt/ckpt_100.pt`)
+      - An experiment's home directory (e.g., `Env:Algo/`)
+      - A trial's home directory (e.g., `Env:Algo/trial_1/`)
+      - A specific checkpoint file (e.g., `Env:Algo/trial_1/ckpt/ckpt_100.pt`)
 
     The class automatically discovers information like the experiment name,
     algorithm, environment, and available checkpoint iterations.
 
     Args:
         path (str):
-            The path to the experiment, trial directory or a specific checkpoint file.
-            If an experiment is provided, the latest trial is loaded.
-            If a trial directory is provided, the latest checkpoint is loaded.
+            The path to the experiment, trial directory or a specific checkpoint
+            file. If an experiment is provided, the latest trial is loaded. If a
+            trial directory is provided, the latest checkpoint is loaded.
             Otherwise, the specific checkpoint file is expected.
         verbose (bool, optional):
             If True, prints the path of the loaded checkpoint. Defaults to True.
@@ -32,7 +32,8 @@ class Trial:
         name (str):
             The name of the trial, derived from its directory name.
         experiment_name (str | None):
-            The name of the experiment, if the directory name follows the 'env:algo' convention.
+            The name of the experiment, if the directory name follows the
+            'env:algo' convention.
         algorithm_name (str | None):
             The name of the algorithm, parsed from the experiment name.
         environment_name (str | None):
@@ -43,9 +44,10 @@ class Trial:
             The full path to the selected checkpoint file.
 
     Raises:
-        FileNotFoundError: If the specified path does not exist.
-        ValueError: If the path points to a file that is not a valid
-            checkpoint file (e.g., does not start with 'ckpt_' or end with '.pt').
+        FileNotFoundError:
+            If the specified path does not exist.
+        ValueError:
+            If the path points to a file that is not a valid checkpoint file.
     """
 
     home: Path

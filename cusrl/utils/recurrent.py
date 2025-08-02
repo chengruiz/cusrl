@@ -24,10 +24,10 @@ def compute_sequence_indices(done: Tensor) -> Tensor:
 
     Args:
         done (Tensor):
-            A boolean tensor of shape `(T, N, 1)` indicating sequence terminations,
-            where `T` is the number of time steps and `N` is the number of parallel
-            environments. If `done[t, n, 0] == 1`, it signifies the end of a sequence
-            at time `t` in environment `n`.
+            A boolean tensor of shape `(T, N, 1)` indicating sequence
+            terminations, where `T` is the number of time steps and `N` is the
+            number of parallel environments. If `done[t, n, 0] == 1`,
+            it signifies the end of sequence `n` at time `t`.
 
     Returns:
         indices (Tensor): A 1D int64 tensor of shape `(N + 1,)`. The first element
@@ -52,10 +52,10 @@ def compute_sequence_lengths(done: Tensor) -> Tensor:
 
     Args:
         done (Tensor):
-            A boolean tensor of shape `(T, N, 1)` indicating sequence terminations.
-            `T` is the number of time steps, and `N` is the number of parallel
-            environments. A value of `1` at `done[t, n, 0]` signifies that the
-            sequence in environment `n` ends at time step `t`.
+            A boolean tensor of shape `(T, N, 1)` indicating sequence
+            terminations. `T` is the number of time steps, and `N` is the number
+            of parallel environments. A value of `1` at `done[t, n, 0]`
+            signifies the end of sequence `n` at time `t`.
 
     Returns:
         sequence_lens (Tensor):
@@ -77,7 +77,7 @@ def compute_sequence_lengths(done: Tensor) -> Tensor:
 
 @torch.jit.script
 def cumulate_sequence_lengths(sequence_lens: Tensor) -> Tensor:
-    """Computes cumulative sequence lengths based on a sequence length tensor."""
+    """Computes cumulative sequence lengths based on sequence lengths."""
     cumulative_sequence_lens = sequence_lens.new_zeros(sequence_lens.size(0) + 1)
     cumulative_sequence_lens[1:] = sequence_lens.cumsum(dim=0)
     return cumulative_sequence_lens
@@ -111,9 +111,9 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
     Returns:
         A tuple containing:
           - padded_sequences (Tensor):
-                A tensor of shape `(T, E, C)`, where `E >= N` is the total number of
-                 episodes extracted from all environments. Each episode is padded
-                 with zeros to length `T`.
+                A tensor of shape `(T, E, C)`, where `E >= N` is the total
+                number of episodes extracted from all environments. Each episode
+                is padded with zeros to length `T`.
           - mask (Tensor):
                 A boolean tensor of shape `(T, E)`. `mask[t, i]` is `True` if
                 timestep `t` is a valid part of episode `i` (i.e., not padding).

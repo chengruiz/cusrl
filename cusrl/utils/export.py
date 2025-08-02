@@ -249,21 +249,21 @@ class StatefulWrapper(nn.Module):
     """Wraps a `StatelessWrapper` to create a stateful `nn.Module`.
 
     This class manages internal memory buffers, making a stateless module
-    stateful. It identifies memory tensors in the `example_inputs` by the
-    prefix 'memory_in'. For each 'memory_in' tensor, it expects the
-    corresponding 'memory_out' tensor from the wrapped module's output,
-    which it uses to update its internal state.
+    stateful. It identifies memory tensors in the `example_inputs` by the prefix
+    'memory_in'. For each 'memory_in' tensor, it expects the corresponding
+    'memory_out' tensor from the wrapped module's output, which it uses to
+    update its internal state.
 
     The `forward` method's signature is dynamically generated based on the
-    non-memory input names found in `example_inputs`. This allows for a
-    clean, explicit forward pass when using the wrapped module.
+    non-memory input names found in `example_inputs`. This allows for a clean,
+    explicit forward pass when using the wrapped module.
 
     Args:
         stateless_wrapper (StatelessWrapper):
             The stateless module to be wrapped.
         example_inputs (dict[str, NestedTensor]):
-            A dictionary of example inputs. Keys starting with 'memory_in'
-            are treated as stateful memories.
+            A dictionary of example inputs. Keys starting with 'memory_in' are
+            recognized as states.
     """
 
     def __init__(

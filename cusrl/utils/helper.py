@@ -60,25 +60,35 @@ def import_module(
     path: str | None = None,
     args: ListOrTuple[str] | None = None,
 ):
-    """Dynamically imports a Python module by name or from a file path, optionally passing arguments.
+    """
+    Dynamically imports a Python module by name or from a file path, optionally
+    passing arguments.
 
     Args:
-        module_name (str | None):
-            The name of the module to import. Cannot be specified together with `path`.
-        package (str | None):
-            The package name to use as the anchor for relative imports (used with `module_name`).
-        path (str | None):
-            The file path to the module to import. Cannot be specified together with `module_name`.
-        args (ListOrTuple[str] | None):
+        module_name (str | None, optional):
+            The name of the module to import. Cannot be specified together with
+            `path`.
+        package (str | None, optional):
+            The package name to use as the anchor for relative imports (used
+            with `module_name`).
+        path (str | None, optional):
+            The file path to the module to import. Cannot be specified together
+            with `module_name`.
+        args (ListOrTuple[str] | None, optional):
             Arguments to pass as `sys.argv` to the module during import.
 
     Returns:
-        module: The imported module object, or `None` if neither `module_name` nor `path` is specified.
+        module:
+            The imported module object, or `None` if neither `module_name` nor
+            `path` is specified.
 
     Raises:
-        ValueError: If both `module_name` and `path` are specified.
-        ImportError: If the specified module cannot be found or loaded.
-        FileNotFoundError: If the specified file path does not exist.
+        ValueError:
+            If both `module_name` and `path` are specified.
+        ImportError:
+            If the specified module cannot be found or loaded.
+        FileNotFoundError:
+            If the specified file path does not exist.
     """
 
     if module_name and path:
@@ -114,9 +124,19 @@ def import_module(
     return module
 
 
-def set_global_seed(seed: int | None, deterministic: bool = False):
+def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
     """Sets the global random seed for reproducibility.
+
     Modified from isaacsim.core.utils.set_seed.
+
+    Args:
+        seed (int | None):
+            The seed to use. If None, a seed will be generated.
+        deterministic (bool):
+            Whether to use deterministic algorithms.
+
+    Returns:
+        int: The seed that was set.
     """
     if seed is None:
         seed = 42 if deterministic else int.from_bytes(os.urandom(4), "big")

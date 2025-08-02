@@ -26,7 +26,8 @@ class EnvironmentSpec:
     """A class encapsulates environment-specific specifications and properties.
 
     This class stores parameters that define environment behavior, statistical
-    properties, transformation capabilities, and other environment characteristics.
+    properties, transformation capabilities, and other environment
+    characteristics.
 
     Attributes:
         # Basic properties
@@ -43,8 +44,8 @@ class EnvironmentSpec:
 
         # Additional properties
         autoreset (bool):
-            Whether the environment automatically resets itself on terminal states
-            inside `Environment.step`.
+            Whether the environment automatically resets itself on terminal
+            states inside `Environment.step`.
         final_state_is_missing (bool):
             Whether the environment omits the final state of an episode.
         timestep (float | None):
@@ -60,35 +61,37 @@ class EnvironmentSpec:
 
         # Predefined statistics
         action_denormalization (tuple[Array, Array] | None):
-            Tuple of arrays (scale, shift) used for denormalizing the action within
-            the environment. If provided, these statistics are applied as an element-
-            wise affine layer as `action = original_action * scale + shift` appended
-            to the actor upon export.
+            Tuple of arrays (scale, shift) used for denormalizing the action
+            within the environment. If provided, these statistics are applied as
+            an element-wise affine layer as `action = original_action * scale
+            + shift` appended to the actor upon export.
         observation_normalization: (tuple[Array, Array] | None):
-            Tuple of arrays (scale, shift) used for normalizing observation within
-            the environment. If provided, these statistics are applied as an element-
-            wise affine layer as `observation = (original_observation - shift) / scale`
-            prepended to the actor upon export.
+            Tuple of arrays (scale, shift) used for normalizing observation
+            within the environment. If provided, these statistics are applied as
+            an element- wise affine layer as `observation =
+            original_observation - shift) / scale` prepended to the actor upon
+            export.
         state_normalization (tuple[Array, Array] | None):
             Tuple of arrays (scale, shift) used for normalizing state within the
-            environment. If provided, these statistics are applied as an element-wise
-            affine layer as `state = (original_state - shift) / scale` prepended to
-            the critic upon export. (not implemented yet)
+            environment. If provided, these statistics are applied as an
+            element-wise affine layer as `state = (original_state - shift) /
+            scale` prepended to the critic upon export. (not implemented yet)
 
         # State/observation relationships
         observation_is_subset_of_state (Array | Slice | None):
-            Definition of the one-to-one correspondence relationship from state to
-            observation.
+            Definition of the one-to-one correspondence relationship from state
+            to observation.
 
         # Statistical grouping
         observation_stat_groups (Sequence[tuple[int, int]]):
-            Sequence of (start_idx, end_idx) pairs defining groups of observation
-            dimensions that share statistical properties.
+            Sequence of (start_idx, end_idx) pairs defining groups of
+            observation dimensions that share statistical properties.
         state_stat_groups (Sequence[tuple[int, int]]):
-            Sequence of (start_idx, end_idx) pairs defining groups of state dimensions
-            that share statistical properties.
+            Sequence of (start_idx, end_idx) pairs defining groups of state
+            dimensions that share statistical properties.
 
-        extras (dict): Dictionary containing additional environment-specific properties.
+        extras (dict):
+            Dictionary containing additional environment-specific properties.
     """
 
     def __init__(
@@ -171,18 +174,6 @@ class Environment(ABC):
             Dimension of the state space. Defaults to None.
         **kwargs:
             Additional properties of the environment.
-
-    Key methods:
-        reset(indices: Array | Slice | None = None) -> tuple[Observation, State, Info]:
-            Abstract method to reset the environment. Must be implemented by subclasses.
-        step(action: Array) -> tuple[Observation, State, Reward, Terminated, Truncated, Info]:
-            Abstract method to take a step in the environment. Must be implemented by subclasses.
-        get_metrics() -> dict[str, float]:
-            Returns metrics as a dictionary.
-        state_dict() -> dict[str, Array]:
-            Returns the state of the environment as a dictionary.
-        load_state_dict(state_dict: dict[str, Array]):
-            Loads the state of the environment from a dictionary.
     """
 
     Factory = EnvironmentFactory
@@ -242,6 +233,7 @@ class Environment(ABC):
         State,        # [ N / Ni, Ds ], f32 (state of all or reset instances)
         Info,         # [ N / Ni, Dk ]
     ]:
+        """Resets the environment. Must be implemented by subclasses."""
         raise NotImplementedError
 
     @abstractmethod
@@ -253,16 +245,20 @@ class Environment(ABC):
         Truncated,    # [ N,  1 ], bool
         Info,         # [ N, Dk ]
     ]:
+        """Takes a step in the environment. Must be implemented by subclasses."""
         raise NotImplementedError
     # fmt: on
 
     def get_metrics(self) -> dict[str, float]:
+        """Returns metrics of the environment as a dictionary."""
         return {}
 
     def state_dict(self) -> dict[str, Any]:
+        """Returns the state of the environment as a dictionary."""
         return {}
 
     def load_state_dict(self, state_dict: dict[str, Any]):
+        """Loads the state of the environment from a dictionary."""
         pass
 
 

@@ -111,10 +111,10 @@ class Trainer:
     """Orchestrates and manages a reinforcement learning training loop.
 
     It handles:
-      - Initializing the environment, agent, logger, checkpoints, and statistics.
-      - Running the main training loop for the specified number of iterations.
-      - Collecting experience by alternating between agent and environment steps.
-      - Updating the agent when ready, logging performance metrics, and saving checkpoints.
+      - Initializes the environment, agent, logger, and statistics.
+      - Runs the main training loop for the specified number of iterations.
+      - Collects experience by alternating between agent and environment steps.
+      - Updates the agent when ready, logging metrics, and saving checkpoints.
 
     Args:
         environment (Environment | Environment.Factory):
@@ -122,25 +122,30 @@ class Trainer:
         agent_factory (Agent.Factory):
             Factory that creates an Agent compatible with the environment.
         logger_factory (LoggerFactoryLike | None):
-            Factory for a logger to persist checkpoints and metrics; active on the main process only.
+            Factory for a logger to persist checkpoints and metrics; active on
+            the main process only.
         num_iterations (int):
             Total number of training iterations to execute.
         init_iteration (int | None):
-            If provided, resume training from this iteration (overrides any loaded checkpoint).
+            If provided, resume training from this iteration (overrides any
+            loaded checkpoint).
         save_interval (int):
             Number of iterations between automatic checkpoints.
         checkpoint_path (str | None):
             Path to load a previous training checkpoint from.
         verbose (bool):
-            Whether to print progress and checkpoint messages (only on the main process).
+            Whether to print progress and checkpoint messages (only on the main
+            process).
         callbacks (Iterable[Callable[['Trainer'], None]]):
-            Sequence of functions to be executed at initialization and after each iteration.
+            Sequence of functions to be executed at initialization and after
+            each iteration.
 
     Methods:
         dump_obj(obj, filename):
             Serialize an arbitrary object into the logger's info directory.
         register_callback(callback):
-            Add a new callback to be executed at initialization and after each iteration.
+            Add a new callback to be executed at initialization and after each
+            iteration.
         run_training_loop():
             Execute the training loop until reaching num_iterations.
     """

@@ -13,13 +13,14 @@ __all__ = ["ObservationNormalization"]
 
 
 class ObservationNormalization(Hook[ActorCritic]):
-    """Normalizes observations and states using a running mean and standard deviation.
+    """Normalizes observations and states using a running mean and standard
+    deviation.
 
-    This hook maintains a running estimate of the mean and standard deviation for
-    observations and, if available, states. It intercepts transitions during data
-    collection to normalize the `observation`, `state`, `next_observation`, and
-    `next_state` fields. The original, unnormalized values are preserved under
-    keys with an "original_" prefix.
+    This hook maintains a running estimate of the mean and standard deviation
+    for observations and, if available, states. It intercepts transitions during
+    data collection to normalize the `observation`, `state`, `next_observation`,
+    and `next_state` fields. The original, unnormalized values are preserved
+    under keys with an "original_" prefix.
 
     The running statistics are updated with new data from each step, unless the
     agent is in inference mode or the `frozen` attribute is set to `True`.
@@ -35,9 +36,10 @@ class ObservationNormalization(Hook[ActorCritic]):
             The maximum count for the running statistics to prevent numerical
             overflow. Defaults to None.
         defer_synchronization:
-            If True, synchronization of running statistics in a distributed setting
-            is deferred until the end of a rollout. This can improve performance
-            by reducing the frequency of synchronization. Defaults to False.
+            If True, synchronization of running statistics in a distributed
+            setting is deferred until the end of a rollout. This can improve
+            performance by reducing the frequency of synchronization. Defaults
+            to False.
     """
 
     observation_rms: RunningMeanStd

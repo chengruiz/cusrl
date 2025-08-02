@@ -13,8 +13,8 @@ __all__ = ["AdvantageReduction", "AdvantageNormalization"]
 class AdvantageReduction(Hook):
     """A hook to reduce a multidimensional advantage tensor into a scalar.
 
-    This hook reduces the advantage tensor along its last dimension. This is useful
-    in multi-goal settings where the advantage is a vector.
+    This hook reduces the advantage tensor along its last dimension. This is
+    useful in multi-goal settings where the advantage is a vector.
 
     Args:
         reduction (Literal["sum", "mean"], optional):
@@ -75,8 +75,8 @@ class AdvantageNormalization(Hook[ActorCritic]):
             If `True`, normalization is applied to each mini-batch. Defaults to
             `False`,
         synchronize (bool, optional):
-            If `True`, the mean and variance are synchronized across all processes
-            in distributed training. Defaults to `True`.
+            If `True`, the mean and variance are synchronized across all
+            processes in distributed training. Defaults to `True`.
     """
 
     def __init__(self, mini_batch_wise: bool = False, synchronize: bool = True):

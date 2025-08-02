@@ -21,10 +21,10 @@ def get_schema(value: Nested[_T], prefix: str = "") -> Nested[str]:
     """Generates a schema of path-like strings from a nested structure.
 
     This function recursively traverses a nested structure containing
-    dictionaries, lists, or tuples. It creates a parallel structure where
-    each leaf value is replaced by a string representing its "path" from
-    the root. Dictionary keys and list/tuple indices are used as path
-    segments, joined by dots.
+    dictionaries, lists, or tuples. It creates a parallel structure where each
+    leaf value is replaced by a string representing its "path" from the root.
+    Dictionary keys and list/tuple indices are used as path segments, joined by
+    dots.
 
     Args:
         value (Nested[_T]):
@@ -36,8 +36,8 @@ def get_schema(value: Nested[_T], prefix: str = "") -> Nested[str]:
 
     Returns:
         schema (Nested[str]):
-            A nested structure with the same structure as the input, where
-            each leaf value is a string representing its path.
+            A nested structure with the same structure as the input, where each
+            leaf value is a string representing its path.
 
     Examples:
         >>> get_schema({'a': 1, 'b': {'c': 2}})
@@ -114,8 +114,8 @@ def flatten_nested(data: Nested[_T], prefix: str = "") -> dict[str, _T]:
 
     Returns:
         flattened_data (dict[str, _T]):
-            A new dictionary with flattened key-value pairs. Keys represent
-            the path to the value in the original nested structure.
+            A new dictionary with flattened key-value pairs. Keys represent the
+            path to the value in the original nested structure.
 
     Example:
         >>> data = {'a': 1, 'b': {'c': 2, 'd': 3}}
@@ -134,7 +134,7 @@ def map_nested(data: Nested[_T], func: Callable[[_T], _V]) -> Nested[_V]:
 
     Args:
         data (Nested[_T]):
-            The nested structure (e.g., a dictionary of dictionaries) to process.
+            The nested structure to process.
         func (Callable[[_T], _V]):
             A function to apply to each leaf value in the nested structure.
 
@@ -164,7 +164,8 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Ne
     This function takes a flat dictionary of key-value pairs and a nested
     structure (the "schema") where the leaves are string keys. It builds a new
     nested structure that mirrors the structure of the schema, but with the leaf
-    keys replaced by their corresponding values from the flat `storage` dictionary.
+    keys replaced by their corresponding values from the flat `storage`
+    dictionary.
 
     This is the inverse operation of flattening a nested structure.
 
@@ -172,14 +173,14 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Ne
         flattened_data (dict[str, _T]):
             A flat dictionary mapping string keys to values.
         schema (Nested[str]):
-            A nested structure (dict, list, or tuple) where the leaves are string
-            keys that are present in the `storage` dict.
+            A nested structure (dict, list, or tuple) where the leaves are
+            string keys that are present in the `storage` dict.
 
     Returns:
         reconstructed_data (Nested[_T]):
-            A new nested structure with the same structure as `schema`, but with the
-            string keys at the leaves replaced by their corresponding values from
-            `storage`.
+            A new nested structure with the same structure as `schema`, but with
+            the string keys at the leaves replaced by their corresponding values
+            from `storage`.
 
     Example:
         >>> flattened_data = {'a': 10, 'b.c': 20, 'b.d': 30}

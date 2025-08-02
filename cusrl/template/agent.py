@@ -70,24 +70,26 @@ _ModuleType = TypeVar("_ModuleType", bound=nn.Module)
 class Agent(ABC):
     """Abstract base class for all reinforcement learning agents.
 
-    This class defines the standard interface for an agent that interacts with an
-    environment. It provides a framework for acting, processing environment steps,
-    and updating internal models. Subclasses are required to implement the
-    `act`, `step`, and `update` methods.
+    This class defines the standard interface for an agent that interacts with
+    an environment. It provides a framework for acting, processing environment
+    steps, and updating internal models. Subclasses are required to implement
+    the `act`, `step`, and `update` methods.
 
-    The class also provides utilities for checkpoint management (saving and loading),
-    device placement, mixed-precision training, and statistics tracking.
+    The class also provides utilities for checkpoint management (saving and
+    loading), device placement, mixed-precision training, and statistics
+    tracking.
 
     Class Attributes:
         Factory (AgentFactory):
             A factory class used to create instances of the agent.
         MODULES (list[str]):
-            A list of attribute names that correspond to `torch.nn.Module` instances.
-            These modules will be automatically handled by methods like `state_dict`,
-            `load_state_dict`, and `setup_module`.
-        OPTIMIZERS (list[str]): A list of attribute names that correspond to
-            `torch.optim.Optimizer` instances. These optimizers will be automatically
-            handled by `state_dict` and `load_state_dict`.
+            A list of attribute names that correspond to `torch.nn.Module`
+            instances. These modules will be automatically handled by methods
+            like `state_dict`, `load_state_dict`, and `setup_module`.
+        OPTIMIZERS (list[str]):
+            A list of attribute names that correspond to `torch.optim.Optimizer`
+            instances. These optimizers will be automatically handled by
+            `state_dict` and `load_state_dict`.
 
     Args:
         environment_spec (EnvironmentSpec):
@@ -97,12 +99,15 @@ class Agent(ABC):
         name (str):
             The name of the agent.
         device (torch.device | str | None):
-            The device (e.g., "cpu", "cuda") on which to place tensors and models.
+            The device (e.g., "cpu", "cuda") on which to place tensors and
+            models.
         compile (bool):
-            If True, `torch.compile` will be used on the modules to optimize performance.
+            If True, `torch.compile` will be used on the modules to optimize
+            performance.
         autocast (bool | torch.dtype):
-            Enables automatic mixed precision. If True, defaults to `torch.float16`.
-            Can be set to a specific `torch.dtype`. If False, mixed precision is disabled.
+            Enables automatic mixed precision. If True, defaults to
+            `torch.float16`. Can be set to a specific `torch.dtype`. If False,
+            mixed precision is disabled.
     """
 
     Factory = AgentFactory

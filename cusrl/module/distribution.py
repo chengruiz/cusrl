@@ -48,7 +48,8 @@ class Distribution(Module, Generic[ParamType]):
         """Computes the parameters of the distribution from a latent tensor.
 
         This method must be implemented by subclasses. It should return the
-        parameters that define the distribution (e.g., mean and standard deviation).
+        parameters that define the distribution (e.g., mean and standard
+        deviation).
 
         Args:
             latent (Tensor):
@@ -72,7 +73,8 @@ class Distribution(Module, Generic[ParamType]):
 
     @classmethod
     def compute_logp(cls, dist_params: ParamType, sample: torch.Tensor) -> Tensor:
-        """Computes the log probability of a sample given the distribution parameters.
+        """Computes the log probability of a sample given the distribution
+        parameters.
 
         Args:
             dist_params (ParamType):
@@ -129,8 +131,8 @@ class Distribution(Module, Generic[ParamType]):
                 Additional keyword arguments.
 
         Returns:
-            action (Tensor):
-                The action with the highest probability (mean of the distribution).
+            action (Tensor): The action with the highest probability (mean of
+                the distribution).
         """
         return self.mean_head(latent)
 

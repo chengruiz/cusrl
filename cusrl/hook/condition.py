@@ -32,10 +32,11 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
 
     Args:
         named_conditions (Callable[[ActorCritic, dict[str, Any]], bool]):
-            Keyword arguments mapping the name of an objective hook to a callable
-            condition. The condition determines whether the corresponding hook
-            should be active. It receives the agent and the current batch and
-            returns `True` if the hook should be active, `False` otherwise.
+            Keyword arguments mapping the name of an objective hook to a
+            callable condition. The condition determines whether the
+            corresponding hook should be active. It receives the agent and the
+            current batch and returns `True` if the hook should be active,
+            `False` otherwise.
     """
 
     def __init__(self, **named_conditions: Callable[[ActorCritic, dict[str, Any]], bool]):

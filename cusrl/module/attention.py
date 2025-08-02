@@ -114,7 +114,7 @@ class MultiheadSelfAttention(Module):
         memory: tuple[Tensor, Tensor, Tensor] | None = None,
         done: Tensor | None = None,
     ) -> tuple[Tensor, tuple[Tensor, Tensor, Tensor]]:
-        """Computes multi-head self-attention with FlashAttention and KV caching.
+        """Computes multi-head self-attention with KV caching.
 
         Args:
             input (Tensor):
@@ -123,14 +123,14 @@ class MultiheadSelfAttention(Module):
             memory (tuple[Tensor, Tensor, Tensor] | None):
                 A tuple containing the input cache, KV cache, and cache mask.
                   - input_cache (Tensor):
-                      Tensor of shape `(W, N, C)` storing past inputs,
-                      where `W` is the window size.
+                      Tensor of shape `(W, N, C)` storing past inputs, where `W`
+                      is the window size.
                   - kv_cache (Tensor):
                       Tensor of shape `(W, N, 2 * E)` storing past keys and
                       values, where `E` is the embedding dimension.
                   - cache_mask (Tensor):
-                      Boolean tensor of shape `(W, N, 1)` indicating
-                      valid cache entries.
+                      Boolean tensor of shape `(W, N, 1)` indicating valid cache
+                      entries.
             done (Tensor | None):
                 A boolean tensor of shape `(T, N, 1)` indicating sequence
                 terminations. A value of `True` at `done[t, n]` signifies that
@@ -138,8 +138,11 @@ class MultiheadSelfAttention(Module):
 
         Returns:
             A tuple containing:
-              - out: The attention output tensor of the same shape as `input`.
-              - memory: The updated memory tuple `(input_cache, kv_cache, cache_mask)`.
+              - out:
+                    The attention output tensor of the same shape as `input`.
+              - memory:
+                    The updated memory tuple `(input_cache, kv_cache,
+                    cache_mask)`.
         """
         seq_missing = input.dim() == 2
         if seq_missing:
@@ -252,19 +255,19 @@ class MultiheadSelfAttention(Module):
     ):
         """Resets the memory cache for specific environments.
 
-        This method selectively resets the memory components (input cache, key-value
-        cache, and cache mask). If `done` is not provided, the entire memory is
-        cleared. Otherwise, only the memory states corresponding to the `done`
-        indices (e.g., for environments that are done) are reset.
+        This method selectively resets the memory components (input cache,
+        key-value cache, and cache mask). If `done` is not provided, the entire
+        memory is cleared. Otherwise, only the memory states corresponding to
+        the `done` indices (e.g., for environments that are done) are reset.
 
         Args:
             memory (tuple[Tensor, Tensor, Tensor] | None):
-                A tuple containing the input cache, KV cache, and cache mask.
-                If None, the function does nothing.
+                A tuple containing the input cache, KV cache, and cache mask. If
+                None, the function does nothing.
             done (SliceType | Tensor | None, optional):
                 A mask or slice indicating which parts of the memory to reset.
-                If it's a tensor, it should be of shape `(N, 1)`.
-                If None, the entire memory is reset. Defaults to None.
+                If it's a tensor, it should be of shape `(N, 1)`. If None, the
+                entire memory is reset. Defaults to None.
         """
         if memory is None:
             return
@@ -420,6 +423,7 @@ class SigTanhGate(Gate):
 
 class GRUGate(Gate):
     r"""A Gated Recurrent Unit (GRU)-inspired gate.
+
     Described in:
     "Stabilizing Transformers for Reinforcement Learning",
     https://proceedings.mlr.press/v119/parisotto20a

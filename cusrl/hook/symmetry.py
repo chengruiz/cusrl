@@ -56,14 +56,16 @@ class SymmetryHook(Hook[ActorCritic]):
 
 
 class SymmetryLoss(SymmetryHook):
-    """Implements a symmetry loss to facilitate symmetry in the action distribution.
+    """Implements a symmetry loss to facilitate symmetry in the action
+    distribution.
 
     Described in "Learning Symmetric and Low-Energy Locomotion",
     https://dl.acm.org/doi/abs/10.1145/3197517.3201397
 
     Args:
         weight (float | None):
-            Scaling factor for the symmetry loss. If None, symmetry loss is not applied.
+            Scaling factor for the symmetry loss. If None, the symmetry loss is
+            not applied.
     """
 
     # Mutable attributes
@@ -110,13 +112,14 @@ class SymmetryLoss(SymmetryHook):
 class SymmetricDataAugmentation(SymmetryHook):
     """Augments training data by adding mirrored transitions to the batch.
 
-    Described in "Symmetry Considerations for Learning Task Symmetric Robot Policies",
+    Described in "Symmetry Considerations for Learning Task Symmetric Robot
+    Policies",
     https://ieeexplore.ieee.org/abstract/document/10611493
 
-    This hook doubles the effective batch size by appending a mirrored version of
-    each transition. For each transition (s, a, r, s'), it adds a corresponding
-    mirrored transition (s_m, a_m, r, s'_m), where _m denotes a mirrored version.
-    This encourages the learned policy to be symmetric.
+    This hook doubles the effective batch size by appending a mirrored version
+    of each transition. For each transition (s, a, r, s'), it adds a
+    corresponding mirrored transition (s_m, a_m, r, s'_m), where _m denotes a
+    mirrored version. This encourages the learned policy to be symmetric.
 
     It also manages the recurrent state (memory) for the actor when processing
     mirrored observations, ensuring correct backpropagation through time for
@@ -160,7 +163,7 @@ class SymmetricArchitecture(SymmetryHook):
     https://dl.acm.org/doi/abs/10.1145/3359566.3360070
 
     This hook wraps the agent's original actor with a `SymmetricActor` during
-    the initialization phase, which ensures that the policy is strictly symmetric.
+    the initialization phase, ensuring that the policy is strictly symmetric.
     """
 
     def init(self):

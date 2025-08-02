@@ -9,16 +9,18 @@ __all__ = ["OptimizerFactory"]
 
 
 class OptimizerFactory:
-    """A factory for creating PyTorch optimizers with parameter-specific settings.
+    """A factory for creating PyTorch optimizers with parameter-specific
+    settings.
 
-    This class allows for the flexible configuration of an optimizer where different
-    groups of parameters can have different hyperparameters (e.g., learning rate).
-    Parameter groups are defined by their name prefixes.
+    This class allows for the flexible configuration of an optimizer where
+    different groups of parameters can have different hyperparameters (e.g.,
+    learning rate). Parameter groups are defined by their name prefixes.
 
-    The factory is configured with an optimizer class, default hyperparameters, and
-    any number of parameter groups specified by a prefix and their corresponding
-    hyperparameters. When called with a model's named parameters, it groups them
-    according to the longest matching prefix and constructs the optimizer.
+    The factory is configured with an optimizer class, default hyperparameters,
+    and any number of parameter groups specified by a prefix and their
+    corresponding hyperparameters. When called with a model's named parameters,
+    it groups them according to the longest matching prefix and constructs the
+    optimizer.
 
     Args:
         cls (str | type[Optimizer]):
@@ -29,7 +31,8 @@ class OptimizerFactory:
             used for any parameter that doesn't match a specific group.
         **optim_groups (dict[str, Any]):
             Keyword arguments where each key is a parameter name prefix and the
-            value is a dictionary of hyperparameters for parameters matching that prefix.
+            value is a dictionary of hyperparameters for parameters matching
+            that prefix.
     """
 
     def __init__(
