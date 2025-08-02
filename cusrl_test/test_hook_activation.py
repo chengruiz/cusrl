@@ -6,6 +6,7 @@ from cusrl_test import create_dummy_env
 
 class DummyHook(cusrl.Hook):
     def __init__(self, epoch_index: int | Iterable[int]):
+        super().__init__()
         self.epoch_index = set([epoch_index] if isinstance(epoch_index, int) else epoch_index)
 
     def objective(self, batch):

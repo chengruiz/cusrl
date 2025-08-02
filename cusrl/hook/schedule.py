@@ -33,6 +33,7 @@ class ParameterSchedule(Hook[ActorCritic]):
         parameter: str,
         schedule: Callable[[int], Any],
     ):
+        super().__init__()
         self.hook_name = hook_name
         self.parameter = parameter
         self.schedule = schedule
@@ -63,6 +64,7 @@ class HookActivationSchedule(Hook[ActorCritic]):
         hook_name: str,
         schedule: Callable[[int], bool],
     ):
+        super().__init__()
         self.hook_name = hook_name
         self.schedule = schedule
 
@@ -76,6 +78,7 @@ class HookActivationSchedule(Hook[ActorCritic]):
 
 class OnPolicyBufferCapacitySchedule(Hook[ActorCritic]):
     def __init__(self, schedule: Callable[[int], int]):
+        super().__init__()
         self.schedule = schedule
 
     def apply_schedule(self, iteration: int):

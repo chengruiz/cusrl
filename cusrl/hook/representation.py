@@ -19,6 +19,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         predictor_factory: LayerFactoryLike = nn.Linear,
         predicts_value_instead_of_return: bool = False,
     ):
+        super().__init__()
         self.weight = weight
         self.predictor_factory = predictor_factory
         self.predicts_value_instead_of_return = predicts_value_instead_of_return
@@ -57,6 +58,7 @@ class StatePrediction(Hook[ActorCritic]):
         weight: float = 0.01,
         predictor_factory: LayerFactoryLike = nn.Linear,
     ):
+        super().__init__()
         self.target_indices = target_indices
         self.weight = weight
         self.predictor_factory = predictor_factory
@@ -87,15 +89,15 @@ class StatePrediction(Hook[ActorCritic]):
         )
 
 
-class PredictorWrapper(nn.Module):
-    def __init__(self, predictor: nn.Module):
+class ActionAwarePredictor(nn.Module):
+    def __init__(self, wrapped: nn.Module):
         super().__init__()
-        self.predictor = predictor
+        self.wrapped = wrapped
 
     def forward(self, latent: torch.Tensor, action: torch.Tensor | None = None):
         if action is not None:
             latent = torch.cat([latent, action], dim=-1)
-        return self.predictor(latent)
+        return self.wrapped(latent)
 
 
 class NextStatePrediction(Hook[ActorCritic]):
@@ -108,6 +110,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         weight: float = 0.01,
         predictor_factory: LayerFactoryLike = nn.Linear,
     ):
+        super().__init__()
         self.target_indices = target_indices
         self.weight = weight
         self.predictor_factory = predictor_factory
@@ -117,7 +120,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         if not self.agent.has_state:
             raise ValueError("NextStatePrediction: State is not defined for the agent.")
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
-        self.predictor = PredictorWrapper(
+        self.predictor = ActionAwarePredictor(
             self.predictor_factory(self.agent.actor.latent_dim + self.agent.action_dim, target_dim)
         )
         self.predictor = self.agent.setup_module(self.predictor)

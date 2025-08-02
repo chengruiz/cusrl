@@ -21,6 +21,7 @@ class OnPolicyStatistics(Hook[ActorCritic]):
     """
 
     def __init__(self, sampler: Sampler | None = None):
+        super().__init__()
         self.sampler = sampler if sampler is not None else Sampler()
 
     @torch.no_grad()

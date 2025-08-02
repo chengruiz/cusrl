@@ -36,6 +36,7 @@ class AdvantageReduction(Hook):
         if reduction not in ("sum", "mean"):
             raise ValueError(f"Unknown reduction: '{reduction}'.")
 
+        super().__init__()
         self.reduction = reduction
         self.weight: Tensor | None = weight
 
@@ -79,6 +80,7 @@ class AdvantageNormalization(Hook[ActorCritic]):
     """
 
     def __init__(self, mini_batch_wise: bool = False, synchronize: bool = True):
+        super().__init__()
         self.mini_batch_wise = mini_batch_wise
         self.synchronize = synchronize
 

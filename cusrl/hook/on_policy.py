@@ -16,6 +16,7 @@ class OnPolicyPreparation(Hook[ActorCritic]):
     """
 
     def __init__(self, calculate_kl_divergence: bool = False):
+        super().__init__()
         self.calculate_kl_divergence = calculate_kl_divergence
 
     def objective(self, batch):

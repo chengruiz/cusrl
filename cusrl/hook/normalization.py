@@ -52,6 +52,7 @@ class ObservationNormalization(Hook[ActorCritic]):
     def __init__(self, max_count: int | None = None, defer_synchronization: bool = False):
         if max_count is not None and max_count <= 0:
             raise ValueError("'max_count' must be positive or None.")
+        super().__init__()
         self.max_count = max_count
         self.frozen: bool = False
         self.defer_synchronization = defer_synchronization

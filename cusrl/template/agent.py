@@ -9,7 +9,6 @@ from torch import nn
 from typing_extensions import Self
 
 import cusrl
-from cusrl.module.module import ModuleType
 from cusrl.template.environment import Environment
 from cusrl.utils import Metrics, distributed
 from cusrl.utils.typing import (
@@ -63,6 +62,9 @@ class AgentFactory(ABC, Generic[AgentType]):
 
     def from_environment(self, environment: Environment) -> AgentType:
         return self(environment.spec)
+
+
+_ModuleType = TypeVar("_ModuleType", bound=nn.Module)
 
 
 class Agent(ABC):
@@ -199,7 +201,7 @@ class Agent(ABC):
             return {k: self.to_nested_tensor(v) for k, v in input.items()}
         return self.to_tensor(input)
 
-    def setup_module(self, module: ModuleType) -> ModuleType:
+    def setup_module(self, module: _ModuleType) -> _ModuleType:
         # Can also return a DistributedDataParallel instance with the module wrapped
         module = module.to(device=self.device)
         if distributed.enabled():

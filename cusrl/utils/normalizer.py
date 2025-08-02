@@ -11,6 +11,7 @@ __all__ = [
     "ExponentialMovingNormalizer",
     "RunningMeanStd",
     "mean_var_count",
+    "merge_mean_var_",
     "synchronize_mean_var_count",
 ]
 
@@ -233,6 +234,9 @@ class RunningMeanStd(nn.Module):
     def unnormalize_(self, input: torch.Tensor) -> torch.Tensor:
         """Inplace version of `unnormalize`."""
         return input.mul_(self.std).add_(self.mean)
+
+    def to_distributed(self):
+        return self
 
     def _update_mean_var(self, batch_mean: torch.Tensor, batch_var: torch.Tensor, batch_count: int):
         merge_mean_var_(self.mean, self.var, self.count, batch_mean, batch_var, batch_count)

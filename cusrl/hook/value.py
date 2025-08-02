@@ -29,6 +29,7 @@ class ValueComputation(Hook[ActorCritic]):
         termination_value: float = 0.0,
         bootstrap_truncated_states: bool = True,
     ):
+        super().__init__()
         self.termination_value = termination_value
         self.bootstrap_truncated_states = bootstrap_truncated_states
         self._critic_memory: Memory = None
@@ -126,6 +127,7 @@ class ValueLoss(Hook[ActorCritic]):
     MUTABLE_ATTRS = ["weight", "value_loss_clip"]
 
     def __init__(self, weight: float = 0.5, loss_clip: float | None = None):
+        super().__init__()
         self.weight = weight
         self.loss_clip = loss_clip
 

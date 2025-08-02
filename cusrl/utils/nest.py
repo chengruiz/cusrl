@@ -169,7 +169,7 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Ne
     This is the inverse operation of flattening a nested structure.
 
     Args:
-        storage (dict[str, _T]):
+        flattened_data (dict[str, _T]):
             A flat dictionary mapping string keys to values.
         schema (Nested[str]):
             A nested structure (dict, list, or tuple) where the leaves are string
@@ -182,9 +182,9 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Ne
             `storage`.
 
     Example:
-        >>> storage = {'a': 10, 'b.c': 20, 'b.d': 30}
+        >>> flattened_data = {'a': 10, 'b.c': 20, 'b.d': 30}
         >>> schema = {'a': 'a', 'b': ('c', 'd')}
-        >>> reconstruct_nested(storage, schema)
+        >>> reconstruct_nested(flattened_data, schema)
         {'a': 10, 'b': (20, 30)}
     """
     if isinstance(schema, Mapping):

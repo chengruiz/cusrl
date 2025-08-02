@@ -41,6 +41,7 @@ class RandomNetworkDistillation(Hook):
         reward_scale: float,
         state_indices: Slice | None = None,
     ):
+        super().__init__()
         self.output_dim = output_dim
         self.reward_scale = reward_scale
         self.module_factory = module_factory

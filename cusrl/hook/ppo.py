@@ -69,6 +69,7 @@ class EntropyLoss(Hook):
     MUTABLE_ATTRS = ["weight"]
 
     def __init__(self, weight: float = 0.01):
+        super().__init__()
         self.weight = weight
 
     def objective(self, batch):

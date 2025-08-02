@@ -1,3 +1,5 @@
+from typing import cast
+
 import torch
 
 from cusrl.template import ActorCritic, Hook
@@ -71,6 +73,7 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         if lamda_value is not None and (lamda_value < 0 or lamda_value > 1):
             raise ValueError(f"Invalid lambda value for value function {lamda_value}, which should be in [0, 1].")
 
+        super().__init__()
         self.gamma = gamma
         self.lamda = lamda
         self.lamda_value = lamda_value
@@ -97,7 +100,7 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
     @torch.no_grad()
     def post_update(self):
         if self.value_rms is not None:
-            old_value_rms: ExponentialMovingNormalizer = self.agent.critic.value_rms
+            old_value_rms = cast(ExponentialMovingNormalizer, self.agent.critic.value_rms)
             old_mean, old_std = old_value_rms.mean, old_value_rms.std
             # Adjust value head weights and biases
             new_mean, new_std = self.value_rms.mean, self.value_rms.std

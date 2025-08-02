@@ -69,6 +69,7 @@ class SymmetryLoss(SymmetryHook):
     MUTABLE_ATTRS = ["weight"]
 
     def __init__(self, weight: float | None):
+        super().__init__()
         self.weight = weight
         self.mse_loss = nn.MSELoss()
         self.mirrored_actor_memory = None
@@ -122,6 +123,7 @@ class SymmetricDataAugmentation(SymmetryHook):
     """
 
     def __init__(self):
+        super().__init__()
         self.mirrored_actor_memory = None
 
     @torch.no_grad()

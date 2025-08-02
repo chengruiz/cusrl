@@ -81,7 +81,7 @@ class Cnn(Module):
         self.input_shape = input_shape
 
         # convolution layers
-        self.layers = layers
+        self.layers: nn.Sequential = layers
         self.input_flattened = input_flattened
         if output_dim is not None:
             self.layers.append(nn.Flatten(-3))  # flatten [channel, y, x]

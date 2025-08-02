@@ -32,6 +32,7 @@ class RewardShaping(Hook):
         lower_bound: float | None = None,
         upper_bound: float | None = None,
     ):
+        super().__init__()
         self.scale = scale
         self.shift = shift
         self.lower_bound = lower_bound

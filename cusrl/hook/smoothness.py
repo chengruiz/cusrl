@@ -40,6 +40,7 @@ class ActionSmoothnessLoss(Hook):
         weight_1st_order: float | Sequence[float] | None = None,
         weight_2nd_order: float | Sequence[float] | None = None,
     ):
+        super().__init__()
         self.weight_1st_order = None if weight_1st_order is None else torch.tensor(weight_1st_order)
         self.weight_2nd_order = None if weight_2nd_order is None else torch.tensor(weight_2nd_order)
 

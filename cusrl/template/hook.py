@@ -141,6 +141,7 @@ class Hook(Generic[AgentType]):
 
 class HookComposite(Hook):
     def __init__(self, hooks: Iterable[Hook]):
+        super().__init__()
         self.hooks = tuple(hooks)
         self._named_hooks = {}
         for hook in self.hooks:

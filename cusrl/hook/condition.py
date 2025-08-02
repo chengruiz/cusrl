@@ -39,6 +39,7 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
     """
 
     def __init__(self, **named_conditions: Callable[[ActorCritic, dict[str, Any]], bool]):
+        super().__init__()
         self.named_conditions = named_conditions
         self.named_activation = {}
 

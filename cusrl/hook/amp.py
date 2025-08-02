@@ -64,6 +64,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         loss_weight: float = 1.0,
         grad_penalty_weight: float = 5.0,
     ):
+        super().__init__()
         self.discriminator_factory = discriminator_factory
         self.dataset_source = dataset_source
         self.state_indices = state_indices

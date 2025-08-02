@@ -55,6 +55,7 @@ class ModuleInitialization(Hook[ActorCritic]):
         init_critic: bool = True,
         distribution_std: float | None = None,
     ):
+        super().__init__()
         self.scale = scale
         self.scale_dist = scale_dist
         self.zero_bias = zero_bias

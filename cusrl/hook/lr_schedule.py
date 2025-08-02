@@ -19,6 +19,7 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
         if desired_kl_divergence <= 0:
             raise ValueError("'desired_kl_divergence' must be positive.")
 
+        super().__init__()
         self.desired_kl_divergence = desired_kl_divergence
         self.scale_all_params = scale_all_params
         self._lr_scale = 1.0

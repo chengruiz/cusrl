@@ -20,6 +20,7 @@ class GradientClipping(Hook):
     """
 
     def __init__(self, max_grad_norm: float | None = 1.0, **groups: float | None):
+        super().__init__()
         groups[""] = max_grad_norm
         for prefix, max_grad_norm in groups.items():
             if max_grad_norm is not None and max_grad_norm < 0:
