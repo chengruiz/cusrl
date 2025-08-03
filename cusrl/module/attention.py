@@ -137,12 +137,10 @@ class MultiheadSelfAttention(Module):
                 the state at `[t+1, n]` is the start of a new sequence.
 
         Returns:
-            A tuple containing:
-              - out:
-                    The attention output tensor of the same shape as `input`.
-              - memory:
-                    The updated memory tuple `(input_cache, kv_cache,
-                    cache_mask)`.
+            - output (Tensor):
+                The attention output tensor of the same shape as `input`.
+            - memory (tuple[Tensor, Tensor, Tensor]):
+                The updated memory tuple `(input_cache, kv_cache, cache_mask)`.
         """
         seq_missing = input.dim() == 2
         if seq_missing:
@@ -218,8 +216,8 @@ class MultiheadSelfAttention(Module):
         ).to(input.dtype)
 
         # Combine heads and project to output_dim
-        out = self.out_proj(attn_out.flatten(-2))
-        out = out.unflatten(0, (batch_size, seq_len))
+        output = self.out_proj(attn_out.flatten(-2))
+        output = output.unflatten(0, (batch_size, seq_len))
 
         # Prepare new cache tensors
         new_input_cache = full_input[:, -self.window_size :]
@@ -227,12 +225,12 @@ class MultiheadSelfAttention(Module):
         new_cache_mask = kv_mask[:, -self.window_size :]
 
         # Restore outputs to sequence first [ T, N, * ]
-        out = out.transpose(0, 1)
+        output = output.transpose(0, 1)
         new_input_cache = new_input_cache.transpose(0, 1)
         new_kv_cache = new_kv_cache.transpose(0, 1)
         new_cache_mask = new_cache_mask.transpose(0, 1)
         if seq_missing:
-            out = out.squeeze(0)
+            output = output.squeeze(0)
 
         # Update cache mask based on done tensor
         if done is not None:
@@ -246,7 +244,7 @@ class MultiheadSelfAttention(Module):
             cum_timesteps = compute_reverse_cumulative_timesteps(done).squeeze(-1)
             consecutive_timesteps = torch.arange(self.window_size - 1, -1, -1, device=done.device)
             new_cache_mask = new_cache_mask.logical_and(cum_timesteps == consecutive_timesteps.unsqueeze(-1))
-        return out, (new_input_cache, new_kv_cache, new_cache_mask.unsqueeze(-1))
+        return output, (new_input_cache, new_kv_cache, new_cache_mask.unsqueeze(-1))
 
     def reset_memory(
         self,

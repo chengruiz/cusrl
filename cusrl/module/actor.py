@@ -122,11 +122,11 @@ class Actor(Module):
                 pass. Defaults to None.
 
         Returns:
-            action_dist (NestedTensor):
+            - action_dist (NestedTensor):
                 Distribution parameters.
-            action (tuple[Tensor, Tensor]):
+            - action (tuple[Tensor, Tensor]):
                 A tuple of (sampled_action, log_probability).
-            memory (Memory):
+            - memory (Memory):
                 The updated recurrent state.
         """
         return self(
@@ -167,9 +167,9 @@ class Actor(Module):
                 pass. Defaults to None.
 
         Returns:
-            action (Tensor):
+            - action (Tensor):
                 A tuple of (sampled_action, log_probability).
-            memory (Memory):
+            - memory (Memory):
                 The updated recurrent state.
         """
         return self(

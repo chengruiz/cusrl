@@ -63,10 +63,13 @@ class Metrics(defaultdict[str, Metric]):
         """Generates summary statistics with optional prefix.
 
         Args:
-            prefix: Optional prefix for metric names.
+            prefix (str, optional):
+                The prefix for all metric names.
 
         Returns:
-            Dictionary containing mean values for all recorded metrics.
+            metrics (dict[str, float]):
+                A dictionary containing the mean values of all recorded metrics,
+                with keys prefixed by the specified prefix.
         """
         if prefix and not prefix.endswith("/"):
             prefix += "/"

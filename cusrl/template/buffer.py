@@ -205,7 +205,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
                         storage = self._create_storage(value)
                         self.storage[key] = storage
                     except ValueError as error:
-                        raise ValueError(f"Failed to add field '{key}' shaped '{value.shape}'.") from error
+                        raise ValueError(f"Failed to push field '{key}' with shape '{value.shape}'.") from error
                 storage[self.cursor] = self._as_tensor(value)
 
         self.cursor += 1

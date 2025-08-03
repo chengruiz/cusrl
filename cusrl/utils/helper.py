@@ -136,7 +136,8 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
             Whether to use deterministic algorithms.
 
     Returns:
-        int: The seed that was set.
+        seed (int):
+            The seed that was set.
     """
     if seed is None:
         seed = 42 if deterministic else int.from_bytes(os.urandom(4), "big")

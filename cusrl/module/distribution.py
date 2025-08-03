@@ -131,8 +131,8 @@ class Distribution(Module, Generic[ParamType]):
                 Additional keyword arguments.
 
         Returns:
-            action (Tensor): The action with the highest probability (mean of
-                the distribution).
+            action (Tensor):
+                The action with the highest probability.
         """
         return self.mean_head(latent)
 

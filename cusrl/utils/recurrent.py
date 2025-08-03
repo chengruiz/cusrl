@@ -30,8 +30,9 @@ def compute_sequence_indices(done: Tensor) -> Tensor:
             it signifies the end of sequence `n` at time `t`.
 
     Returns:
-        indices (Tensor): A 1D int64 tensor of shape `(N + 1,)`. The first element
-            is always zero. `indices[i]` represents the total number of completed
+        indices (Tensor):
+            A 1D int64 tensor of shape `(N + 1,)`. The first element is always
+            zero. `indices[i]` represents the total number of completed
             sequences in environments `0` through `i-1`.
     """
     done = done.clone()
@@ -109,14 +110,13 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
             sequence at time `t` in environment `n`.
 
     Returns:
-        A tuple containing:
-          - padded_sequences (Tensor):
-                A tensor of shape `(T, E, C)`, where `E >= N` is the total
-                number of episodes extracted from all environments. Each episode
-                is padded with zeros to length `T`.
-          - mask (Tensor):
-                A boolean tensor of shape `(T, E)`. `mask[t, i]` is `True` if
-                timestep `t` is a valid part of episode `i` (i.e., not padding).
+        - padded_sequences (Tensor):
+            A tensor of shape `(T, E, C)`, where `E >= N` is the total number of
+            episodes extracted from all environments. Each episode is padded
+            with zeros to length `T`.
+        - mask (Tensor):
+            A boolean tensor of shape `(T, E)`. `mask[t, i]` is `True` if
+            timestep `t` is a valid part of episode `i` (i.e., not padding).
     """
     if compact_sequences.dim() != 3:
         raise ValueError(f"'compact_sequences' must be 3-dimensional, but got shape {compact_sequences.shape}.")

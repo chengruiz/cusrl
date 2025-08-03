@@ -32,7 +32,12 @@ def mean_var_count(input: ArrayType, *, uncentered: bool = False) -> tuple[Array
             Whether to calculate uncentered variance. Defaults to False.
 
     Returns:
-        Tuple of (mean, variance, count)
+        - mean (np.ndarray | torch.Tensor):
+            The mean of the input array.
+        - var (np.ndarray | torch.Tensor):
+            The variance of the input array.
+        - count (int):
+            The number of samples in the input array.
     """
 
     if isinstance(input, np.ndarray):

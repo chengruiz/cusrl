@@ -161,7 +161,8 @@ class Environment(ABC, Generic[ArrayType]):
         state_dim (int | None, optional):
             Dimension of the state space. Defaults to None.
         **kwargs:
-            Additional properties of the environment.
+            Additional properties of the environment. See `EnvironmentSpec`
+            for details.
     """
 
     Factory = EnvironmentFactory
@@ -214,35 +215,75 @@ class Environment(ABC, Generic[ArrayType]):
             **kwargs,
         )
 
-    # fmt: off
     @abstractmethod
     def reset(self, *, indices: ArrayType | Slice | None = None) -> tuple[
-        ArrayType,                     # observation of reset instances, [ N / Ni, Do ], float
-        ArrayType | None,              # state of reset instances,       [ N / Ni, Ds ], float
-        dict[str, Nested[ArrayType]],  # info of reset instances,        [ N / Ni, Dk ]
+        ArrayType,
+        ArrayType | None,
+        dict[str, Nested[ArrayType]],
     ]:
-        """Resets the environment. Must be implemented by subclasses."""
+        """Resets the environment.
+
+        Args:
+            indices (ArrayType | Slice | None, optional):
+                Indices of instances to reset. If None, resets all instances.
+
+        Returns:
+        - observation (ArrayType):
+            Observations of reset instances with shape `[Ni, Do]`, where `Ni` is
+            the number of reset instances and `Do` is the observation dimension.
+        - state (ArrayType | None):
+            States of reset instances with shape `[Ni, Ds]`, where `Ds` is the
+            state dimension. If the environment does not have privileged
+            observations, the state should be None, which means the states are
+            equal to the observations.
+        - info (dict[str, Nested[ArrayType]]):
+            Additional information dict for reset instances as named arrays.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def step(self, action: ArrayType) -> tuple[
-        ArrayType,                     # observation, [ N, Do ], float
-        ArrayType | None,              # state,       [ N, Ds ], float
-        ArrayType,                     # reward,      [ N, Dr ], float
-        ArrayType,                     # terminated,  [ N,  1 ], bool
-        ArrayType,                     # truncated,   [ N,  1 ], bool
-        dict[str, Nested[ArrayType]],  # info,        [ N, Dk ]
+        ArrayType,
+        ArrayType | None,
+        ArrayType,
+        ArrayType,
+        ArrayType,
+        dict[str, Nested[ArrayType]],
     ]:
-        """Takes a step in the environment. Must be implemented by subclasses."""
+        """Performs one environment step.
+
+        Args:
+            action (ArrayType):
+                Actions of all instances with shape `[N, Da]`, where `N` is
+                the number of instances and `Da` is the action dimension.
+
+        Returns:
+            - next_observation (ArrayType):
+                Next observations of all instances with shape `[N, Do]`, where
+                `Do` is the observation dimension.
+            - next_state (ArrayType | None):
+                Next states of all instances with shape `[N, Ds]`, where `Ds` is
+                the state dimension; or None if equal to the observations.
+            - reward (ArrayType):
+                Rewards of all instances with shape `[N, Dr]`, where `Dr` is the
+                reward dimension.
+            - terminated (ArrayType):
+                Boolean array indicating terminal states, with shape `[N, 1]`.
+            - truncated (ArrayType):
+                Boolean array indicating truncated states, with shape `[N, 1]`.
+            - info (dict[str, Nested[ArrayType]]):
+                Additional information dict for the step as named arrays, with
+                shape `[N, Dk]`, where `Dk` is the dimension of the a specific
+                information array.
+        """
         raise NotImplementedError
-    # fmt: on
 
     def get_metrics(self) -> dict[str, float]:
-        """Returns metrics of the environment as a dictionary."""
+        """Gets metrics of the environment as a dictionary."""
         return {}
 
     def state_dict(self) -> dict[str, Any]:
-        """Returns the state of the environment as a dictionary."""
+        """Gets the state of the environment as a dictionary."""
         return {}
 
     def load_state_dict(self, state_dict: dict[str, Any]):

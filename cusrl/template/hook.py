@@ -218,7 +218,9 @@ class Hook(Generic[AgentType]):
                 A batch of experience sampled from the buffer.
 
         Returns:
-            The loss tensor, or `None` if no loss is computed.
+            loss (torch.Tensor | None):
+                The computed loss tensor, which will be used to update the
+                agent.
         """
         return None
 
