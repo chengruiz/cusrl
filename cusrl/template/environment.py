@@ -1,20 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, Optional, TypeAlias
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias
 
-from cusrl.utils.typing import (
-    Array,
-    ArrayType,
-    BoolArrayType,
-    Info,
-    Observation,
-    Reward,
-    Slice,
-    State,
-    StateType,
-    Terminated,
-    Truncated,
-)
+from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
 
 if TYPE_CHECKING:
     from cusrl.hook.symmetry import SymmetryDef
@@ -160,7 +148,7 @@ class EnvironmentSpec:
 EnvironmentFactory: TypeAlias = Callable[[], "Environment"]
 
 
-class Environment(ABC):
+class Environment(ABC, Generic[ArrayType]):
     """Environment class for defining the interface of an environment.
 
     Args:
@@ -228,22 +216,22 @@ class Environment(ABC):
 
     # fmt: off
     @abstractmethod
-    def reset(self, *, indices: Array | Slice | None = None) -> tuple[
-        Observation,  # [ N / Ni, Do ], f32 (observation of all or reset instances)
-        State,        # [ N / Ni, Ds ], f32 (state of all or reset instances)
-        Info,         # [ N / Ni, Dk ]
+    def reset(self, *, indices: ArrayType | Slice | None = None) -> tuple[
+        ArrayType,                     # observation of reset instances, [ N / Ni, Do ], float
+        ArrayType | None,              # state of reset instances,       [ N / Ni, Ds ], float
+        dict[str, Nested[ArrayType]],  # info of reset instances,        [ N / Ni, Dk ]
     ]:
         """Resets the environment. Must be implemented by subclasses."""
         raise NotImplementedError
 
     @abstractmethod
-    def step(self, action: Array) -> tuple[
-        Observation,  # [ N, Do ], f32
-        State,        # [ N, Ds ], f32
-        Reward,       # [ N, Dr ], f32
-        Terminated,   # [ N,  1 ], bool
-        Truncated,    # [ N,  1 ], bool
-        Info,         # [ N, Dk ]
+    def step(self, action: ArrayType) -> tuple[
+        ArrayType,                     # observation, [ N, Do ], float
+        ArrayType | None,              # state,       [ N, Ds ], float
+        ArrayType,                     # reward,      [ N, Dr ], float
+        ArrayType,                     # terminated,  [ N,  1 ], bool
+        ArrayType,                     # truncated,   [ N,  1 ], bool
+        dict[str, Nested[ArrayType]],  # info,        [ N, Dk ]
     ]:
         """Takes a step in the environment. Must be implemented by subclasses."""
         raise NotImplementedError
@@ -262,7 +250,7 @@ class Environment(ABC):
         pass
 
 
-def get_done_indices(terminated: BoolArrayType, truncated: BoolArrayType) -> list[int]:
+def get_done_indices(terminated: ArrayType, truncated: ArrayType) -> list[int]:
     done = terminated | truncated
     indices = done.squeeze(-1).nonzero()
     if isinstance(indices, tuple):  # for np.nonzero

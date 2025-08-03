@@ -11,17 +11,7 @@ from typing_extensions import Self
 import cusrl
 from cusrl.template.environment import Environment
 from cusrl.utils import Metrics, distributed
-from cusrl.utils.typing import (
-    Array,
-    ListOrTuple,
-    NestedArray,
-    NestedTensor,
-    Observation,
-    Reward,
-    State,
-    Terminated,
-    Truncated,
-)
+from cusrl.utils.typing import Array, ArrayType, ListOrTuple, Nested, NestedArray, NestedTensor
 
 __all__ = ["Agent", "AgentType", "AgentFactory"]
 
@@ -79,13 +69,13 @@ class Agent(ABC):
     loading), device placement, mixed-precision training, and statistics
     tracking.
 
-    Class Attributes:
+    Attributes:
         Factory (AgentFactory):
             A factory class used to create instances of the agent.
         MODULES (list[str]):
             A list of attribute names that correspond to `torch.nn.Module`
             instances. These modules will be automatically handled by methods
-            like `state_dict`, `load_state_dict`, and `setup_module`.
+            like `state_dict`, `load_state_dict`, and `_set_training_mode`.
         OPTIMIZERS (list[str]):
             A list of attribute names that correspond to `torch.optim.Optimizer`
             instances. These optimizers will be automatically handled by
@@ -145,20 +135,61 @@ class Agent(ABC):
         self.step_index = 0
 
     @abstractmethod
-    def act(self, observation: Observation, state: State = None) -> Array:
-        raise NotImplementedError
+    def act(self, observation: ArrayType, state: ArrayType | None = None) -> ArrayType:
+        """Selects an action based on the current observation and state.
+
+        This method is responsible for choosing an action from the agent's
+        policy, given the current state of the environment.
+
+        Args:
+            observation (ArrayType):
+                The current observation from the environment.
+            state (ArrayType | None, optional):
+                The current state from the environment (e.g. privileged
+                observation). Defaults to None.
+
+        Returns:
+            action (ArrayType):
+                The action to be taken in the environment.
+        """
+        ...
 
     @abstractmethod
     def step(
         self,
-        next_observation: Observation,
-        reward: Reward,
-        terminated: Terminated,
-        truncated: Truncated,
-        next_state: State = None,
-        **kwargs: NestedArray,
+        next_observation: ArrayType,
+        reward: ArrayType,
+        terminated: ArrayType,
+        truncated: ArrayType,
+        next_state: ArrayType | None = None,
+        **kwargs: Nested[ArrayType],
     ) -> bool:
-        """Returns True if the agent is ready to update."""
+        """Processes a single step of interaction with the environment.
+
+        This method is called after the environment has executed an action. It
+        is used to record the transition (observation, action, reward, etc.)
+        and prepare for the next action or update.
+
+        Args:
+            next_observation (ArrayType):
+                The observation received from the environment after taking the
+                action.
+            reward (ArrayType):
+                The reward received from the environment.
+            terminated (ArrayType):
+                A boolean array indicating whether the episode has terminated.
+            truncated (ArrayType):
+                A boolean array indicating whether the episode has been
+                truncated.
+            next_state (ArrayType | None, optional):
+                The next state from the environment. Defaults to None.
+            **kwargs (Nested[ArrayType]):
+                Additional data from the environment step.
+
+        Returns:
+            ready_for_update (bool):
+                True if the agent is ready for an update, False otherwise.
+        """
         if self.inference_mode:
             return False
         self.step_index += 1
@@ -166,6 +197,16 @@ class Agent(ABC):
 
     @abstractmethod
     def update(self) -> dict[str, float]:
+        """Performs an update of the agent's modules.
+
+        This method is called when the agent has collected enough experience
+        (i.e., `num_steps_per_update`). It triggers the learning process,
+        updating the agent's parameters based on the collected data.
+
+        Returns:
+            metrics (dict[str, float]):
+                A dictionary of metrics from the update step.
+        """
         self.step_index = 0
         self.iteration += 1
         metrics = self.metrics.summary(self.name)
@@ -173,6 +214,7 @@ class Agent(ABC):
         return metrics
 
     def set_inference_mode(self, mode: bool = True, deterministic: bool | None = True):
+        """Sets the agent to inference mode. Mainly used for evaluation."""
         self.inference_mode = mode
         if deterministic is not None:
             self.deterministic = mode and deterministic
@@ -214,32 +256,30 @@ class Agent(ABC):
         return module
 
     def record(self, **kwargs):
+        """Record metrics for the agent."""
         self.metrics.record(**kwargs)
 
     def state_dict(self):
         state_dict = {}
-        for name in self.MODULES:
+        for name in self.MODULES + self.OPTIMIZERS:
             if (module := getattr(self, name, None)) is not None:
                 state_dict[name] = module.state_dict()
-        for name in self.OPTIMIZERS:
-            if (optim := getattr(self, name, None)) is not None:
-                state_dict[name] = optim.state_dict()
         return state_dict
 
     def load_state_dict(self, state_dict: dict[str, Any]):
         keys = set(state_dict.keys())
-        for module_name in self.MODULES + self.OPTIMIZERS:
-            module: nn.Module | None = getattr(self, module_name, None)
-            if module is not None:
-                if (state := state_dict.get(module_name)) is not None:
-                    keys.discard(module_name)
-                    try:
-                        module.load_state_dict(state)
-                    except (RuntimeError, ValueError) as error:
-                        self.warn(f"Mismatched state_dict for '{module_name}': {error}")
-                        continue
-                else:
-                    self.warn(f"Missing state_dict for '{module_name}'.")
+        for name in self.MODULES + self.OPTIMIZERS:
+            module: nn.Module | torch.optim.Optimizer | None = getattr(self, name, None)
+            if module is None:
+                continue
+            if (state := state_dict.get(name)) is None:
+                self.warn(f"Missing state_dict for '{name}'.")
+                continue
+            keys.discard(name)
+            try:
+                module.load_state_dict(state)
+            except (RuntimeError, ValueError) as error:
+                self.warn(f"Mismatched state_dict for '{name}': {error}")
         if keys:
             self.warn(f"Unused state_dict keys: {keys}.")
 
@@ -259,17 +299,17 @@ class Agent(ABC):
         ):
             yield
 
-    def _train_mode(self, mode: bool = True):
+    def _set_training_mode(self, mode: bool = True):
         for name in self.MODULES:
             if (module := getattr(self, name, None)) is not None:
                 module.train(mode)
 
     @classmethod
-    def _decorator_update__set_to_training_mode(cls, update_method):
+    def _decorator_update__set_training_mode(cls, update_method):
         def wrapped_update(self):
-            self._train_mode(True)
+            self._set_training_mode(True)
             result = update_method(self)
-            self._train_mode(False)
+            self._set_training_mode(False)
             return result
 
         return wrapped_update

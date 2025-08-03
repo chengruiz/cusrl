@@ -9,12 +9,12 @@ from gymnasium.envs.registration import EnvSpec
 
 import cusrl.utils
 from cusrl.template import Environment
-from cusrl.utils.typing import Array, Slice
+from cusrl.utils.typing import Slice
 
 __all__ = ["GymEnvAdapter", "GymVectorEnvAdapter", "make_gym_env", "make_gym_vec"]
 
 
-class GymEnvAdapter(Environment):
+class GymEnvAdapter(Environment[np.ndarray]):
     def __init__(self, wrapped: gym.Env):
         if not isinstance(wrapped.observation_space, gym.spaces.Box):
             raise ValueError("Only Box observation space is supported.")
@@ -39,7 +39,7 @@ class GymEnvAdapter(Environment):
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
 
-    def reset(self, *, indices: Array | Slice | None = None):
+    def reset(self, *, indices: np.ndarray | Slice | None = None):
         observation, info = self.wrapped.reset()
         observation = observation.reshape(1, -1)
         if self.wrapped.render_mode is not None:
@@ -47,7 +47,7 @@ class GymEnvAdapter(Environment):
         # TODO: process arrays in info
         return observation, None, info
 
-    def step(self, action: Array):
+    def step(self, action: np.ndarray):
         if isinstance(self.wrapped.action_space, gym.spaces.Discrete):
             action = np.argmax(action, axis=-1)
         action = action.squeeze(0)
@@ -62,7 +62,7 @@ class GymEnvAdapter(Environment):
         return observation, None, reward, terminated, truncated, info
 
 
-class GymVectorEnvAdapter(Environment):
+class GymVectorEnvAdapter(Environment[np.ndarray]):
     def __init__(self, wrapped: gym.vector.VectorEnv):
         if not isinstance(wrapped.single_observation_space, gym.spaces.Box):
             raise ValueError("Only Box observation space is supported.")
@@ -93,7 +93,7 @@ class GymVectorEnvAdapter(Environment):
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
 
-    def reset(self, *, indices: Array | Slice | None = None):
+    def reset(self, *, indices: np.ndarray | Slice | None = None):
         if indices is None:
             observation, info = self.wrapped.reset()
             return observation, None, info
@@ -108,7 +108,7 @@ class GymVectorEnvAdapter(Environment):
         # TODO: process arrays in info
         return observation, None, info
 
-    def step(self, action: Array):
+    def step(self, action: np.ndarray):
         if isinstance(self.wrapped.single_action_space, gym.spaces.Discrete):
             action = np.argmax(action, axis=-1)
         observation, reward, terminated, truncated, info = self.wrapped.step(action)

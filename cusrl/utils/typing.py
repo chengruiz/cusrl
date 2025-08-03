@@ -33,7 +33,7 @@ ArrayType = TypeVar("ArrayType", np.ndarray, torch.Tensor)
 _T = TypeVar("_T")
 ListOrTuple: TypeAlias = list[_T] | tuple[_T, ...]
 Nested: TypeAlias = _T | ListOrTuple["Nested[_T]"] | Mapping[str, "Nested[_T]"]
-NestedArray = Nested[Array]
+NestedArray = Nested[np.ndarray] | Nested[torch.Tensor]
 NestedTensor = Nested[torch.Tensor]
 
 Observation: TypeAlias = Array

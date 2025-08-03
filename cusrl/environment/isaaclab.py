@@ -8,12 +8,12 @@ import torch
 
 import cusrl.utils
 from cusrl.template import Environment
-from cusrl.utils.typing import Array, Slice
+from cusrl.utils.typing import Slice
 
 __all__ = ["IsaacLabEnvAdapter", "IsaacLabEnvLauncher", "make_isaaclab_env"]
 
 
-class IsaacLabEnvAdapter(Environment):
+class IsaacLabEnvAdapter(Environment[torch.Tensor]):
     def __init__(self, wrapped: gym.Env):
         from isaaclab.envs import DirectRLEnv, ManagerBasedRLEnv
 
@@ -70,7 +70,7 @@ class IsaacLabEnvAdapter(Environment):
             raise ValueError("Only 1D state space is supported. ")
         return shape[0]
 
-    def reset(self, *, indices: Array | Slice | None = None):
+    def reset(self, *, indices: torch.Tensor | Slice | None = None):
         if indices is None:
             observation_dict, _ = self.wrapped.reset()
             self.unwrapped.episode_length_buf.random_(int(self.unwrapped.max_episode_length))
@@ -92,7 +92,7 @@ class IsaacLabEnvAdapter(Environment):
 
         return observation, state, extras
 
-    def step(self, action):
+    def step(self, action: torch.Tensor):
         observation_dict, reward, terminated, truncated, extras = self.wrapped.step(action)
         observation = observation_dict.pop("policy")
         state = observation_dict.pop("critic", None)

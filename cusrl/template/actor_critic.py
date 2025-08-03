@@ -136,7 +136,7 @@ class ActorCritic(Agent):
                 self.hook.named_parameters(prefix="hook"),
             )
         )
-        self._train_mode(False)
+        self._set_training_mode(False)
         self.hook.post_init()
         self.hook.apply_schedule(0)
 
@@ -205,7 +205,7 @@ class ActorCritic(Agent):
             **kwargs,
         )
 
-    @Agent._decorator_update__set_to_training_mode
+    @Agent._decorator_update__set_training_mode
     def update(self):
         self.hook.pre_update(self.buffer)
         for batch in self.sampler(self.buffer):
