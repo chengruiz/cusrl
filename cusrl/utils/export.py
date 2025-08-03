@@ -1,3 +1,4 @@
+import time
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
@@ -186,7 +187,7 @@ def _get_onnx_tensor_shape(tensor_type: Any) -> tuple[int | str, ...]:
     return tuple(shape)
 
 
-def _optimize_onnx_model(onnx_model, output_path: str, verbose: bool = True) -> bool:
+def _optimize_onnx_model(model, output_path: str, verbose: bool = True) -> bool:
     """Attempts to optimize the ONNX model using available optimizers."""
 
     def print_if_verbose(*args, **kwargs):
@@ -194,10 +195,21 @@ def _optimize_onnx_model(onnx_model, output_path: str, verbose: bool = True) -> 
             print(*args, **kwargs)
 
     try:
+        import onnx
         import onnxslim
+        from onnxslim.utils import print_model_info_as_table, summarize_model
 
-        onnxslim.slim(onnx_model, output_path, verbose=verbose)
-        print_if_verbose("\033[1;32mOptimized ONNX model with onnxslim.\033[0m")
+        original_info = summarize_model(model, "Before Optimization")
+        start_time = time.time()
+        optimized_model = onnxslim.slim(model, verbose=verbose)
+        end_time = time.time()
+        onnx.save(optimized_model, output_path)
+
+        if verbose:
+            slimmed_info = summarize_model(optimized_model, "After Optimization")
+            elapsed_time = end_time - start_time
+            print_model_info_as_table([original_info, slimmed_info], elapsed_time)
+            print("\033[1;32mOptimized ONNX model with onnxslim.\033[0m")
         return True
     except ModuleNotFoundError:
         pass
@@ -206,7 +218,7 @@ def _optimize_onnx_model(onnx_model, output_path: str, verbose: bool = True) -> 
         import onnx
         import onnxoptimizer
 
-        optimized_model = onnxoptimizer.optimize(onnx_model)
+        optimized_model = onnxoptimizer.optimize(model)
         onnx.save(optimized_model, output_path)
         print_if_verbose("\033[1;32mOptimized ONNX model with onnxoptimizer.\033[0m")
         return True

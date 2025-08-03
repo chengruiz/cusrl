@@ -4,6 +4,7 @@ from cusrl import utils
 from cusrl.template.agent import Agent
 from cusrl.template.environment import Environment, get_done_indices, update_observation_and_state
 from cusrl.template.trial import Trial
+from cusrl.utils.typing import Array
 
 __all__ = ["Player"]
 
@@ -15,7 +16,7 @@ class PlayerHook:
         self.player = player
         return self
 
-    def step(self, step: int, transition: dict, metrics: dict):
+    def step(self, step: int, transition: dict[str, Array], metrics: dict[str, float]):
         pass
 
     def reset(self, indices):
