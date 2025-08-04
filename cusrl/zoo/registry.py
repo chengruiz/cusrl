@@ -2,7 +2,7 @@ import importlib
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
-from cusrl.template import Agent, Environment, Trainer
+from cusrl.template import Agent, Environment, Player, Trainer
 from cusrl.zoo.experiment import ExperimentSpec
 
 __all__ = [
@@ -31,12 +31,13 @@ def register_experiment(
     training_env_factory: Callable[..., Environment],
     training_env_args: tuple[Any, ...] | None = None,
     training_env_kwargs: dict[str, Any] | None = None,
+    trainer_callbacks: Iterable[Callable[["Trainer"], None]] = (),
     playing_env_factory: Callable[..., Environment] | None = None,
     playing_env_args: tuple[Any, ...] | None = None,
     playing_env_kwargs: dict[str, Any] | None = None,
+    player_hooks: Iterable[Player.Hook] = (),
     num_iterations: int = 1000,
     save_interval: int = 50,
-    callbacks: Iterable[Callable[["Trainer"], None]] = (),
 ):
     if isinstance(environment_name, str):
         environment_name = [environment_name]
@@ -49,12 +50,13 @@ def register_experiment(
             training_env_factory=training_env_factory,
             training_env_args=training_env_args,
             training_env_kwargs=training_env_kwargs or {},
+            trainer_callbacks=trainer_callbacks,
             playing_env_factory=playing_env_factory,
             playing_env_args=playing_env_args,
             playing_env_kwargs=playing_env_kwargs,
+            player_hooks=player_hooks,
             num_iterations=num_iterations,
             save_interval=save_interval,
-            callbacks=callbacks,
         )
         if spec.name in registry:
             raise ValueError(f"Experiment '{spec.name}' is already registered.")

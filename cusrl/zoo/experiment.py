@@ -18,12 +18,13 @@ class ExperimentSpec:
     training_env_factory: Callable[..., Environment]
     training_env_args: tuple[Any, ...] = None
     training_env_kwargs: dict[str, Any] = field(default_factory=dict)
+    trainer_callbacks: Iterable[Callable[["Trainer"], None]] = ()
     playing_env_factory: Callable[..., Environment] = None
     playing_env_args: tuple[Any, ...] = None
     playing_env_kwargs: dict[str, Any] = None
+    player_hooks: Iterable[Player.Hook] = ()
     num_iterations: int = 1000
     save_interval: int = 50
-    callbacks: Iterable[Callable[["Trainer"], None]] = ()
 
     def __post_init__(self):
         if ":" in self.environment_name or "/" in self.environment_name or "\\" in self.algorithm_name:
@@ -80,7 +81,7 @@ class ExperimentSpec:
             save_interval=save_interval or self.save_interval,
             checkpoint_path=checkpoint_path,
             verbose=verbose,
-            callbacks=self.callbacks,
+            callbacks=self.trainer_callbacks,
         )
         trainer.dump_object(serialized, "experiment_spec")
         return trainer
@@ -94,7 +95,6 @@ class ExperimentSpec:
         timestep: float | None = None,
         deterministic: bool = True,
         verbose: bool = True,
-        hooks: Iterable[Player.Hook] = (),
     ):
         return Player(
             environment=partial(self.make_playing_env, environment_kwargs),
@@ -104,5 +104,5 @@ class ExperimentSpec:
             timestep=timestep,
             deterministic=deterministic,
             verbose=verbose,
-            hooks=hooks,
+            hooks=self.player_hooks,
         )
