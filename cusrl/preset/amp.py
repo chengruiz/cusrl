@@ -23,7 +23,7 @@ class AgentFactory(ppo.AgentFactory):
         normalize_observation: bool = False,
         extrinsic_reward_scale: float = 1.0,
         amp_discriminator_hidden_dims: Iterable[int] = (256, 128),
-        amp_dataset_source: str | Array | Callable[[], Array] = "",
+        amp_dataset_source: str | Array | Callable[[], Array] | None = None,
         amp_state_indices: Slice | None = None,
         amp_batch_size: int = 512,
         amp_reward_scale: float = 1.0,

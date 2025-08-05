@@ -29,6 +29,8 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
             autoreset=True,
             final_state_is_missing=True,
         )
+        if hasattr(self.unwrapped, "collect_reference_motions"):
+            self.spec.demonstration_sampler = self.unwrapped.collect_reference_motions
 
         # Avoid terminal color issues
         print("\033[0m", end="")

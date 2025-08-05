@@ -7,7 +7,13 @@ from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
 if TYPE_CHECKING:
     from cusrl.hook.symmetry import SymmetryDef
 
-__all__ = ["Environment", "EnvironmentFactory", "EnvironmentSpec", "get_done_indices", "update_observation_and_state"]
+__all__ = [
+    "Environment",
+    "EnvironmentFactory",
+    "EnvironmentSpec",
+    "get_done_indices",
+    "update_observation_and_state",
+]
 
 
 class EnvironmentSpec:
@@ -78,6 +84,12 @@ class EnvironmentSpec:
             Sequence of (start_idx, end_idx) pairs defining groups of state
             dimensions that share statistical properties.
 
+        # Imitation
+        demonstration_sampler (Callable[[int], Array] | None):
+            A callable that samples demonstrations from the environment. It
+            should accept an integer representing the number of demonstrations
+            to sample and return a demonstration array.
+
         extras (dict):
             Dictionary containing additional environment-specific properties.
     """
@@ -89,6 +101,7 @@ class EnvironmentSpec:
         *,
         action_denormalization: tuple[Array, Array] | None = None,
         autoreset: bool = False,
+        demonstration_sampler: Callable[[int], Array] | None = None,
         final_state_is_missing: bool = False,
         mirror_action: Optional["SymmetryDef"] = None,
         mirror_observation: Optional["SymmetryDef"] = None,
@@ -106,18 +119,19 @@ class EnvironmentSpec:
     ):
         self.observation_dim = observation_dim
         self.action_dim = action_dim
-        self.num_instances = num_instances
-        self.state_dim = state_dim
         self.action_denormalization = action_denormalization
         self.autoreset = autoreset
+        self.demonstration_sampler = demonstration_sampler
         self.final_state_is_missing = final_state_is_missing
         self.mirror_action = mirror_action
         self.mirror_observation = mirror_observation
         self.mirror_state = mirror_state
+        self.num_instances = num_instances
         self.observation_is_subset_of_state = observation_is_subset_of_state
         self.observation_stat_groups = tuple(observation_stat_groups)
         self.observation_normalization = observation_normalization
         self.reward_dim = reward_dim
+        self.state_dim = state_dim
         self.state_stat_groups = tuple(state_stat_groups)
         self.state_normalization = state_normalization
         self.timestep = timestep

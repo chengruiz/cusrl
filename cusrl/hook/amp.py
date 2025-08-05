@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import cast
 
 import numpy as np
 import torch
@@ -31,10 +32,12 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         discriminator_factory (ModuleFactoryLike):
             A factory for creating the discriminator model. The discriminator
             may not be recurrent.
-        dataset_source (str | Array | Callable[[], Array]):
+        dataset_source (str | Array | Callable[[], Array] | None, optional):
             The source of the expert motion dataset. Can be a file path to a
             `.npy` or `.pt` file, a `numpy.ndarray` / `torch.Tensor`, or a
-            callable that returns a `numpy.ndarray` / `torch.Tensor`.
+            callable that returns a `numpy.ndarray` / `torch.Tensor`. If `None`,
+            the `environment_spec.demonstration_sampler` should be provided
+            to sample expert transitions.
         state_indices (Slice | None, optional):
             A slice object to extract the relevant parts of the state for AMP.
             If `None`, it's assumed that the environment provides an "amp_obs"
@@ -51,8 +54,9 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             Defaults to 5.0.
     """
 
-    dataset: torch.Tensor
+    dataset: torch.Tensor | None
     discriminator: Module
+    transition_dim: int
     transition_rms: RunningMeanStd
 
     # Mutable attributes
@@ -64,7 +68,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
     def __init__(
         self,
         discriminator_factory: ModuleFactoryLike,
-        dataset_source: str | Array | Callable[[], Array],
+        dataset_source: str | Array | Callable[[], Array] | None = None,
         state_indices: Slice | None = None,
         batch_size: int | None = 512,
         reward_scale: float = 1.0,
@@ -82,6 +86,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         self.bce_with_logits_loss = nn.BCEWithLogitsLoss()
 
     def init(self):
+        self.dataset = None
         if isinstance(self.dataset_source, str):
             if self.dataset_source.endswith(".npy"):
                 self.dataset = torch.as_tensor(np.load(self.dataset_source), device=self.agent.device)
@@ -93,49 +98,51 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             self.dataset = self.agent.to_tensor(self.dataset_source)
         elif callable(self.dataset_source):
             self.dataset = self.agent.to_tensor(self.dataset_source())
-        else:
+        elif self.dataset_source is not None:
             raise ValueError(f"Unsupported dataset_path type: {type(self.dataset_source)}.")
 
-        self.register_module("discriminator", self.discriminator_factory(self.dataset.size(-1), 1))
-        self.register_module("transition_rms", RunningMeanStd(self.dataset.size(-1)))
+        self.transition_dim = self._sample_demonstration(1).size(-1)
+        self.register_module("discriminator", self.discriminator_factory(self.transition_dim, 1))
+        self.register_module("transition_rms", RunningMeanStd(self.transition_dim))
 
     @torch.no_grad()
     def post_step(self, transition):
-        if (amp_transition := transition.pop("amp_obs", None)) is None:
+        if (agent_transition := cast(torch.Tensor, transition.pop("amp_obs", None))) is None:
             if self.state_indices is None:
                 raise ValueError("AMP observation is not provided and indices are not specified.")
-            amp_state = get_or(transition, "state", "observation")[..., self.state_indices]
-            amp_next_state = get_or(transition, "next_state", "next_observation")[..., self.state_indices]
-            amp_transition = torch.cat([amp_state, amp_next_state], dim=-1)
-        if amp_transition.size(-1) != self.dataset.size(-1):
-            raise ValueError(
-                f"AMP transition size ({amp_transition.size(-1)}) does not match that of dataset"
-                f" ({self.dataset.size(-1)})."
-            )
 
-        self.transition_rms.update(amp_transition)
-        self.transition_rms.update(self.dataset[torch.randint(self.dataset.size(0), (amp_transition.size(0),))])
+            state = cast(torch.Tensor, get_or(transition, "state", "observation"))
+            next_state = cast(torch.Tensor, get_or(transition, "next_state", "next_observation"))
+            amp_state = state[..., self.state_indices]
+            amp_next_state = next_state[..., self.state_indices]
+            agent_transition = torch.cat([amp_state, amp_next_state], dim=-1)
+
+        expert_transition = self._sample_demonstration(agent_transition.size(0))
+        self.transition_rms.update(agent_transition)
+        self.transition_rms.update(expert_transition)
+        agent_transition = self.transition_rms.normalize(agent_transition)
+        expert_transition = self.transition_rms.normalize(expert_transition)
+        transition["agent_transition"] = agent_transition
+        transition["expert_transition"] = expert_transition
+
         with self.agent.autocast():
-            logit = self.discriminator(self.transition_rms.normalize(amp_transition))
+            logit = self.discriminator(agent_transition)
         style_reward = -torch.log(torch.clamp(1 - 1 / (1 + torch.exp(-logit)), min=1e-4))
 
-        transition["reward"].add_(style_reward)
-        transition["amp_transition"] = amp_transition
+        cast(torch.Tensor, transition["reward"]).add_(style_reward)
         self.agent.record(amp_reward=style_reward)
 
     def objective(self, batch: dict) -> torch.Tensor:
-        agent_transition = batch["amp_transition"].flatten(0, -2)
+        agent_transition = batch["agent_transition"].flatten(0, -2)
+        expert_transition = batch["expert_transition"].flatten(0, -2)
         if self.batch_size is not None:
             batch_size = self.batch_size
-            amp_transition_indices = torch.randint(agent_transition.size(0), (batch_size,), device=self.agent.device)
-            agent_transition = agent_transition[amp_transition_indices]
+            indices = torch.randint(agent_transition.size(0), (batch_size,), device=self.agent.device)
+            agent_transition = agent_transition[indices]
+            expert_transition = expert_transition[indices]
         else:
             batch_size = agent_transition.size(0)
-        dataset_indices = torch.randint(self.dataset.size(0), (batch_size,), device=self.agent.device)
-        expert_transition = self.dataset[dataset_indices]
 
-        agent_transition = self.transition_rms.normalize(agent_transition)
-        expert_transition = self.transition_rms.normalize(expert_transition)
         with self.agent.autocast():
             expert_transition.requires_grad_(True)
             agent_logit = self.discriminator(agent_transition)
@@ -166,3 +173,11 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         )[0]
         gradient_penalty = gradients.square().sum(dim=-1).mean()
         return gradient_penalty
+
+    def _sample_demonstration(self, num_samples: int) -> torch.Tensor:
+        if self.dataset is not None:
+            dataset_indices = torch.randint(self.dataset.size(0), (num_samples,), device=self.agent.device)
+            return self.dataset[dataset_indices]
+        if self.agent.environment_spec.demonstration_sampler is None:
+            raise ValueError("Either 'dataset_source' or 'environment_spec.demonstration_sampler' should be provided.")
+        return self.agent.to_tensor(self.agent.environment_spec.demonstration_sampler(num_samples))

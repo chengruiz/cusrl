@@ -1,18 +1,8 @@
-from functools import partial
-
-import cusrl
 from cusrl.environment import make_isaaclab_env
+from cusrl.preset import amp
 from cusrl.zoo.registry import register_experiment
 
 __all__ = []
-
-
-class AgentFactory(cusrl.preset.amp.AgentFactory):
-    def from_environment(self, environment: cusrl.environment.IsaacLabEnvAdapter) -> cusrl.ActorCritic:
-        self.get_hook("AdversarialMotionPrior").dataset_source = partial(
-            environment.unwrapped.collect_reference_motions, 200000
-        )
-        return super().from_environment(environment)
 
 
 register_experiment(
@@ -22,7 +12,7 @@ register_experiment(
         "Isaac-Humanoid-AMP-Walk-Direct-v0",
     ],
     algorithm_name="amp",
-    agent_factory_cls=AgentFactory,
+    agent_factory_cls=amp.AgentFactory,
     agent_factory_kwargs=dict(
         num_steps_per_update=16,
         actor_hidden_dims=(512, 256),
