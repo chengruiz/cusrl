@@ -3,6 +3,7 @@ from typing import Any, Generic
 
 import torch
 from torch import nn
+from typing_extensions import Self
 
 import cusrl
 from cusrl.template.agent import AgentType
@@ -23,17 +24,27 @@ class Hook(Generic[AgentType]):
     """
 
     agent: AgentType
-    active: bool = True
-
-    @property
-    def name(self) -> str:
-        """Returns the name of the hook, which is the class name."""
-        return self.__class__.__name__
 
     def __init__(self):
         """Initializes the hook."""
         self._modules: dict[str, nn.Module | None] = {}
         self._mutable: set[str] = set()
+        self._name: str = self.__class__.__name__
+        self.active: bool = True
+
+    @property
+    def name(self) -> str:
+        """Returns the name of the hook, which is the class name by default."""
+        return self._name
+
+    def name_(self, name: str) -> Self:
+        """Overrides the default name of the hook.
+
+        Args:
+            name (str): The new name for the hook.
+        """
+        self._name = name
+        return self
 
     def register_module(self, name: str, module: nn.Module | None):
         """Registers a `torch.nn.Module` with the hook.

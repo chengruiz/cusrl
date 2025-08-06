@@ -59,18 +59,20 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
             raise ValueError("Only one of index, before, or after can be specified.")
 
         if before is not None:
-            index = self.__get_hook_index(before)
+            index = self.get_hook_index(before)
         elif after is not None:
-            index = self.__get_hook_index(after) + 1
+            index = self.get_hook_index(after) + 1
         elif index is None:
             index = len(self.hooks)
         self.hooks.insert(index, hook)
         return self
 
-    def get_hook(self, hook_name: str):
-        return self.hooks[self.__get_hook_index(hook_name)]
+    def get_hook(self, hook_name: str) -> Hook:
+        """Gets a registered hook by its name."""
+        return self.hooks[self.get_hook_index(hook_name)]
 
-    def __get_hook_index(self, hook_name: str):
+    def get_hook_index(self, hook_name: str) -> int:
+        """Gets the index of a registered hook by its name."""
         for i, hook in enumerate(self.hooks):
             if hook.name == hook_name:
                 return i
