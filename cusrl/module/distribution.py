@@ -9,7 +9,6 @@ from torch.nn.functional import one_hot
 from cusrl import utils
 from cusrl.module.bijector import Bijector, get_bijector
 from cusrl.module.module import Module, ModuleFactory
-from cusrl.utils.typing import NestedTensor
 
 __all__ = [
     "AdaptiveNormalDist",
@@ -229,8 +228,8 @@ class NormalDist(_Normal):
         super().__init__(input_dim, output_dim)
         self.std = StddevVector(output_dim, bijector=bijector)
 
-    def forward(self, latent: Tensor, **kwargs) -> NestedTensor:
-        return {"mean": self.mean_head(latent), "std": self.std(latent)}
+    def forward(self, latent: Tensor, **kwargs):
+        return MeanStdDict(mean=self.mean_head(latent), std=self.std(latent))
 
     def to_distributed(self):
         if not self.is_distributed:
@@ -287,12 +286,12 @@ class AdaptiveNormalDist(_Normal):
         if isinstance(self.std_head, Module):
             self.std_head.clear_intermediate_repr()
 
-    def forward(self, latent: Tensor, **kwargs) -> NestedTensor:
+    def forward(self, latent: Tensor, **kwargs):
         action_mean = self.mean_head(latent)
         if not self.backward:
             latent = latent.detach()
         std = self.std_head(latent)
-        return {"mean": action_mean, "std": self.bijector(std)}
+        return MeanStdDict(mean=action_mean, std=self.bijector(std))
 
     def set_std(self, std):
         self.std_head.weight.data.zero_()
