@@ -37,10 +37,7 @@ class ParameterSchedule(Hook[ActorCritic]):
         self.hook_name = hook_name
         self.parameter = parameter
         self.schedule = schedule
-
-    @property
-    def name(self) -> str:
-        return f"{self.__class__.__name__}_{self.hook_name}_{self.parameter}"
+        self.name_(f"{self.hook_name}_{self.parameter}_schedule")
 
     def apply_schedule(self, iteration: int):
         hook = self.agent.hook[self.hook_name]
@@ -59,18 +56,11 @@ class HookActivationSchedule(Hook[ActorCritic]):
             boolean value indicating whether to activate the hook.
     """
 
-    def __init__(
-        self,
-        hook_name: str,
-        schedule: Callable[[int], bool],
-    ):
+    def __init__(self, hook_name: str, schedule: Callable[[int], bool]):
         super().__init__()
         self.hook_name = hook_name
         self.schedule = schedule
-
-    @property
-    def name(self) -> str:
-        return f"{self.__class__.__name__}_{self.hook_name}"
+        self.name_(f"{hook_name}_activation_schedule")
 
     def apply_schedule(self, iteration: int):
         self.agent.hook[self.hook_name].active = self.schedule(iteration)

@@ -1,7 +1,9 @@
 import math
+from typing import cast
 
 import torch
 
+from cusrl.hook.on_policy import OnPolicyPreparation
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils import distributed
 
@@ -123,18 +125,18 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
 
         self.threshold = threshold
         self.scale_factor = scale_factor
-        self.accumulated_log_error = 0.0
-        self.count = 0
+        self._accumulated_log_error = 0.0
+        self._count = 0
 
     def _compute_scale(self, kl_divergence: float):
-        self.accumulated_log_error += math.log(kl_divergence / self.desired_kl_divergence)
-        self.count += 1
-        if self.threshold > self.accumulated_log_error > -self.threshold:
+        self._accumulated_log_error += math.log(kl_divergence / self.desired_kl_divergence)
+        self._count += 1
+        if self.threshold > self._accumulated_log_error > -self.threshold:
             return None
-        average_log_error = self.accumulated_log_error / self.count
+        average_log_error = self._accumulated_log_error / self._count
         scale = math.exp(-min(max(average_log_error, -1.0), 1.0) * self.scale_factor)
-        self.accumulated_log_error = 0.0
-        self.count = 0
+        self._accumulated_log_error = 0.0
+        self._count = 0
         return scale
 
 
@@ -165,14 +167,16 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
         )
 
     def post_init(self):
-        self.agent.hook["OnPolicyPreparation"].calculate_kl_divergence = True
+        for hook in self.agent.hook:
+            if isinstance(hook, OnPolicyPreparation):
+                hook.calculate_kl_divergence = True
 
     def post_update(self):
         pass
 
     def objective(self, batch):
         with torch.no_grad():
-            kl_divergence = batch["kl_divergence"].mean()
+            kl_divergence = cast(torch.Tensor, batch["kl_divergence"]).mean()
         distributed.reduce_mean_(kl_divergence)
         scale = self._compute_scale(kl_divergence.item())
         self._scale_lr_of_parameters(scale)

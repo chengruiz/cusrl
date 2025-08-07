@@ -18,6 +18,11 @@ from cusrl.utils.typing import NestedArray, NestedTensor, Observation, Reward, S
 __all__ = ["ActorCritic"]
 
 
+class HookList(list[Hook]):
+    def to_dict(self):
+        return {hook.name: hook for hook in self}
+
+
 class ActorCriticFactory(AgentFactory["ActorCritic"]):
     def __init__(
         self,
@@ -43,7 +48,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         self.critic_factory = critic_factory
         self.optimizer_factory = optimizer_factory
         self.sampler = sampler
-        self.hooks = list(hooks)
+        self.hooks = HookList(hooks)
 
     def __call__(self, environment_spec: EnvironmentSpec):
         return ActorCritic(environment_spec=environment_spec, **self.__dict__)

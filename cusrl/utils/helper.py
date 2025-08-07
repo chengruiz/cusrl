@@ -2,24 +2,27 @@ import os
 import random
 import re
 import sys
+from collections import OrderedDict
 from collections.abc import Mapping
-from dataclasses import MISSING
+from dataclasses import MISSING, dataclass, fields, is_dataclass
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from typing import TypeVar, overload
 
 import numpy as np
 import torch
+from torch import nn
 
 from cusrl.utils import CONFIG, distributed
 from cusrl.utils.typing import ListOrTuple
 
 __all__ = [
+    "camel_to_snake",
     "format_float",
     "get_or",
     "import_module",
     "prefix_dict_keys",
     "set_global_seed",
-    "camel_to_snake",
+    "to_dict",
 ]
 
 
@@ -27,6 +30,16 @@ _T = TypeVar("_T")
 _K = TypeVar("_K")
 _V = TypeVar("_V")
 _D = TypeVar("_D")
+
+
+def camel_to_snake(name: str) -> str:
+    """Converts a CamelCase string to snake_case."""
+    if not name:
+        return ""
+
+    s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+    s2 = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", s1)
+    return s2.lower()
 
 
 def format_float(number, width):
@@ -167,11 +180,42 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
     return seed
 
 
-def camel_to_snake(name: str) -> str:
-    """Converts a CamelCase string to snake_case."""
-    if not name:
-        return ""
+@dataclass
+class Slice:
+    start: int
+    step: int
+    stop: int
 
-    s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
-    s2 = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", s1)
-    return s2.lower()
+    def to_native(self) -> slice:
+        return slice(self.start, self.stop, self.step)
+
+
+def to_dict(obj):
+    """Converts an object to a dictionary representation."""
+    if hasattr(obj, "to_dict"):
+        obj_dict = obj.to_dict()
+
+    # If the object is not a dictorionary-convertable object
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(to_dict(item) for item in obj)
+    elif isinstance(obj, slice):
+        return to_dict(Slice(obj.start, obj.step, obj.stop))
+    elif isinstance(obj, type) and issubclass(obj, nn.Module):
+        return f"{obj.__module__}.{obj.__name__}"
+    elif isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+
+    elif is_dataclass(obj) and not isinstance(obj, type):
+        obj_dict = {f.name: getattr(obj, f.name) for f in fields(obj)}
+    elif isinstance(obj, Mapping):
+        obj_dict = dict(**obj)
+    elif hasattr(obj, "__dict__") and obj.__dict__:
+        obj_dict = {key: value for key, value in obj.__dict__.items() if not key.startswith("_")}
+    else:
+        obj_dict = {"__str__": str(obj)}
+
+    obj_dict = {key: to_dict(value) for key, value in obj_dict.items()}
+    obj_type = type(obj)
+    if not isinstance(obj, (dict, OrderedDict)):
+        obj_dict = {"__type__": f"{obj_type.__module__}.{obj_type.__name__}"} | obj_dict
+    return obj_dict

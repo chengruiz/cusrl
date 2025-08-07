@@ -69,3 +69,12 @@ class OptimizerFactory:
                 matched_prefix = prefix
                 break
         return matched_prefix
+
+    def to_dict(self) -> dict[str, Any]:
+        optim_groups = self.optim_groups.copy()
+        optim_groups.pop("")
+        return {
+            "cls": self.cls.__name__,
+            "defaults": self.defaults,
+            "optim_groups": optim_groups,
+        }

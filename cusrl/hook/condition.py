@@ -1,8 +1,6 @@
 from collections.abc import Callable, Iterable
 from typing import Any
 
-import torch
-
 from cusrl.template import ActorCritic, Hook
 
 __all__ = ["ConditionalObjectiveActivation", "EpochIndexCondition"]
@@ -57,3 +55,6 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
         # Restore the activation state of the hooks
         for name in self.named_conditions:
             self.agent.hook[name].active = self.named_activation[name]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {}

@@ -1,9 +1,11 @@
 from collections.abc import Sequence
+from typing import cast
 
 import torch
 from torch import Tensor, nn
 
 from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
+from cusrl.module.distribution import MeanStdDict
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.helper import prefix_dict_keys
 from cusrl.utils.typing import Memory, NestedTensor, Slice
@@ -68,22 +70,28 @@ class SymmetryLoss(SymmetryHook):
             not applied.
     """
 
+    criterion: nn.MSELoss
+    _mirrored_actor_memory: Memory
+
     # Mutable attributes
     weight: float | None
 
     def __init__(self, weight: float | None):
         super().__init__()
         self.register_mutable("weight", weight)
-        self.mse_loss = nn.MSELoss()
-        self.mirrored_actor_memory = None
+
+    def init(self):
+        super().init()
+        self.criterion = nn.MSELoss()
+        self._mirrored_actor_memory = None
 
     @torch.no_grad()
     def post_step(self, transition):
         actor = self.agent.actor
         mirrored_observation = self._mirror_observation(transition["observation"])
-        transition["mirrored_actor_memory"] = self.mirrored_actor_memory
-        self.mirrored_actor_memory = actor.step_memory(mirrored_observation, memory=self.mirrored_actor_memory)
-        actor.reset_memory(self.mirrored_actor_memory, transition["done"])
+        transition["mirrored_actor_memory"] = self._mirrored_actor_memory
+        self._mirrored_actor_memory = actor.step_memory(mirrored_observation, memory=self._mirrored_actor_memory)
+        actor.reset_memory(self._mirrored_actor_memory, transition["done"])
 
     def objective(self, batch):
         if self.weight is None:
@@ -95,15 +103,10 @@ class SymmetryLoss(SymmetryHook):
             memory=batch.get("mirrored_actor_memory"),
             done=batch["done"],
         )
+        curr_action_dist = cast(MeanStdDict, batch["curr_action_dist"])
 
-        mean_loss = self.mse_loss(
-            batch["curr_action_dist"]["mean"],
-            self._mirror_action(mirrored_action_dist["mean"]),
-        )
-        std_loss = self.mse_loss(
-            batch["curr_action_dist"]["std"],
-            self._mirror_action(mirrored_action_dist["std"]),
-        )
+        mean_loss = self.criterion(curr_action_dist["mean"], self._mirror_action(mirrored_action_dist["mean"]))
+        std_loss = self.criterion(curr_action_dist["std"], self._mirror_action(mirrored_action_dist["std"]))
         symmetry_loss = self.weight * (mean_loss + std_loss)
         self.agent.record(symmetry_loss=symmetry_loss)
         return symmetry_loss
@@ -128,15 +131,15 @@ class SymmetricDataAugmentation(SymmetryHook):
 
     def __init__(self):
         super().__init__()
-        self.mirrored_actor_memory = None
+        self._mirrored_actor_memory = None
 
     @torch.no_grad()
     def post_step(self, transition):
         actor = self.agent.actor
         mirrored_observation = self._mirror_observation(transition["observation"])
-        transition["mirrored_actor_memory"] = self.mirrored_actor_memory
-        self.mirrored_actor_memory = actor.step_memory(mirrored_observation, memory=self.mirrored_actor_memory)
-        actor.reset_memory(self.mirrored_actor_memory, transition["done"])
+        transition["mirrored_actor_memory"] = self._mirrored_actor_memory
+        self._mirrored_actor_memory = actor.step_memory(mirrored_observation, memory=self._mirrored_actor_memory)
+        actor.reset_memory(self._mirrored_actor_memory, transition["done"])
 
     def objective(self, batch):
         actor = self.agent.actor

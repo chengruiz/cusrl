@@ -47,3 +47,11 @@ class GradientClipping(Hook):
             if name == prefix or name.startswith(f"{prefix}."):
                 return prefix
         return ""
+
+    def to_dict(self):
+        groups = self.groups.copy()
+        max_grad_norm = groups.pop("")
+        return {
+            "max_grad_norm": max_grad_norm,
+            "groups": groups,
+        }

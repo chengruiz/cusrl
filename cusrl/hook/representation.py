@@ -11,6 +11,7 @@ __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]
 
 class ReturnPrediction(Hook[ActorCritic]):
     predictor: nn.Module
+    criterion: nn.MSELoss
 
     def __init__(
         self,
@@ -22,10 +23,10 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.weight = weight
         self.predictor_factory = predictor_factory
         self.predicts_value_instead_of_return = predicts_value_instead_of_return
-        self.criterion = nn.MSELoss()
 
     def init(self):
         self.register_module("predictor", self.predictor_factory(self.agent.actor.latent_dim, 1))
+        self.criterion = nn.MSELoss()
 
     def objective(self, batch):
         latent = self.agent.actor.intermediate_repr["backbone.output"]
@@ -48,6 +49,7 @@ class ReturnPrediction(Hook[ActorCritic]):
 
 class StatePrediction(Hook[ActorCritic]):
     predictor: nn.Module
+    criterion: nn.MSELoss
 
     def __init__(
         self,
@@ -59,13 +61,13 @@ class StatePrediction(Hook[ActorCritic]):
         self.target_indices = target_indices
         self.weight = weight
         self.predictor_factory = predictor_factory
-        self.criterion = nn.MSELoss()
 
     def init(self):
         if not self.agent.has_state:
             raise ValueError("StatePrediction: State is not defined for the agent.")
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
         self.register_module("predictor", self.predictor_factory(self.agent.actor.latent_dim, target_dim))
+        self.criterion = nn.MSELoss()
 
     def objective(self, batch):
         with self.agent.autocast():
@@ -98,6 +100,7 @@ class ActionAwarePredictor(nn.Module):
 
 class NextStatePrediction(Hook[ActorCritic]):
     predictor: nn.Module
+    criterion: nn.MSELoss
 
     def __init__(
         self,
@@ -109,7 +112,6 @@ class NextStatePrediction(Hook[ActorCritic]):
         self.target_indices = target_indices
         self.weight = weight
         self.predictor_factory = predictor_factory
-        self.criterion = nn.MSELoss()
 
     def init(self):
         if not self.agent.has_state:
@@ -117,6 +119,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
         predictor = self.predictor_factory(self.agent.actor.latent_dim + self.agent.action_dim, target_dim)
         self.register_module("predictor", ActionAwarePredictor(predictor))
+        self.criterion = nn.MSELoss()
 
     def objective(self, batch):
         with self.agent.autocast():

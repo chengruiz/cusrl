@@ -13,14 +13,15 @@ __all__ = ["AutoMiniBatchSampler", "MiniBatchSampler", "TemporalMiniBatchSampler
 class MiniBatchSampler(Sampler):
     def __init__(self, num_epochs: int = 1, num_mini_batches: int | Sequence[int] = 1, shuffle: bool = True):
         self.num_epochs = num_epochs
-        self.num_mini_batches = tuple(
-            [num_mini_batches] * self.num_epochs if isinstance(num_mini_batches, int) else num_mini_batches
-        )
-        if len(self.num_mini_batches) != self.num_epochs:
-            raise ValueError(
-                "'num_mini_batches' must be a single integer or a sequence of integers with length "
-                f"equal to 'num_epochs' ({self.num_epochs}), but got {len(self.num_mini_batches)}."
-            )
+        if isinstance(num_mini_batches, int):
+            self.num_mini_batches = num_mini_batches
+        else:
+            self.num_mini_batches = tuple(num_mini_batches)
+            if len(self.num_mini_batches) != self.num_epochs:
+                raise ValueError(
+                    "'num_mini_batches' must be a single integer or a sequence of integers with length "
+                    f"equal to 'num_epochs' ({self.num_epochs}), but got {len(self.num_mini_batches)}."
+                )
 
         self.shuffle = shuffle
 
@@ -30,7 +31,9 @@ class MiniBatchSampler(Sampler):
         num_samples = self._get_num_samples(buffer)
         epoch_indices = torch.randperm(num_samples, device=buffer.device)
         for epoch in range(self.num_epochs):
-            num_mini_batches = self.num_mini_batches[epoch]
+            num_mini_batches = (
+                self.num_mini_batches if isinstance(self.num_mini_batches, int) else self.num_mini_batches[epoch]
+            )
             mini_batch_size = num_samples // num_mini_batches
             if self.shuffle and epoch > 0:
                 torch.randperm(num_samples, device=buffer.device, out=epoch_indices)

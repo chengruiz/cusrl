@@ -28,14 +28,16 @@ RnnLike: TypeAlias = nn.RNNBase | RnnBase
 
 class RnnFactory(ModuleFactory["Rnn"]):
     def __init__(self, module_cls: str | type[RnnLike], **kwargs):
-        if isinstance(module_cls, str):
-            # RNN / LSTM / GRU
-            module_cls = getattr(nn, module_cls.upper())
-        self.module_cls: type[RnnLike] = module_cls
+        self.module_cls: str | type[RnnLike] = module_cls
         self.kwargs = kwargs
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Rnn(self.module_cls, input_size=input_dim, output_dim=output_dim, **self.kwargs)
+        # RNN / LSTM / GRU
+        module_cls = getattr(nn, self.module_cls) if isinstance(self.module_cls, str) else self.module_cls
+        return Rnn(module_cls, input_size=input_dim, output_dim=output_dim, **self.kwargs)
+
+    def to_dict(self):
+        return {"module_cls": self.module_cls, **self.kwargs}
 
 
 class Rnn(Module):
@@ -146,34 +148,66 @@ class Rnn(Module):
         return memory
 
 
-class LstmFactory(RnnFactory):
-    def __init__(self, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, **kwargs):
-        super().__init__("LSTM", hidden_size=hidden_size, num_layers=num_layers, bias=bias, dropout=dropout, **kwargs)
+class LstmFactory(ModuleFactory["Lstm"]):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_layers: int = 1,
+        bias: bool = True,
+        dropout: float = 0.0,
+        **kwargs,
+    ):
+        self.kwargs = {
+            "hidden_size": hidden_size,
+            "num_layers": num_layers,
+            "bias": bias,
+            "dropout": dropout,
+            **kwargs,
+        }
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Lstm(self.module_cls, input_size=input_dim, **self.kwargs, output_dim=output_dim)
+        return Lstm(input_size=input_dim, output_dim=output_dim, **self.kwargs)
+
+    def to_dict(self):
+        return self.kwargs
 
 
 class Lstm(Rnn):
     Factory = LstmFactory
 
-    def __init__(self, rnn: type[RnnLike] | RnnLike = nn.LSTM, output_dim: int | None = None, **kwargs):
-        super().__init__(rnn, output_dim=output_dim, **kwargs)
+    def __init__(self, output_dim: int | None = None, **kwargs):
+        super().__init__(nn.LSTM, output_dim=output_dim, **kwargs)
 
 
-class GruFactory(RnnFactory):
-    def __init__(self, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, **kwargs):
-        super().__init__("GRU", hidden_size=hidden_size, num_layers=num_layers, bias=bias, dropout=dropout, **kwargs)
+class GruFactory(ModuleFactory["Gru"]):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_layers: int = 1,
+        bias: bool = True,
+        dropout: float = 0.0,
+        **kwargs,
+    ):
+        self.kwargs = {
+            "hidden_size": hidden_size,
+            "num_layers": num_layers,
+            "bias": bias,
+            "dropout": dropout,
+            **kwargs,
+        }
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Gru(self.module_cls, input_size=input_dim, **self.kwargs, output_dim=output_dim)
+        return Gru(input_size=input_dim, output_dim=output_dim, **self.kwargs)
+
+    def to_dict(self):
+        return self.kwargs
 
 
 class Gru(Rnn):
     Factory = GruFactory
 
-    def __init__(self, rnn: type[RnnLike] | RnnLike = nn.GRU, output_dim: int | None = None, **kwargs):
-        super().__init__(rnn, output_dim=output_dim, **kwargs)
+    def __init__(self, output_dim: int | None = None, **kwargs):
+        super().__init__(nn.GRU, output_dim=output_dim, **kwargs)
 
 
 def scatter_memory(memory: Memory, done: torch.Tensor):
