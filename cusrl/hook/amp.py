@@ -58,6 +58,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
     discriminator: Module
     transition_dim: int
     transition_rms: RunningMeanStd
+    criterion: nn.BCEWithLogitsLoss
 
     # Mutable attributes
     batch_size: int | None
@@ -83,7 +84,6 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         self.register_mutable("reward_scale", reward_scale)
         self.register_mutable("loss_weight", loss_weight)
         self.register_mutable("grad_penalty_weight", grad_penalty_weight)
-        self.bce_with_logits_loss = nn.BCEWithLogitsLoss()
 
     def init(self):
         self.dataset = None
@@ -104,6 +104,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         self.transition_dim = self._sample_demonstration(1).size(-1)
         self.register_module("discriminator", self.discriminator_factory(self.transition_dim, 1))
         self.register_module("transition_rms", RunningMeanStd(self.transition_dim))
+        self.criterion = nn.BCEWithLogitsLoss()
 
     @torch.no_grad()
     def post_step(self, transition):
@@ -146,9 +147,9 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         with self.agent.autocast():
             expert_transition.requires_grad_(True)
             agent_logit = self.discriminator(agent_transition)
-            agent_disc_loss = self.bce_with_logits_loss(agent_logit, torch.zeros_like(agent_logit))
+            agent_disc_loss = self.criterion(agent_logit, torch.zeros_like(agent_logit))
             expert_logit = self.discriminator(expert_transition)
-            expert_disc_loss = self.bce_with_logits_loss(expert_logit, torch.ones_like(expert_logit))
+            expert_disc_loss = self.criterion(expert_logit, torch.ones_like(expert_logit))
             discrimination_loss = (agent_disc_loss + expert_disc_loss) / 2
             grad_penalty_loss = self._compute_grad_penalty_loss(expert_logit, expert_transition)
 

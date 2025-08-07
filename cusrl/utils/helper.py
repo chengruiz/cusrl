@@ -6,7 +6,7 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import MISSING, dataclass, fields, is_dataclass
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from typing import TypeVar, overload
+from typing import Any, TypeVar, overload
 
 import numpy as np
 import torch
@@ -190,16 +190,16 @@ class Slice:
         return slice(self.start, self.stop, self.step)
 
 
-def to_dict(obj):
+def to_dict(obj, includes_type: bool = True) -> dict[str, Any] | Any:
     """Converts an object to a dictionary representation."""
     if hasattr(obj, "to_dict"):
         obj_dict = obj.to_dict()
 
     # If the object is not a dictorionary-convertable object
     elif isinstance(obj, (list, tuple)):
-        return type(obj)(to_dict(item) for item in obj)
+        return type(obj)(to_dict(item, includes_type=includes_type) for item in obj)
     elif isinstance(obj, slice):
-        return to_dict(Slice(obj.start, obj.step, obj.stop))
+        return to_dict(Slice(obj.start, obj.step, obj.stop), includes_type=includes_type)
     elif isinstance(obj, type) and issubclass(obj, nn.Module):
         return f"{obj.__module__}.{obj.__name__}"
     elif isinstance(obj, (str, int, float, bool, type(None))):
@@ -214,8 +214,8 @@ def to_dict(obj):
     else:
         obj_dict = {"__str__": str(obj)}
 
-    obj_dict = {key: to_dict(value) for key, value in obj_dict.items()}
+    obj_dict = {key: to_dict(value, includes_type=includes_type) for key, value in obj_dict.items()}
     obj_type = type(obj)
-    if not isinstance(obj, (dict, OrderedDict)):
+    if includes_type and not isinstance(obj, (dict, OrderedDict)):
         obj_dict = {"__type__": f"{obj_type.__module__}.{obj_type.__name__}"} | obj_dict
     return obj_dict

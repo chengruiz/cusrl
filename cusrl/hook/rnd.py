@@ -31,6 +31,8 @@ class RandomNetworkDistillation(Hook):
 
     target: Module
     predictor: Module
+    criterion: nn.MSELoss
+
     # Mutable attributes
     reward_scale: float
 
@@ -46,7 +48,6 @@ class RandomNetworkDistillation(Hook):
         self.register_mutable("reward_scale", reward_scale)
         self.module_factory = module_factory
         self.state_indices = slice(None) if state_indices is None else state_indices
-        self.criterion = nn.MSELoss()
 
     def init(self):
         input_dim = torch.ones(1, self.agent.state_dim)[..., self.state_indices].numel()
@@ -60,6 +61,7 @@ class RandomNetworkDistillation(Hook):
         self.register_module("target", target)
         self.register_module("predictor", predictor)
         self.target.requires_grad_(False)
+        self.criterion = nn.MSELoss()
 
     @torch.no_grad()
     def pre_update(self, buffer: Buffer):
