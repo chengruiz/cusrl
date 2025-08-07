@@ -17,7 +17,7 @@ def test_objective_activation():
     environment = create_dummy_env(with_state=True)
     agent_factory = cusrl.preset.ppo.AgentFactory()
     agent_factory.register_hook(
-        cusrl.hook.ConditionalObjectiveActivation(DummyHook=cusrl.hook.condition.EpochIndexCondition(1)),
+        cusrl.hook.ConditionalObjectiveActivation(dummy_hook=cusrl.hook.condition.EpochIndexCondition(1)),
     )
     agent_factory.register_hook(DummyHook(1))
     cusrl.Trainer(environment, agent_factory, num_iterations=1).run_training_loop()
@@ -32,5 +32,5 @@ def test_hook_activation():
     environment = create_dummy_env(with_state=True)
     agent_factory = cusrl.preset.ppo.AgentFactory()
     agent_factory.register_hook(DummyHook2())
-    agent_factory.register_hook(cusrl.hook.HookActivationSchedule("DummyHook2", lambda it: it % 2 == 0))
+    agent_factory.register_hook(cusrl.hook.HookActivationSchedule("dummy_hook2", lambda it: it % 2 == 0))
     cusrl.Trainer(environment, agent_factory, num_iterations=5).run_training_loop()

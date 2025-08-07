@@ -15,7 +15,7 @@ def test_rnd(with_state):
             output_dim=16,
             reward_scale=0.1,
         ),
-        before="ValueComputation",
+        before="value_computation",
     )
     cusrl.Trainer(
         partial(create_dummy_env, with_state=with_state),

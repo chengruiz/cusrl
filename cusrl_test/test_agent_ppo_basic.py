@@ -32,7 +32,7 @@ def test_environment_with_observation_and_state():
 def test_environment_with_multiple_rewards():
     environment = create_dummy_env(reward_dim=2)
     agent_factory = cusrl.preset.ppo.AgentFactory()
-    agent_factory.register_hook(cusrl.hook.AdvantageReduction(), before="AdvantageNormalization")
+    agent_factory.register_hook(cusrl.hook.AdvantageReduction(), before="advantage_normalization")
     cusrl.Trainer(environment=environment, agent_factory=agent_factory, num_iterations=5).run_training_loop()
 
 

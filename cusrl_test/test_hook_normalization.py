@@ -10,7 +10,7 @@ from cusrl_test import create_dummy_env
 
 def train_agent_with_observation_normalization(env, window_size=None, num_iterations=5):
     agent_factory = cusrl.preset.ppo.AgentFactory()
-    agent_factory.register_hook(cusrl.hook.ObservationNormalization(window_size), after="ModuleInitialization")
+    agent_factory.register_hook(cusrl.hook.ObservationNormalization(window_size), after="module_initialization")
     trainer = cusrl.Trainer(env, agent_factory, num_iterations=num_iterations)
     trainer.run_training_loop()
     return trainer.agent
@@ -39,7 +39,7 @@ def test_observation_normalization(environment, window_size):
 def test_observation_normalization_with_symmetry():
     env = create_dummy_env(with_state=True, symmetric=True)
     agent = train_agent_with_observation_normalization(env)
-    hook = agent.hook["ObservationNormalization"]
+    hook = agent.hook["observation_normalization"]
 
     mean = hook.observation_rms.mean
     mirrored_mean = env.spec.mirror_observation(mean)
@@ -70,7 +70,7 @@ def test_observation_normalization_with_observation_is_subset_of_state(env):
     for subset in (slice(0, env.observation_dim), random_indices[: env.observation_dim]):
         env.spec.observation_is_subset_of_state = subset
         agent = train_agent_with_observation_normalization(env)
-        hook = agent.hook["ObservationNormalization"]
+        hook = agent.hook["observation_normalization"]
 
         mean = hook.observation_rms.mean
         sliced_mean = hook.state_rms.mean[subset]
@@ -85,7 +85,7 @@ def test_observation_normalization_with_stat_group():
     env.spec.observation_stat_groups = ((20, 30),)
     env.spec.state_stat_groups = ((0, 10), (30, 40))
     agent = train_agent_with_observation_normalization(env)
-    hook = agent.hook["ObservationNormalization"]
+    hook = agent.hook["observation_normalization"]
 
     for observation_stat_group in env.spec.observation_stat_groups:
         subset = slice(*observation_stat_group)

@@ -10,6 +10,7 @@ from cusrl.template.agent import AgentType
 from cusrl.template.buffer import Buffer
 from cusrl.utils import distributed
 from cusrl.utils.export import GraphBuilder
+from cusrl.utils.helper import camel_to_snake
 from cusrl.utils.typing import NestedTensor
 
 __all__ = ["Hook", "HookComposite"]
@@ -29,12 +30,13 @@ class Hook(Generic[AgentType]):
         """Initializes the hook."""
         self._modules: dict[str, nn.Module | None] = {}
         self._mutable: set[str] = set()
-        self._name: str = self.__class__.__name__
+        self._name: str = camel_to_snake(self.__class__.__name__)
         self.active: bool = True
 
     @property
     def name(self) -> str:
-        """Returns the name of the hook, which is the class name by default."""
+        """Returns the name of the hook, which is the snake case of the class
+        name by default."""
         return self._name
 
     def name_(self, name: str) -> Self:
@@ -318,6 +320,8 @@ class HookComposite(Hook):
         keys = set(state_dict.keys())
         for hook_name, hook in self._named_hooks.items():
             if state := state_dict.get(hook_name):
+                hook.load_state_dict(state)
+            elif state := state_dict.get(hook_name := hook.__class__.__name__):  # For compatibility
                 hook.load_state_dict(state)
             elif hook.state_dict():
                 self.warn(f"Missing state_dict for '{hook.name}'.")

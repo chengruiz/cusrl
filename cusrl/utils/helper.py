@@ -1,5 +1,6 @@
 import os
 import random
+import re
 import sys
 from collections.abc import Mapping
 from dataclasses import MISSING
@@ -18,6 +19,7 @@ __all__ = [
     "import_module",
     "prefix_dict_keys",
     "set_global_seed",
+    "camel_to_snake",
 ]
 
 
@@ -163,3 +165,13 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
 
     CONFIG.seed = seed
     return seed
+
+
+def camel_to_snake(name: str) -> str:
+    """Converts a CamelCase string to snake_case."""
+    if not name:
+        return ""
+
+    s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+    s2 = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", s1)
+    return s2.lower()

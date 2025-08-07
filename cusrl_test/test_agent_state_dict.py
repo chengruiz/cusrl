@@ -11,7 +11,7 @@ agent_factory.register_hook(
         output_dim=16,
         reward_scale=0.1,
     ),
-    before="ValueComputation",
+    before="value_computation",
 )
 agent_factory.register_hook(cusrl.hook.StatePrediction(slice(16, 24)))
 
@@ -62,21 +62,21 @@ def test_load_state_dict_with_mismatched_parameter():
 
 def test_load_state_dict_with_missing_hook():
     state_dict = agent.state_dict()
-    state_dict["hook"].pop("RandomNetworkDistillation")
+    state_dict["hook"].pop("random_network_distillation")
     agent.load_state_dict(state_dict)
-    state_dict["hook"].pop("StatePrediction")
+    state_dict["hook"].pop("state_prediction")
     agent.load_state_dict(state_dict)
 
 
 def test_load_state_dict_with_missing_hook_keys():
     state_dict = agent.state_dict()
-    state_dict["hook"]["RandomNetworkDistillation"].pop("predictor")
+    state_dict["hook"]["random_network_distillation"].pop("predictor")
     agent.load_state_dict(state_dict)
 
 
 def test_load_state_dict_with_mismatched_hook_parameter():
     state_dict = agent.state_dict()
-    state_dict["hook"]["RandomNetworkDistillation"]["predictor"]["layers.0.weight"] = torch.zeros([1])
+    state_dict["hook"]["random_network_distillation"]["predictor"]["layers.0.weight"] = torch.zeros([1])
     agent.load_state_dict(state_dict)
 
 

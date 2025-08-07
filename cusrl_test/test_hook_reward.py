@@ -6,7 +6,7 @@ def test_reward_shaping():
     agent_factory = cusrl.preset.ppo.AgentFactory()
     agent_factory.register_hook(
         cusrl.hook.RewardShaping(lower_bound=-1.0, upper_bound=1.0),
-        before="ValueComputation",
+        before="value_computation",
     )
     cusrl.Trainer(
         create_dummy_env,

@@ -73,7 +73,7 @@ class AgentFactory(ppo.AgentFactory):
         )
         self.register_hook(
             cusrl.hook.RewardShaping(scale=extrinsic_reward_scale),
-            before="ValueComputation",
+            before="value_computation",
         )
         self.register_hook(
             cusrl.hook.AdversarialMotionPrior(
@@ -88,5 +88,5 @@ class AgentFactory(ppo.AgentFactory):
                 loss_weight=amp_loss_weight,
                 grad_penalty_weight=amp_grad_penalty_weight,
             ),
-            after="RewardShaping",
+            after="reward_shaping",
         )
