@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import torch
 from torch import Tensor
@@ -28,6 +28,11 @@ class AdvantageReduction(Hook):
         ValueError: If an invalid reduction method is provided.
     """
 
+    _weight: Tensor | None
+
+    # mutable attributes
+    weight: tuple[float, ...] | None
+
     def __init__(
         self,
         reduction: Literal["sum", "mean"] = "sum",
@@ -38,17 +43,15 @@ class AdvantageReduction(Hook):
 
         super().__init__()
         self.reduction = reduction
-        self.weight: Tensor | None = weight
+        self.weight = None if weight is None else tuple(weight)
 
     def init(self):
-        if self.weight is not None:
-            self.weight = self.agent.to_tensor(self.weight)
+        self._weight = None if self.weight is None else self.agent.to_tensor(self.weight)
 
-    def objective(self, batch: dict[str, Tensor]):
-        if (advantage := batch["advantage"]).size(-1) == 1:
-            return
-        if self.weight is not None:
-            advantage = advantage * self.weight
+    def objective(self, batch):
+        advantage = cast(torch.Tensor, batch["advantage"])
+        if self._weight is not None:
+            advantage = advantage * self._weight
         if self.reduction == "sum":
             advantage = advantage.sum(-1, keepdim=True)
         elif self.reduction == "mean":
@@ -56,6 +59,15 @@ class AdvantageReduction(Hook):
         else:
             raise ValueError(f"Unknown reduction: '{self.reduction}'.")
         batch["advantage"] = advantage
+
+    def update_attribute(self, name: str, value: Any):
+        super().update_attribute(name, value)
+        if name == "weight":
+            if value is None:
+                self.weight = self._weight = None
+            else:
+                self.weight = tuple(value)
+                self._weight = self.agent.to_tensor(self.weight)
 
 
 class AdvantageNormalization(Hook[ActorCritic]):

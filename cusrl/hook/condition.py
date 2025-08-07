@@ -3,7 +3,7 @@ from typing import Any
 
 import torch
 
-from cusrl.template import ActorCritic, Buffer, Hook
+from cusrl.template import ActorCritic, Hook
 
 __all__ = ["ConditionalObjectiveActivation", "EpochIndexCondition"]
 
@@ -44,12 +44,12 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
         self.named_conditions = named_conditions
         self.named_activation = {}
 
-    def pre_update(self, buffer: Buffer):
+    def pre_update(self, buffer):
         # Store the current activation state of the hooks
         for name in self.named_conditions:
             self.named_activation[name] = self.agent.hook[name].active
 
-    def objective(self, batch: dict[str, torch.Tensor]) -> None:
+    def objective(self, batch) -> None:
         for name, condition in self.named_conditions.items():
             self.agent.hook[name].active = self.named_activation[name] and condition(self.agent, batch)
 

@@ -31,8 +31,8 @@ class ActionSmoothnessLoss(Hook):
             tensor matching the action dimension. Defaults to None.
     """
 
-    w1: torch.Tensor | None
-    w2: torch.Tensor | None
+    _weight1: torch.Tensor | None
+    _weight2: torch.Tensor | None
     conv_1st_order: torch.Tensor
     conv_2nd_order: torch.Tensor
 
@@ -50,8 +50,8 @@ class ActionSmoothnessLoss(Hook):
         self.register_mutable("weight_2nd_order", weight_2nd_order)
 
     def init(self):
-        self.w1 = None if self.weight_1st_order is None else self.agent.to_tensor(self.weight_1st_order)
-        self.w2 = None if self.weight_2nd_order is None else self.agent.to_tensor(self.weight_2nd_order)
+        self._weight1 = None if self.weight_1st_order is None else self.agent.to_tensor(self.weight_1st_order)
+        self._weight2 = None if self.weight_2nd_order is None else self.agent.to_tensor(self.weight_2nd_order)
         self.conv_1st_order = self.agent.to_tensor([[[-1.0, 1.0]]])
         self.conv_2nd_order = self.agent.to_tensor([[[-1.0, 2.0, -1.0]]])
 
@@ -65,24 +65,24 @@ class ActionSmoothnessLoss(Hook):
         padded_action, mask = split_and_pad_sequences(action_mean, batch["done"])
         action_sequence = padded_action.permute(1, 2, 0).flatten(0, 1).unsqueeze(1)  # [N * C, 1, T]
         smoothness_loss = None
-        if self.w1 is not None:
+        if self._weight1 is not None:
             smoothness_1st_order = (
                 # convolve at time dimension
                 nn.functional.conv1d(action_sequence, self.conv_1st_order)  # [N * C, 1, T-1]
                 .reshape(*padded_action.shape[1:], -1)  # [N, C, T-1]
                 .permute(2, 0, 1)  # [T-1, N, C]
             )
-            smoothness_1st_order_loss = (self.w1 * smoothness_1st_order[mask[1:]].abs()).mean()
+            smoothness_1st_order_loss = (self._weight1 * smoothness_1st_order[mask[1:]].abs()).mean()
             smoothness_loss = smoothness_1st_order_loss
             self.agent.record(smoothness_1st_order_loss=smoothness_1st_order_loss)
 
-        if self.w2 is not None:
+        if self._weight2 is not None:
             smoothness_2nd_order = (
                 nn.functional.conv1d(action_sequence, self.conv_2nd_order)  # [ N * C, 1, T-2 ]
                 .reshape(*padded_action.shape[1:], -1)  # [N, C, T-2]
                 .permute(2, 0, 1)  # [T-2, N, C]
             )
-            smoothness_loss_2nd_order = (self.w2 * smoothness_2nd_order[mask[2:]].abs()).mean()
+            smoothness_loss_2nd_order = (self._weight2 * smoothness_2nd_order[mask[2:]].abs()).mean()
             smoothness_loss = (
                 smoothness_loss_2nd_order if smoothness_loss is None else smoothness_loss + smoothness_loss_2nd_order
             )
@@ -93,6 +93,6 @@ class ActionSmoothnessLoss(Hook):
     def update_attribute(self, name, value):
         super().update_attribute(name, value)
         if name == "weight_1st_order":
-            self.w1 = None if value is None else self.agent.to_tensor(value)
+            self._weight1 = None if value is None else self.agent.to_tensor(value)
         elif name == "weight_2nd_order":
-            self.w2 = None if value is None else self.agent.to_tensor(value)
+            self._weight2 = None if value is None else self.agent.to_tensor(value)

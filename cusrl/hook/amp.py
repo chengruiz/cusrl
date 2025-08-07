@@ -132,7 +132,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         cast(torch.Tensor, transition["reward"]).add_(style_reward)
         self.agent.record(amp_reward=style_reward)
 
-    def objective(self, batch: dict) -> torch.Tensor:
+    def objective(self, batch) -> torch.Tensor:
         agent_transition = batch["agent_transition"].flatten(0, -2)
         expert_transition = batch["expert_transition"].flatten(0, -2)
         if self.batch_size is not None:
