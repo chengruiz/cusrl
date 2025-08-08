@@ -419,7 +419,7 @@ class SigTanhGate(Gate):
         return x + sigmoid_gate * tanh_activation
 
 
-class GRUGate(Gate):
+class GruGate(Gate):
     r"""A Gated Recurrent Unit (GRU)-inspired gate.
 
     Described in:
@@ -468,7 +468,7 @@ GateType = Literal[
 
 gate_map = {
     None: PassthroughGate,
-    "gru": GRUGate,
+    "gru": GruGate,
     "highway": HighwayGate,
     "input": InputGate,
     "output": OutputGate,

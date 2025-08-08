@@ -5,6 +5,8 @@ import torch
 from torch import nn
 from torch.optim import Optimizer
 
+from cusrl.utils.helper import from_dict
+
 __all__ = ["OptimizerFactory"]
 
 
@@ -41,7 +43,7 @@ class OptimizerFactory:
         defaults: dict[str, Any] | None = None,
         **optim_groups: dict[str, Any],
     ):
-        self.cls: type[Optimizer] = getattr(torch.optim, cls) if isinstance(cls, str) else cls
+        self.cls = cls
         self.defaults = defaults or {}
 
         optim_groups[""] = self.defaults
@@ -49,6 +51,7 @@ class OptimizerFactory:
         self.optim_groups = dict(sorted(optim_groups.items(), key=lambda x: len(x[0]), reverse=True))
 
     def __call__(self, named_parameters: Iterable[tuple[str, nn.Parameter]]) -> Optimizer:
+        optim_cls: type[Optimizer] = getattr(torch.optim, self.cls) if isinstance(self.cls, str) else self.cls
         param_groups = {}
         for name, param in named_parameters:
             if not param.requires_grad:
@@ -60,7 +63,7 @@ class OptimizerFactory:
                 param_groups[prefix] = param_group
             param_group["param_names"].append(name)
             param_group["params"].append(param)
-        return self.cls(param_groups.values(), **self.defaults)
+        return optim_cls(param_groups.values(), **self.defaults)
 
     def _match_prefix(self, name):
         matched_prefix = ""
@@ -74,7 +77,13 @@ class OptimizerFactory:
         optim_groups = self.optim_groups.copy()
         optim_groups.pop("")
         return {
-            "cls": self.cls.__name__,
+            "cls": self.cls,
             "defaults": self.defaults,
             "optim_groups": optim_groups,
         }
+
+    def from_dict(self, data: dict[str, Any]) -> "OptimizerFactory":
+        cls = data["cls"]
+        defaults = data.get("defaults", {})
+        optim_groups = data.get("optim_groups", {})
+        return OptimizerFactory(cls, defaults=defaults, **optim_groups)

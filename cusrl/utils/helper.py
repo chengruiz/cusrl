@@ -1,25 +1,28 @@
+import importlib
 import os
 import random
 import re
 import sys
 from collections import OrderedDict
 from collections.abc import Mapping
-from dataclasses import MISSING, dataclass, fields, is_dataclass
+from dataclasses import MISSING, fields, is_dataclass
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from typing import Any, TypeVar, overload
 
 import numpy as np
 import torch
-from torch import nn
 
 from cusrl.utils import CONFIG, distributed
+from cusrl.utils.nest import flatten_nested, zip_nested
 from cusrl.utils.typing import ListOrTuple
 
 __all__ = [
     "camel_to_snake",
     "format_float",
+    "from_dict",
     "get_or",
     "import_module",
+    "load_type",
     "prefix_dict_keys",
     "set_global_seed",
     "to_dict",
@@ -49,9 +52,36 @@ def format_float(number, width):
     return " " + string[:-1]
 
 
-def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:
-    """Adds a prefix to all keys in the dictionary."""
-    return {f"{prefix}{key}": value for key, value in data.items()}
+def from_dict(obj, data: dict[str, Any] | Any) -> Any:
+    if hasattr(obj, "from_dict"):
+        data = from_dict(to_dict(obj), data)
+        data.pop("__class__", None)
+        return obj.from_dict(data)
+    if isinstance(data, dict) and data.get("__class__") == "<class 'slice'>":
+        return slice(data["start"], data["stop"], data["step"])
+    if isinstance(data, str) and (match := re.match(r"<class '([^']+)'>", data)):
+        return load_type(match.group(1))
+    if not isinstance(obj_dict := to_dict(obj), dict):
+        return data
+    for key, (value1, value2) in zip_nested(obj_dict, data, max_depth=1):
+        # Simple but not efficient check for equality
+        if flatten_nested(value1) == flatten_nested(value2):
+            continue
+        if key == "__class__":
+            raise ValueError("Type modification is not supported yet.")
+        if hasattr(obj, key):
+            setattr(obj, key, from_dict(getattr(obj, key), value2))
+        elif isinstance(obj, dict):
+            obj[key] = from_dict(obj[key], value2)
+        elif isinstance(obj, list):
+            index = int(key)
+            obj[index] = from_dict(obj[index], value2)
+        elif isinstance(obj, tuple):
+            index = int(key)
+            obj = obj[:index] + (from_dict(obj[index], value2),) + obj[index + 1 :]
+        else:
+            raise AttributeError(f"Object '{type(obj).__name__}' has no attribute '{key}'.")
+    return obj
 
 
 @overload
@@ -75,9 +105,8 @@ def import_module(
     path: str | None = None,
     args: ListOrTuple[str] | None = None,
 ):
-    """
-    Dynamically imports a Python module by name or from a file path, optionally
-    passing arguments.
+    """Imports a Python module by name or from a file path dynamically,
+    optionally passing arguments.
 
     Args:
         module_name (str | None, optional):
@@ -110,6 +139,10 @@ def import_module(
         raise ValueError("'module_name' and 'path' cannot be both specified.")
 
     if module_name is not None:
+        # Check if module is already imported to avoid re-import conflicts
+        if module_name in sys.modules:
+            return sys.modules[module_name]
+
         module_spec = find_spec(module_name, package=package)
         if module_spec is None:
             raise ImportError(f"Module '{module_name}' not found.")
@@ -117,6 +150,9 @@ def import_module(
         if not os.path.exists(path):
             raise FileNotFoundError(f"Path '{path}' does not exist.")
         module_name = os.path.basename(path).removesuffix(".py")
+        if module_name in sys.modules:
+            return sys.modules[module_name]
+
         module_spec = spec_from_file_location(module_name, path)
         if module_spec is None:
             raise ImportError(f"Module '{path}' not found.")
@@ -137,6 +173,39 @@ def import_module(
         sys.argv[:] = original_argv
 
     return module
+
+
+def load_type(full_name: str) -> type:
+    """Loads a type by its module and class names.
+
+    Args:
+        name (str):
+            The fully qualified name of the type (e.g., "torch.nn.Linear").
+
+    Returns:
+        type:
+            The resolved type object.
+
+    Raises:
+        ImportError:
+            If the specified type cannot be found.
+    """
+    if not "." in full_name:
+        module_name, class_name = "builtins", full_name
+    else:
+        module_name, class_name = full_name.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    if module is None:
+        raise ImportError(f"Module '{module_name}' not found.")
+    cls = getattr(module, class_name, None)
+    if cls is None:
+        raise ImportError(f"Class '{class_name}' not found in module '{module_name}'.")
+    return cls
+
+
+def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:
+    """Adds a prefix to all keys in the dictionary."""
+    return {f"{prefix}{key}": value for key, value in data.items()}
 
 
 def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
@@ -180,32 +249,22 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
     return seed
 
 
-@dataclass
-class Slice:
-    start: int
-    step: int
-    stop: int
-
-    def to_native(self) -> slice:
-        return slice(self.start, self.stop, self.step)
-
-
-def to_dict(obj, includes_type: bool = True) -> dict[str, Any] | Any:
+def to_dict(obj, includes_class: bool = True) -> dict[str, Any] | Any:
     """Converts an object to a dictionary representation."""
     if hasattr(obj, "to_dict"):
         obj_dict = obj.to_dict()
 
     # If the object is not a dictorionary-convertable object
     elif isinstance(obj, (list, tuple)):
-        return type(obj)(to_dict(item, includes_type=includes_type) for item in obj)
-    elif isinstance(obj, slice):
-        return to_dict(Slice(obj.start, obj.step, obj.stop), includes_type=includes_type)
-    elif isinstance(obj, type) and issubclass(obj, nn.Module):
-        return f"{obj.__module__}.{obj.__name__}"
+        return type(obj)(to_dict(item, includes_class=includes_class) for item in obj)
+    elif isinstance(obj, type):
+        return str(obj)
     elif isinstance(obj, (str, int, float, bool, type(None))):
         return obj
 
-    elif is_dataclass(obj) and not isinstance(obj, type):
+    elif isinstance(obj, slice):
+        obj_dict = {"start": obj.start, "stop": obj.stop, "step": obj.step}
+    elif is_dataclass(obj):
         obj_dict = {f.name: getattr(obj, f.name) for f in fields(obj)}
     elif isinstance(obj, Mapping):
         obj_dict = dict(**obj)
@@ -214,8 +273,7 @@ def to_dict(obj, includes_type: bool = True) -> dict[str, Any] | Any:
     else:
         obj_dict = {"__str__": str(obj)}
 
-    obj_dict = {key: to_dict(value, includes_type=includes_type) for key, value in obj_dict.items()}
-    obj_type = type(obj)
-    if includes_type and not isinstance(obj, (dict, OrderedDict)):
-        obj_dict = {"__type__": f"{obj_type.__module__}.{obj_type.__name__}"} | obj_dict
+    obj_dict = {key: to_dict(value, includes_class=includes_class) for key, value in obj_dict.items()}
+    if includes_class and not isinstance(obj, (dict, OrderedDict)):
+        obj_dict = {"__class__": str(type(obj))} | obj_dict
     return obj_dict

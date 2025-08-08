@@ -58,3 +58,6 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
 
     def to_dict(self) -> dict[str, Any]:
         return {}
+
+    def from_dict(self, data: dict[str, Any]):
+        return self

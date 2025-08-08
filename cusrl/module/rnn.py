@@ -1,4 +1,4 @@
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import torch
 from torch import nn
@@ -36,8 +36,16 @@ class RnnFactory(ModuleFactory["Rnn"]):
         module_cls = getattr(nn, self.module_cls) if isinstance(self.module_cls, str) else self.module_cls
         return Rnn(module_cls, input_size=input_dim, output_dim=output_dim, **self.kwargs)
 
+    def __getattr__(self, item):
+        if item in (kwargs := super().__getattribute__("kwargs")):
+            return kwargs[item]
+        raise AttributeError(f"Object '{type(self).__name__}' has no attribute '{item}'.")
+
     def to_dict(self):
         return {"module_cls": self.module_cls, **self.kwargs}
+
+    def from_dict(self, data: dict[str, Any]):
+        return RnnFactory(**data)
 
 
 class Rnn(Module):
@@ -168,8 +176,16 @@ class LstmFactory(ModuleFactory["Lstm"]):
     def __call__(self, input_dim: int, output_dim: int | None = None):
         return Lstm(input_size=input_dim, output_dim=output_dim, **self.kwargs)
 
+    def __getattr__(self, item):
+        if item in (kwargs := super().__getattribute__("kwargs")):
+            return kwargs[item]
+        raise AttributeError(f"Object '{type(self).__name__}' has no attribute '{item}'.")
+
     def to_dict(self):
         return self.kwargs
+
+    def from_dict(self, data: dict[str, Any]):
+        return LstmFactory(**data)
 
 
 class Lstm(Rnn):
@@ -199,8 +215,16 @@ class GruFactory(ModuleFactory["Gru"]):
     def __call__(self, input_dim: int, output_dim: int | None = None):
         return Gru(input_size=input_dim, output_dim=output_dim, **self.kwargs)
 
+    def __getattr__(self, item):
+        if item in (kwargs := super().__getattribute__("kwargs")):
+            return kwargs[item]
+        raise AttributeError(f"Object '{type(self).__name__}' has no attribute '{item}'.")
+
     def to_dict(self):
         return self.kwargs
+
+    def from_dict(self, data: dict[str, Any]):
+        return GruFactory(**data)
 
 
 class Gru(Rnn):
