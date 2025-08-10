@@ -44,9 +44,6 @@ class RnnFactory(ModuleFactory["Rnn"]):
     def to_dict(self):
         return {"module_cls": self.module_cls, **self.kwargs}
 
-    def from_dict(self, data: dict[str, Any]):
-        return RnnFactory(**data)
-
 
 class Rnn(Module):
     """A generic wrapper for recurrent neural networks (RNNs).
@@ -157,35 +154,16 @@ class Rnn(Module):
 
 
 class LstmFactory(ModuleFactory["Lstm"]):
-    def __init__(
-        self,
-        hidden_size: int,
-        num_layers: int = 1,
-        bias: bool = True,
-        dropout: float = 0.0,
-        **kwargs,
-    ):
-        self.kwargs = {
-            "hidden_size": hidden_size,
-            "num_layers": num_layers,
-            "bias": bias,
-            "dropout": dropout,
-            **kwargs,
-        }
+    def __init__(self, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, **kwargs):
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.bias = bias
+        self.dropout = dropout
+        for name, value in kwargs.items():
+            setattr(self, name, value)
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Lstm(input_size=input_dim, output_dim=output_dim, **self.kwargs)
-
-    def __getattr__(self, item):
-        if item in (kwargs := super().__getattribute__("kwargs")):
-            return kwargs[item]
-        raise AttributeError(f"Object '{type(self).__name__}' has no attribute '{item}'.")
-
-    def to_dict(self):
-        return self.kwargs
-
-    def from_dict(self, data: dict[str, Any]):
-        return LstmFactory(**data)
+        return Lstm(input_size=input_dim, output_dim=output_dim, **self.__dict__)
 
 
 class Lstm(Rnn):
@@ -196,35 +174,16 @@ class Lstm(Rnn):
 
 
 class GruFactory(ModuleFactory["Gru"]):
-    def __init__(
-        self,
-        hidden_size: int,
-        num_layers: int = 1,
-        bias: bool = True,
-        dropout: float = 0.0,
-        **kwargs,
-    ):
-        self.kwargs = {
-            "hidden_size": hidden_size,
-            "num_layers": num_layers,
-            "bias": bias,
-            "dropout": dropout,
-            **kwargs,
-        }
+    def __init__(self, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, **kwargs):
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.bias = bias
+        self.dropout = dropout
+        for name, value in kwargs.items():
+            setattr(self, name, value)
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Gru(input_size=input_dim, output_dim=output_dim, **self.kwargs)
-
-    def __getattr__(self, item):
-        if item in (kwargs := super().__getattribute__("kwargs")):
-            return kwargs[item]
-        raise AttributeError(f"Object '{type(self).__name__}' has no attribute '{item}'.")
-
-    def to_dict(self):
-        return self.kwargs
-
-    def from_dict(self, data: dict[str, Any]):
-        return GruFactory(**data)
+        return Gru(input_size=input_dim, output_dim=output_dim, **self.__dict__)
 
 
 class Gru(Rnn):

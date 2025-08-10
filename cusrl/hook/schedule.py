@@ -63,7 +63,7 @@ class HookActivationSchedule(Hook[ActorCritic]):
         self.name_(f"{hook_name}_activation_schedule")
 
     def apply_schedule(self, iteration: int):
-        self.agent.hook[self.hook_name].active = self.schedule(iteration)
+        self.agent.hook[self.hook_name].active_(self.schedule(iteration))
 
 
 class OnPolicyBufferCapacitySchedule(Hook[ActorCritic]):

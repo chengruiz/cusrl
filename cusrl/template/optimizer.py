@@ -79,11 +79,5 @@ class OptimizerFactory:
         return {
             "cls": self.cls,
             "defaults": self.defaults,
-            "optim_groups": optim_groups,
+            **optim_groups,
         }
-
-    def from_dict(self, data: dict[str, Any]) -> "OptimizerFactory":
-        cls = data["cls"]
-        defaults = data.get("defaults", {})
-        optim_groups = data.get("optim_groups", {})
-        return OptimizerFactory(cls, defaults=defaults, **optim_groups)

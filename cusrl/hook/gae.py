@@ -86,7 +86,7 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         self.register_mutable("lamda_value", lamda_value)
         self.recompute = recompute
         self.popart_alpha = popart_alpha
-        self.value_rms: ExponentialMovingNormalizer | None = None
+        self.value_rms: ExponentialMovingNormalizer | None
 
     def init(self):
         if self.popart_alpha is not None:
@@ -94,6 +94,8 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             self.agent.critic.value_rms = self.agent.setup_module(
                 ExponentialMovingNormalizer(self.agent.value_dim, self.popart_alpha)
             )
+        else:
+            self.value_rms = None
 
     def pre_update(self, buffer):
         if not self.recompute:

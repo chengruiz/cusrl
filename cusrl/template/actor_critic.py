@@ -22,18 +22,15 @@ class HookList(list[Hook]):
     def to_dict(self):
         return {hook.name: hook for hook in self}
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Hook]) -> "HookList":
+        return cls(hook.name_(name) for name, hook in data.items())
+
     def __getattr__(self, name: str) -> Any:
         for hook in self:
             if hook.name == name:
                 return hook
         raise AttributeError(f"'{type(name).__name__}' object has no attribute '{name}'.")
-
-    def __setattr__(self, name: str, value: Any):
-        for i, hook in enumerate(self):
-            if hook.name == name:
-                self[i] = value
-                return
-        return super().__setattr__(name, value)
 
 
 class ActorCriticFactory(AgentFactory["ActorCritic"]):

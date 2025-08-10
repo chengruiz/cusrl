@@ -53,7 +53,4 @@ class GradientClipping(Hook):
     def to_dict(self):
         groups = self.groups.copy()
         max_grad_norm = groups.pop("")
-        return {"max_grad_norm": max_grad_norm, "groups": groups}
-
-    def from_dict(self, data: dict[str, Any]):
-        return GradientClipping(data.get("max_grad_norm", 1.0), **data["groups"])
+        return {"max_grad_norm": max_grad_norm, **groups}

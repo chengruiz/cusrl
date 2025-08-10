@@ -31,13 +31,18 @@ class Hook(Generic[AgentType]):
         self._modules: dict[str, nn.Module | None] = {}
         self._mutable: set[str] = set()
         self._name: str = camel_to_snake(self.__class__.__name__)
-        self.active: bool = True
+        self._active: bool = True
 
     @property
     def name(self) -> str:
         """Returns the name of the hook, which is the snake case of the class
         name by default."""
         return self._name
+
+    @property
+    def active(self) -> bool:
+        """Returns whether the hook is active."""
+        return self._active
 
     def name_(self, name: str) -> Self:
         """Overrides the default name of the hook.
@@ -46,6 +51,15 @@ class Hook(Generic[AgentType]):
             name (str): The new name for the hook.
         """
         self._name = name
+        return self
+
+    def active_(self, active: bool) -> Self:
+        """Overrides the default active state of the hook.
+
+        Args:
+            active (bool): The new active state for the hook.
+        """
+        self._active = active
         return self
 
     def register_module(self, name: str, module: nn.Module | None):

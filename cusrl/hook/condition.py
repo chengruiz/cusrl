@@ -49,15 +49,9 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
 
     def objective(self, batch) -> None:
         for name, condition in self.named_conditions.items():
-            self.agent.hook[name].active = self.named_activation[name] and condition(self.agent, batch)
+            self.agent.hook[name].active_(self.named_activation[name] and condition(self.agent, batch))
 
     def post_update(self):
         # Restore the activation state of the hooks
         for name in self.named_conditions:
-            self.agent.hook[name].active = self.named_activation[name]
-
-    def to_dict(self) -> dict[str, Any]:
-        return {}
-
-    def from_dict(self, data: dict[str, Any]):
-        return self
+            self.agent.hook[name].active_(self.named_activation[name])

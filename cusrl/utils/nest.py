@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterator, Mapping
+from dataclasses import MISSING
 from typing import TypeVar, overload
 
 from cusrl.utils.typing import ListOrTuple, Nested
@@ -252,7 +253,7 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Ne
 
 
 def zip_nested(
-    *args: Nested[_T],
+    *args: Nested[object],
     prefix: str = "",
     max_depth: int | None = None,
 ) -> Iterator[tuple[str, tuple[object, ...]]]:
@@ -314,14 +315,14 @@ def zip_nested(
         max_depth -= 1
 
     flat_args = [flatten_nested(arg, max_depth=1) for arg in args]
-    arg_keys = [set(flat_arg.keys()) for flat_arg in flat_args]
-    if arg_keys[0] == {""} or not all(keys == arg_keys[0] for keys in arg_keys[1:]):
+    if any(arg is MISSING for arg in flat_args):
         yield prefix, tuple(args)
         return
 
-    for path in flat_args[0]:
+    arg_keys = set().union(*(d.keys() for d in flat_args))
+    for key in arg_keys:
         yield from zip_nested(
-            *[flat_arg[path] for flat_arg in flat_args],
-            prefix=f"{prefix}.{path}" if prefix else path,
+            *[flat_arg.get(key, MISSING) for flat_arg in flat_args],
+            prefix=f"{prefix}.{key}" if prefix else key,
             max_depth=max_depth,
         )

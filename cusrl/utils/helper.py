@@ -22,7 +22,7 @@ __all__ = [
     "from_dict",
     "get_or",
     "import_module",
-    "load_type",
+    "import_obj",
     "prefix_dict_keys",
     "set_global_seed",
     "to_dict",
@@ -53,35 +53,70 @@ def format_float(number, width):
 
 
 def from_dict(obj, data: dict[str, Any] | Any) -> Any:
-    if hasattr(obj, "from_dict"):
-        data = from_dict(to_dict(obj), data)
-        data.pop("__class__", None)
-        return obj.from_dict(data)
-    if isinstance(data, dict) and data.get("__class__") == "<class 'slice'>":
-        return slice(data["start"], data["stop"], data["step"])
-    if isinstance(data, str) and (match := re.match(r"<class '([^']+)'>", data)):
-        return load_type(match.group(1))
-    if not isinstance(obj_dict := to_dict(obj), dict):
+    if data is MISSING:
+        return MISSING
+    if isinstance(data, str):
+        if cls := parse_class(data):
+            return cls
         return data
-    for key, (value1, value2) in zip_nested(obj_dict, data, max_depth=1):
-        # Simple but not efficient check for equality
-        if flatten_nested(value1) == flatten_nested(value2):
-            continue
-        if key == "__class__":
-            raise ValueError("Type modification is not supported yet.")
-        if hasattr(obj, key):
-            setattr(obj, key, from_dict(getattr(obj, key), value2))
-        elif isinstance(obj, dict):
-            obj[key] = from_dict(obj[key], value2)
-        elif isinstance(obj, list):
-            index = int(key)
-            obj[index] = from_dict(obj[index], value2)
-        elif isinstance(obj, tuple):
-            index = int(key)
-            obj = obj[:index] + (from_dict(obj[index], value2),) + obj[index + 1 :]
+    if isinstance(data, (int, float, bool, type(None))):
+        return data
+
+    if obj is None:
+        if isinstance(data, (list, tuple)):
+            data = type(data)(from_dict(None, item) for item in data)
+        elif isinstance(data, dict):
+            data = {key: from_dict(None, value) for key, value in data.items()}
         else:
-            raise AttributeError(f"Object '{type(obj).__name__}' has no attribute '{key}'.")
-    return obj
+            raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+    else:
+        for key, (current_value_dict, updated_value_dict) in zip_nested(to_dict(obj), data, max_depth=1):
+            if hasattr(obj, key):
+                current_value = getattr(obj, key)
+            elif isinstance(obj, dict):
+                current_value = obj.get(key, None)
+            elif isinstance(obj, (list, tuple)):
+                index = int(key)
+                current_value = obj[index] if index < len(obj) else None
+            else:
+                current_value = None
+
+            # Checks for equality
+            if flatten_nested(current_value_dict) == flatten_nested(updated_value_dict):
+                # Keeps the current value retrieved from the object
+                if isinstance(data, dict):
+                    data[key] = current_value
+                elif isinstance(data, (list, tuple)):
+                    data = type(data)([data[: int(key)], current_value, *data[int(key) + 1 :]])
+                else:
+                    raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+                continue
+
+            updated_value = from_dict(current_value, updated_value_dict)
+            if isinstance(data, dict):
+                if updated_value is not MISSING:
+                    data[key] = updated_value
+                else:
+                    data.pop(key, None)
+            elif isinstance(data, (list, tuple)):
+                if updated_value is not MISSING:
+                    data = type(data)([*data[: int(key)], updated_value, *data[int(key) + 1 :]])
+                else:
+                    data = type(data)([*data[: int(key)], *data[int(key) + 1 :]])
+            else:
+                raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+
+    if isinstance(data, dict) and (cls := data.pop("__class__", None)):
+        if not isinstance(cls, type):
+            raise ValueError(f"Class '{data}' is not correctly parsed.")
+        if cls is slice:
+            return slice(data["start"], data["stop"], data["step"])
+        if cls is torch.device:
+            return torch.device(data["__str__"])
+        if hasattr(cls, "from_dict"):
+            return cls.from_dict(data)
+        return cls(**data)
+    return data
 
 
 @overload
@@ -175,20 +210,20 @@ def import_module(
     return module
 
 
-def load_type(full_name: str) -> type:
-    """Loads a type by its module and class names.
+def import_obj(full_name: str) -> Any:
+    """Imports an object from a fully qualified name (e.g. 'module.Class').
 
     Args:
-        name (str):
-            The fully qualified name of the type (e.g., "torch.nn.Linear").
+        full_name (str):
+            The fully qualified name of the object to import.
 
     Returns:
-        type:
-            The resolved type object.
+        Any:
+            The imported object.
 
     Raises:
         ImportError:
-            If the specified type cannot be found.
+            If the module or class cannot be found.
     """
     if not "." in full_name:
         module_name, class_name = "builtins", full_name
@@ -199,8 +234,26 @@ def load_type(full_name: str) -> type:
         raise ImportError(f"Module '{module_name}' not found.")
     cls = getattr(module, class_name, None)
     if cls is None:
-        raise ImportError(f"Class '{class_name}' not found in module '{module_name}'.")
+        raise ImportError(f"'{class_name}' not found in module '{module_name}'.")
     return cls
+
+
+def parse_class(name: str) -> type | None:
+    """Parses a class from its string representation (e.g.
+    "<class 'module.Class'>").
+
+    Args:
+        name (str):
+            The string representation of the class.
+
+    Returns:
+        type | None:
+            The parsed class type, or None if the string is not a class.
+    """
+    if match := re.match(r"<class '([^']+)'>", name):
+        class_name = match.group(1)
+        return import_obj(class_name)
+    return None
 
 
 def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:
@@ -249,14 +302,14 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
     return seed
 
 
-def to_dict(obj, includes_class: bool = True) -> dict[str, Any] | Any:
+def to_dict(obj) -> dict[str, Any] | Any:
     """Converts an object to a dictionary representation."""
     if hasattr(obj, "to_dict"):
         obj_dict = obj.to_dict()
 
     # If the object is not a dictorionary-convertable object
     elif isinstance(obj, (list, tuple)):
-        return type(obj)(to_dict(item, includes_class=includes_class) for item in obj)
+        return type(obj)(to_dict(item) for item in obj)
     elif isinstance(obj, type):
         return str(obj)
     elif isinstance(obj, (str, int, float, bool, type(None))):
@@ -273,7 +326,7 @@ def to_dict(obj, includes_class: bool = True) -> dict[str, Any] | Any:
     else:
         obj_dict = {"__str__": str(obj)}
 
-    obj_dict = {key: to_dict(value, includes_class=includes_class) for key, value in obj_dict.items()}
-    if includes_class and not isinstance(obj, (dict, OrderedDict)):
+    obj_dict = {key: to_dict(value) for key, value in obj_dict.items()}
+    if not isinstance(obj, dict):
         obj_dict = {"__class__": str(type(obj))} | obj_dict
     return obj_dict
