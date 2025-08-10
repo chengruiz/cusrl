@@ -1,6 +1,7 @@
 import argparse
 import importlib
 from collections.abc import Sequence
+from dataclasses import MISSING, dataclass, fields
 from typing import Any, cast
 
 import gymnasium as gym
@@ -8,9 +9,15 @@ import torch
 
 import cusrl.utils
 from cusrl.template import Environment
+from cusrl.utils.helper import from_dict, to_dict
 from cusrl.utils.typing import Slice
 
-__all__ = ["IsaacLabEnvAdapter", "IsaacLabEnvLauncher", "make_isaaclab_env"]
+__all__ = [
+    "IsaacLabEnvAdapter",
+    "IsaacLabEnvLauncher",
+    "TrainerCfg",
+    "make_isaaclab_env",
+]
 
 
 class IsaacLabEnvAdapter(Environment[torch.Tensor]):
@@ -162,3 +169,32 @@ def make_isaaclab_env(
         ids.insert(-1, "Play")
         id = "-".join(ids)
     return IsaacLabEnvLauncher(id, argv, **kwargs)
+
+
+@dataclass
+class TrainerCfg:
+    max_iterations: int = MISSING
+    save_interval: int = MISSING
+    experiment_name: str = MISSING
+    agent_factory: cusrl.template.Agent.Factory = MISSING
+
+    def __post_init__(self):
+        setattr(type(self), "to_dict", _configclass_to_dict)
+        setattr(type(self), "from_dict", _configclass_update_from_dict)
+
+
+def _configclass_to_dict(obj):
+    obj_type = type(obj)
+    delattr(obj_type, "to_dict")
+    data = to_dict(obj)
+    setattr(obj_type, "to_dict", _configclass_to_dict)
+    return data
+
+
+def _configclass_update_from_dict(obj, data):
+    obj_type = type(obj)
+    delattr(obj_type, "from_dict")
+    updated_obj = from_dict(obj, data)
+    for field in fields(obj):
+        setattr(obj, field.name, getattr(updated_obj, field.name))
+    setattr(obj_type, "from_dict", _configclass_update_from_dict)
