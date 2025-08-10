@@ -6,11 +6,11 @@ from torch import nn
 from typing_extensions import Self
 
 import cusrl
+from cusrl.module import GraphBuilder
 from cusrl.template.agent import AgentType
 from cusrl.template.buffer import Buffer
 from cusrl.utils import distributed
-from cusrl.utils.export import GraphBuilder
-from cusrl.utils.helper import camel_to_snake
+from cusrl.utils.str_utils import camel_to_snake
 from cusrl.utils.typing import NestedTensor
 
 __all__ = ["Hook", "HookComposite"]

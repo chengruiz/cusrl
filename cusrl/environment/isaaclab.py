@@ -9,7 +9,7 @@ import torch
 
 import cusrl.utils
 from cusrl.template import Environment
-from cusrl.utils.helper import from_dict, to_dict
+from cusrl.utils import from_dict, to_dict
 from cusrl.utils.typing import Slice
 
 __all__ = [

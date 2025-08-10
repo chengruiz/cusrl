@@ -15,8 +15,9 @@ from cusrl.template.environment import Environment, get_done_indices, update_obs
 from cusrl.template.logger import LoggerFactoryLike
 from cusrl.template.trial import Trial
 from cusrl.utils import CONFIG, Timer, distributed, is_main_process
-from cusrl.utils.helper import format_float, prefix_dict_keys
+from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.nest import flatten_nested
+from cusrl.utils.str_utils import format_float
 from cusrl.utils.typing import Slice
 
 __all__ = ["Trainer"]

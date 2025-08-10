@@ -4,9 +4,9 @@ import numpy as np
 import torch
 
 from cusrl.hook.symmetry import SymmetryDef
+from cusrl.module import GraphBuilder, RunningMeanStd
+from cusrl.module.normalizer import mean_var_count
 from cusrl.template import ActorCritic, Hook
-from cusrl.utils import RunningMeanStd, mean_var_count
-from cusrl.utils.export import GraphBuilder
 from cusrl.utils.typing import Slice
 
 __all__ = ["ObservationNormalization"]

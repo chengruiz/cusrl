@@ -3,7 +3,7 @@ import pickle
 from typing import Optional
 
 import cusrl
-from cusrl.utils.helper import import_module
+from cusrl.utils.misc import import_module
 
 __all__ = [
     "import_module_from_args",

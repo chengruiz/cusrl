@@ -5,10 +5,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from cusrl.module import Module, ModuleFactoryLike
+from cusrl.module import Module, ModuleFactoryLike, RunningMeanStd
 from cusrl.template import ActorCritic, Hook
-from cusrl.utils.helper import get_or
-from cusrl.utils.normalizer import RunningMeanStd
+from cusrl.utils.dict_utils import get_first
 from cusrl.utils.typing import Array, Slice
 
 __all__ = ["AdversarialMotionPrior"]
@@ -112,8 +111,8 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             if self.state_indices is None:
                 raise ValueError("AMP observation is not provided and indices are not specified.")
 
-            state = cast(torch.Tensor, get_or(transition, "state", "observation"))
-            next_state = cast(torch.Tensor, get_or(transition, "next_state", "next_observation"))
+            state = cast(torch.Tensor, get_first(transition, "state", "observation"))
+            next_state = cast(torch.Tensor, get_first(transition, "next_state", "next_observation"))
             amp_state = state[..., self.state_indices]
             amp_next_state = next_state[..., self.state_indices]
             agent_transition = torch.cat([amp_state, amp_next_state], dim=-1)

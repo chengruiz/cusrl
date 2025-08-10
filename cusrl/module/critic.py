@@ -4,8 +4,9 @@ import torch
 from torch import nn
 
 from cusrl.module.module import Module, ModuleFactory, ModuleFactoryLike
-from cusrl.utils import RunningMeanStd, make_distributed
-from cusrl.utils.helper import prefix_dict_keys
+from cusrl.module.normalizer import RunningMeanStd
+from cusrl.utils import make_distributed
+from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = ["Value"]

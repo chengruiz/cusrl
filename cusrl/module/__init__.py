@@ -9,10 +9,12 @@ from .distribution import (
     NormalDist,
     OneHotCategoricalDist,
 )
+from .export import GraphBuilder
 from .inference import InferenceModule
 from .mlp import Mlp
 from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
 from .normalization import Denormalization, Normalization
+from .normalizer import ExponentialMovingNormalizer, RunningMeanStd
 from .rnn import Gru, Lstm, Rnn
 from .sequential import Sequential
 from .simba import Simba
@@ -21,7 +23,9 @@ __all__ = [
     # Simple modules
     "Cnn",
     "Denormalization",
+    "ExponentialMovingNormalizer",
     "FeedForward",
+    "GraphBuilder",
     "Gru",
     "InferenceModule",
     "LayerFactoryLike",
@@ -33,6 +37,7 @@ __all__ = [
     "MultiheadSelfAttention",
     "Normalization",
     "Rnn",
+    "RunningMeanStd",
     "Sequential",
     "Simba",
     "TransformerEncoderLayer",

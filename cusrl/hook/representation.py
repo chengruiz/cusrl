@@ -1,9 +1,8 @@
 import torch
 from torch import nn
 
-from cusrl.module import LayerFactoryLike
+from cusrl.module import GraphBuilder, LayerFactoryLike
 from cusrl.template import ActorCritic, Hook
-from cusrl.utils.export import GraphBuilder
 from cusrl.utils.typing import Slice
 
 __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]

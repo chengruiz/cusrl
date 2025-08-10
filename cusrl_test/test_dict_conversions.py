@@ -1,7 +1,7 @@
 import torch
 
 import cusrl
-from cusrl.utils.helper import from_dict, to_dict
+from cusrl.utils import from_dict, to_dict
 
 
 def test_dict_conversions():

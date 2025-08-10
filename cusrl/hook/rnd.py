@@ -6,7 +6,7 @@ from torch import nn
 
 from cusrl.module import Module, ModuleFactoryLike
 from cusrl.template import Buffer, Hook
-from cusrl.utils.helper import get_or
+from cusrl.utils.dict_utils import get_first
 from cusrl.utils.typing import Slice
 
 __all__ = ["RandomNetworkDistillation"]
@@ -65,7 +65,7 @@ class RandomNetworkDistillation(Hook):
 
     @torch.no_grad()
     def pre_update(self, buffer: Buffer):
-        next_state = cast(torch.Tensor, get_or(buffer, "next_state", "next_observation"))[..., self.state_indices]
+        next_state = cast(torch.Tensor, get_first(buffer, "next_state", "next_observation"))[..., self.state_indices]
         target, prediction = self.target(next_state), self.predictor(next_state)
         rnd_reward = self.reward_scale * (target - prediction).square().mean(dim=-1, keepdim=True)
         cast(torch.Tensor, buffer["reward"]).add_(rnd_reward)
@@ -73,7 +73,7 @@ class RandomNetworkDistillation(Hook):
 
     def objective(self, batch):
         with self.agent.autocast():
-            state = get_or(batch, "state", "observation")[..., self.state_indices]
+            state = get_first(batch, "state", "observation")[..., self.state_indices]
             rnd_loss = self.criterion(self.predictor(state), self.target(state))
         self.agent.record(rnd_loss=rnd_loss)
         return rnd_loss

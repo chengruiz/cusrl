@@ -6,8 +6,8 @@ import torch
 import yaml
 from torch import nn
 
-from cusrl.module import Module
-from cusrl.utils.helper import prefix_dict_keys
+from cusrl.module.module import Module
+from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.nest import flatten_nested, get_schema, iterate_nested, reconstruct_nested
 from cusrl.utils.typing import NestedTensor
 

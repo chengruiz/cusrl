@@ -1,0 +1,145 @@
+from collections.abc import Mapping
+from dataclasses import fields, is_dataclass
+from typing import Any, TypeVar, overload
+
+import torch
+
+from cusrl.utils.misc import MISSING
+from cusrl.utils.str_utils import parse_class
+
+__all__ = [
+    "from_dict",
+    "get_first",
+    "prefix_dict_keys",
+    "to_dict",
+]
+
+
+_T = TypeVar("_T")
+_K = TypeVar("_K")
+_V = TypeVar("_V")
+_D = TypeVar("_D")
+
+
+def from_dict(obj, data: dict[str, Any] | Any) -> Any:
+    if isinstance(data, (int, float, bool, type(None), type(MISSING))):
+        return data
+    if isinstance(data, str):
+        if cls := parse_class(data):
+            return cls
+        return data
+
+    if obj is None:
+        if isinstance(data, (list, tuple)):
+            data = type(data)(from_dict(None, item) for item in data)
+        elif isinstance(data, dict):
+            data = {key: from_dict(None, value) for key, value in data.items()}
+        else:
+            raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+    else:
+        from cusrl.utils.nest import flatten_nested, zip_nested
+
+        for key, (current_value_dict, updated_value_dict) in zip_nested(to_dict(obj), data, max_depth=1):
+            if hasattr(obj, key):
+                current_value = getattr(obj, key)
+            elif isinstance(obj, dict):
+                current_value = obj.get(key, None)
+            elif isinstance(obj, (list, tuple)):
+                index = int(key)
+                current_value = obj[index] if index < len(obj) else None
+            else:
+                current_value = None
+
+            # Checks for equality
+            if flatten_nested(current_value_dict) == flatten_nested(updated_value_dict):
+                # Keeps the current value retrieved from the object
+                if isinstance(data, dict):
+                    data[key] = current_value
+                elif isinstance(data, (list, tuple)):
+                    data = type(data)([*data[: int(key)], current_value, *data[int(key) + 1 :]])
+                else:
+                    raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+                continue
+
+            updated_value = from_dict(current_value, updated_value_dict)
+            if isinstance(data, dict):
+                if updated_value is not MISSING:
+                    data[key] = updated_value
+                else:
+                    data.pop(key, None)
+            elif isinstance(data, (list, tuple)):
+                if updated_value is not MISSING:
+                    data = type(data)([*data[: int(key)], updated_value, *data[int(key) + 1 :]])
+                else:
+                    data = type(data)([*data[: int(key)], *data[int(key) + 1 :]])
+            else:
+                raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+
+    if isinstance(data, dict) and (cls := data.pop("__class__", None)):
+        if not isinstance(cls, type):
+            raise ValueError(f"Class '{cls}' is not correctly parsed.")
+        if cls is slice:
+            return slice(data["start"], data["stop"], data["step"])
+        if cls is torch.device:
+            return torch.device(data["__str__"])
+        if hasattr(cls, "from_dict"):
+            return cls.from_dict(data)
+        return cls(**data)
+    return data
+
+
+@overload
+def get_first(data: Mapping[_K, _V], *keys: _K) -> _V: ...
+@overload
+def get_first(data: Mapping[_K, _V], *keys: _K, default: _V | _D) -> _V | _D: ...
+
+
+def get_first(data: Mapping[_K, _V], *keys, default: _V | _D = MISSING) -> _V | _D:
+    for key in keys:
+        if (value := data.get(key, MISSING)) is not MISSING:
+            return value
+    if default is not MISSING:
+        return default
+    raise KeyError(str(keys))
+
+
+def get_type_str(obj: type | Any) -> str:
+    """Returns a string representation of the type of the object."""
+    if not isinstance(obj, type):
+        obj = type(obj)
+    return f"<class '{obj.__qualname__}' from '{obj.__module__}'>"
+
+
+def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:
+    """Adds a prefix to all keys in the dictionary."""
+    return {f"{prefix}{key}": value for key, value in data.items()}
+
+
+def to_dict(obj) -> dict[str, Any] | Any:
+    """Converts an object to a dictionary representation."""
+    if hasattr(obj, "to_dict"):
+        obj_dict = obj.to_dict()
+
+    # If the object is not a dictorionary-convertable object
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(to_dict(item) for item in obj)
+    elif isinstance(obj, type):
+        return get_type_str(obj)
+    elif isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+
+    elif isinstance(obj, slice):
+        obj_dict = {"start": obj.start, "stop": obj.stop, "step": obj.step}
+    elif is_dataclass(obj):
+        obj_dict = {f.name: getattr(obj, f.name) for f in fields(obj)}
+    elif isinstance(obj, Mapping):
+        obj_dict = dict(**obj)
+    elif hasattr(obj, "__dict__") and obj.__dict__:
+        obj_dict = {key: value for key, value in obj.__dict__.items() if not key.startswith("_")}
+    else:
+        obj_dict = {"__str__": str(obj)}
+
+    obj_dict = {key: to_dict(value) for key, value in obj_dict.items()}
+    if not isinstance(obj, dict):
+        obj_dict = {"__class__": get_type_str(obj)} | obj_dict
+    return obj_dict

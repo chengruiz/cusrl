@@ -7,7 +7,7 @@ from torch import Tensor, nn
 from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
 from cusrl.module.distribution import MeanStdDict
 from cusrl.template import ActorCritic, Hook
-from cusrl.utils.helper import prefix_dict_keys
+from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, NestedTensor, Slice
 
 __all__ = [

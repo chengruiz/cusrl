@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from cusrl.template import ActorCritic, Buffer, Hook
-from cusrl.utils.helper import get_or
+from cusrl.utils.dict_utils import get_first
 from cusrl.utils.nest import map_nested
 from cusrl.utils.typing import Memory
 
@@ -43,7 +43,7 @@ class ValueComputation(Hook[ActorCritic]):
         critic = self.agent.critic
         with self.agent.autocast():
             value, next_critic_memory = critic(
-                get_or(transition, "state", "observation"),
+                get_first(transition, "state", "observation"),
                 memory=self._critic_memory,
             )
 
@@ -63,7 +63,7 @@ class ValueComputation(Hook[ActorCritic]):
             buffer["next_value"] = torch.zeros_like(cast(torch.Tensor, value))
             next_value = buffer["next_value"]
         next_value = cast(torch.Tensor, next_value)
-        next_state = cast(torch.Tensor, get_or(buffer, "next_state", "next_observation"))
+        next_state = cast(torch.Tensor, get_first(buffer, "next_state", "next_observation"))
         terminated = cast(torch.Tensor, buffer["terminated"]).squeeze(-1)
         truncated = cast(torch.Tensor, buffer["truncated"]).squeeze(-1)
 

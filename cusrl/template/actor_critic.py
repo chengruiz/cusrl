@@ -6,13 +6,12 @@ from typing import Any, Literal
 import torch
 from typing_extensions import Self
 
-from cusrl.module import Actor, Denormalization, Normalization, Value
+from cusrl.module import Actor, Denormalization, GraphBuilder, Normalization, Value
 from cusrl.template.agent import Agent, AgentFactory
 from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
-from cusrl.utils.export import GraphBuilder
 from cusrl.utils.typing import NestedArray, NestedTensor, Observation, Reward, State, Terminated, Truncated
 
 __all__ = ["ActorCritic"]

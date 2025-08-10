@@ -4,7 +4,7 @@ from torch import Tensor
 
 from cusrl.module.distribution import Distribution, DistributionFactoryLike
 from cusrl.module.module import Module, ModuleFactory, ModuleFactoryLike
-from cusrl.utils.helper import prefix_dict_keys
+from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, NestedTensor, Slice
 
 __all__ = ["Actor"]

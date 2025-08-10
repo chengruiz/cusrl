@@ -2,8 +2,8 @@ from typing import cast
 
 import torch
 
+from cusrl.module import ExponentialMovingNormalizer
 from cusrl.template import ActorCritic, Hook
-from cusrl.utils import ExponentialMovingNormalizer
 
 __all__ = ["GeneralizedAdvantageEstimation"]
 
