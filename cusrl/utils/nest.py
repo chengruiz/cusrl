@@ -1,7 +1,7 @@
 from collections.abc import Callable, Iterator, Mapping
-from dataclasses import MISSING
 from typing import TypeVar, overload
 
+from cusrl.utils.helper import MISSING
 from cusrl.utils.typing import ListOrTuple, Nested
 
 __all__ = [

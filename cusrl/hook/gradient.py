@@ -1,5 +1,3 @@
-from typing import Any
-
 from torch import nn
 
 from cusrl.template import Hook

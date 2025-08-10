@@ -79,7 +79,7 @@ def test_dict_conversions():
     modified_dict["actor_factory"]["backbone_factory"]["hidden_dims"] = (512, 512)  # Change from (256, 256)
     modified_dict["critic_factory"]["backbone_factory"]["hidden_size"] = 512  # Change from 256
     modified_dict["optimizer_factory"]["defaults"]["lr"] = 0.002  # Change from 0.001
-    modified_dict["optimizer_factory"]["cls"] = "<class 'torch.optim.sgd.SGD'>"  # Change from 'AdamW'
+    modified_dict["optimizer_factory"]["cls"] = "<class 'SGD' from 'torch.optim.sgd'>"  # Change from 'AdamW'
     modified_dict["sampler"]["num_epochs"] = 8  # Change from 4
 
     # Modify hook parameters

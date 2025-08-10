@@ -1,4 +1,4 @@
-from typing import Any, TypeAlias
+from typing import TypeAlias
 
 import torch
 from torch import nn

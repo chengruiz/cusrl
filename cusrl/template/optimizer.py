@@ -5,8 +5,6 @@ import torch
 from torch import nn
 from torch.optim import Optimizer
 
-from cusrl.utils.helper import from_dict
-
 __all__ = ["OptimizerFactory"]
 
 
