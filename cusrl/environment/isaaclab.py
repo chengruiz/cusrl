@@ -21,6 +21,9 @@ __all__ = [
 
 
 class IsaacLabEnvAdapter(Environment[torch.Tensor]):
+    """Wraps an IsaacLab environment to conform to the cusrl.Environment
+    interface."""
+
     def __init__(self, wrapped: gym.Env):
         from isaaclab.envs import DirectRLEnv, ManagerBasedRLEnv
 
@@ -34,10 +37,9 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
             action_dim=self._get_action_dim(),
             state_dim=self._get_state_dim(),
             autoreset=True,
+            demonstration_sampler=getattr(self.unwrapped, "collect_reference_motions", None),
             final_state_is_missing=True,
         )
-        if hasattr(self.unwrapped, "collect_reference_motions"):
-            self.spec.demonstration_sampler = self.unwrapped.collect_reference_motions
 
         # Avoid terminal color issues
         print("\033[0m", end="")
@@ -179,12 +181,14 @@ class TrainerCfg:
     agent_factory: cusrl.template.Agent.Factory = MISSING
 
     def __post_init__(self):
+        # Override the methods added by configclass decorator
         setattr(type(self), "to_dict", _configclass_to_dict)
         setattr(type(self), "from_dict", _configclass_update_from_dict)
 
 
 def _configclass_to_dict(obj):
     obj_type = type(obj)
+    # Removing the methods temporarily to avoid recursion
     delattr(obj_type, "to_dict")
     data = to_dict(obj)
     setattr(obj_type, "to_dict", _configclass_to_dict)
@@ -193,6 +197,7 @@ def _configclass_to_dict(obj):
 
 def _configclass_update_from_dict(obj, data):
     obj_type = type(obj)
+    # Removing the methods temporarily to avoid recursion
     delattr(obj_type, "from_dict")
     updated_obj = from_dict(obj, data)
     for field in fields(obj):

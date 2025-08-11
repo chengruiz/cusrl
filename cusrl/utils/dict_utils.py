@@ -22,6 +22,45 @@ _D = TypeVar("_D")
 
 
 def from_dict(obj, data: dict[str, Any] | Any) -> Any:
+    """Builds a Python object from a nested mapping / sequence description.
+
+    This function converts primitives and recursively reconstructs lists,
+    tuples, and dicts. When an existing object is provided, it performs a
+    comparison with it to preserve unchanged attributes / items from
+    that object, updating only the parts that differ. A special MISSING sentinel
+    indicates that keys or sequence items should be removed.
+
+    Behavior summary:
+    - Primitives (int, float, bool, None) pass through unchanged.
+    - Strings are returned as-is, unless they conform "<class '*' from '*'>",
+      in which case it is recognized as a class.
+    - When obj is None, the entire structure is recursively converted.
+    - When obj is provided:
+        - For each top-level key / index, the function compares the flattened
+            forms of the current value and the incoming value. If equal, the
+            existing value from obj is kept.
+        - Otherwise, the value is recursively rebuilt with the current value.
+    - If data is a dict with a "__class__" entry that is a type:
+        - slice: returns slice(start, stop, step).
+        - torch.device: returns torch.device(str_value).
+        - If the type defines `from_dict`, it is used; otherwise the type is
+          instantiated with the remaining key-value pairs as keyword arguments.
+
+    Args:
+        obj:
+            Existing object to update or use as context. If None, data is fully
+            reconstructed. May be an object, dict, list, or tuple.
+        data:
+            The description of the value to build. May be a primitive, string,
+            dict, list, or tuple. Dicts may include a "__class__" type entry.
+
+    Returns:
+        The reconstructed value or object.
+
+    Raises:
+        NotImplementedError: If an unexpected container type is encountered.
+        ValueError: If a "__class__" entry is present but is not a type.
+    """
     if isinstance(data, (int, float, bool, type(None), type(MISSING))):
         return data
     if isinstance(data, str):

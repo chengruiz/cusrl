@@ -20,11 +20,14 @@ __all__ = [
 
 
 class _MISSING_TYPE:
+    """A sentinel type used to represent a missing value."""
+
     def __repr__(self):
         return "MISSING"
 
 
 MISSING = _MISSING_TYPE()
+"""A sentinel value to indicate that a value is missing or not provided."""
 
 
 def import_module(
@@ -103,15 +106,28 @@ def import_module(
     return module
 
 
-def import_obj(module_name: str, qual_name: str) -> Any:
+def import_obj(module_name: str, obj_qualname: str) -> Any:
+    """Dynamically import an object (e.g., class, function, variable) from a
+    specified module.
+
+    Args:
+        module_name (str): Name of the module to import.
+        obj_qualname (str): The qualified name (__qualname__) of the object.
+
+    Returns:
+        Any: The imported object.
+
+    Raises:
+        ImportError: If the module or the object is not found.
+    """
     module = importlib.import_module(module_name)
     if module is None:
         raise ImportError(f"Module '{module_name}' not found.")
     cls = module
-    for part in qual_name.split("."):
+    for part in obj_qualname.split("."):
         cls = getattr(cls, part, None)
     if cls is None:
-        raise ImportError(f"'{qual_name}' not found in module '{module_name}'.")
+        raise ImportError(f"'{obj_qualname}' not found in module '{module_name}'.")
     return cls
 
 

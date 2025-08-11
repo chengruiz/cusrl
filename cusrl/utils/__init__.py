@@ -6,14 +6,12 @@ from .distributed import is_main_process, make_distributed
 from .metrics import Metrics
 from .misc import set_global_seed
 from .timing import Rate, Timer
-from .video import VideoWriter
 
 __all__ = [
     "CONFIG",
     "Metrics",
     "Rate",
     "Timer",
-    "VideoWriter",
     "distributed",
     "device",
     "from_dict",
