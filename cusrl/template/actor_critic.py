@@ -60,7 +60,19 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         self.hooks = HookList(hooks)
 
     def __call__(self, environment_spec: EnvironmentSpec):
-        return ActorCritic(environment_spec=environment_spec, **self.__dict__)
+        return ActorCritic(
+            environment_spec=environment_spec,
+            actor_factory=self.actor_factory,
+            critic_factory=self.critic_factory,
+            optimizer_factory=self.optimizer_factory,
+            sampler=self.sampler,
+            hooks=self.hooks,
+            num_steps_per_update=self.num_steps_per_update,
+            name=self.name,
+            device=self.device,
+            compile=self.compile,
+            autocast=self.autocast,
+        )
 
     def register_hook(
         self,

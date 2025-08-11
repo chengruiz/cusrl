@@ -90,3 +90,12 @@ class AgentFactory(ppo.AgentFactory):
             ),
             after="reward_shaping",
         )
+        self._kwargs.update({
+            "amp_discriminator_hidden_dims": amp_discriminator_hidden_dims,
+            "amp_dataset_source": amp_dataset_source,
+            "amp_state_indices": amp_state_indices,
+            "amp_batch_size": amp_batch_size,
+            "amp_reward_scale": amp_reward_scale,
+            "amp_loss_weight": amp_loss_weight,
+            "amp_grad_penalty_weight": amp_grad_penalty_weight,
+        })

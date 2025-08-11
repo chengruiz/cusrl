@@ -139,6 +139,33 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
             compile=compile,
             autocast=autocast,
         )
+        self._kwargs = {
+            "num_steps_per_update": num_steps_per_update,
+            "actor_hidden_dims": actor_hidden_dims,
+            "critic_hidden_dims": critic_hidden_dims,
+            "activation_fn": activation_fn,
+            "action_space_type": action_space_type,
+            "lr": lr,
+            "sampler_epochs": sampler_epochs,
+            "sampler_mini_batches": sampler_mini_batches,
+            "orthogonal_init": orthogonal_init,
+            "init_distribution_std": init_distribution_std,
+            "normalize_observation": normalize_observation,
+            "gae_gamma": gae_gamma,
+            "gae_lamda": gae_lamda,
+            "gae_lamda_value": gae_lamda_value,
+            "popart_alpha": popart_alpha,
+            "normalize_advantage": normalize_advantage,
+            "value_loss_weight": value_loss_weight,
+            "value_loss_clip": value_loss_clip,
+            "surrogate_clip_ratio": surrogate_clip_ratio,
+            "entropy_loss_weight": entropy_loss_weight,
+            "max_grad_norm": max_grad_norm,
+            "desired_kl_divergence": desired_kl_divergence,
+        }
+
+    def to_dict(self):
+        return self._kwargs
 
 
 class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
@@ -214,3 +241,33 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
             compile=compile,
             autocast=autocast,
         )
+
+        self._kwargs = {
+            "num_steps_per_update": num_steps_per_update,
+            "rnn_type": rnn_type,
+            "actor_num_layers": actor_num_layers,
+            "actor_hidden_size": actor_hidden_size,
+            "critic_num_layers": critic_num_layers,
+            "critic_hidden_size": critic_hidden_size,
+            "action_space_type": action_space_type,
+            "lr": lr,
+            "sampler_epochs": sampler_epochs,
+            "sampler_mini_batches": sampler_mini_batches,
+            "orthogonal_init": orthogonal_init,
+            "init_distribution_std": init_distribution_std,
+            "normalize_observation": normalize_observation,
+            "gae_gamma": gae_gamma,
+            "gae_lamda": gae_lamda,
+            "gae_lamda_value": gae_lamda_value,
+            "popart_alpha": popart_alpha,
+            "normalize_advantage": normalize_advantage,
+            "value_loss_weight": value_loss_weight,
+            "value_loss_clip": value_loss_clip,
+            "surrogate_clip_ratio": surrogate_clip_ratio,
+            "entropy_loss_weight": entropy_loss_weight,
+            "max_grad_norm": max_grad_norm,
+            "desired_kl_divergence": desired_kl_divergence,
+        }
+
+    def to_dict(self):
+        return self._kwargs

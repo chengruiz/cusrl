@@ -5,7 +5,7 @@ from typing import Any, TypeVar, overload
 import torch
 
 from cusrl.utils.misc import MISSING
-from cusrl.utils.str_utils import parse_class
+from cusrl.utils.str_utils import get_type_str, parse_class
 
 __all__ = [
     "from_dict",
@@ -68,7 +68,7 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
             return cls
         return data
 
-    if obj is None:
+    if obj is None or obj is MISSING:
         if isinstance(data, (list, tuple)):
             data = type(data)(from_dict(None, item) for item in data)
         elif isinstance(data, dict):
@@ -86,6 +86,8 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
             elif isinstance(obj, (list, tuple)):
                 index = int(key)
                 current_value = obj[index] if index < len(obj) else None
+            elif current_value_dict is not MISSING:
+                current_value = current_value_dict
             else:
                 current_value = None
 
@@ -142,13 +144,6 @@ def get_first(data: Mapping[_K, _V], *keys, default: _V | _D = MISSING) -> _V | 
     raise KeyError(str(keys))
 
 
-def get_type_str(obj: type | Any) -> str:
-    """Returns a string representation of the type of the object."""
-    if not isinstance(obj, type):
-        obj = type(obj)
-    return f"<class '{obj.__qualname__}' from '{obj.__module__}'>"
-
-
 def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:
     """Adds a prefix to all keys in the dictionary."""
     return {f"{prefix}{key}": value for key, value in data.items()}
@@ -172,11 +167,17 @@ def to_dict(obj) -> dict[str, Any] | Any:
     elif is_dataclass(obj):
         obj_dict = {f.name: getattr(obj, f.name) for f in fields(obj)}
     elif isinstance(obj, Mapping):
-        obj_dict = dict(**obj)
-    elif hasattr(obj, "__dict__") and obj.__dict__:
-        obj_dict = {key: value for key, value in obj.__dict__.items() if not key.startswith("_")}
+        obj_dict = dict(obj)
     else:
-        obj_dict = {"__str__": str(obj)}
+        obj_dict = {}
+        for slot in getattr(obj, "__slots__", ()):
+            if hasattr(obj, slot):
+                obj_dict[slot] = getattr(obj, slot)
+        for key, value in getattr(obj, "__dict__", {}).items():
+            if not key.startswith("_"):
+                obj_dict[key] = value
+        if not obj_dict:
+            obj_dict = {"__str__": str(obj)}
 
     obj_dict = {key: to_dict(value) for key, value in obj_dict.items()}
     if not isinstance(obj, dict):
