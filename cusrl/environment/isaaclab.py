@@ -173,33 +173,36 @@ def make_isaaclab_env(
     return IsaacLabEnvLauncher(id, argv, **kwargs)
 
 
+class SerializationMethodGuard(type):
+    def __setattr__(self, name: str, value: Any):
+        # Prevent setting the serialization methods by configclass
+        if name != "to_dict" and name != "from_dict":
+            super().__setattr__(name, value)
+
+
 @dataclass
-class TrainerCfg:
+class TrainerCfg(metaclass=SerializationMethodGuard):
     max_iterations: int = MISSING
     save_interval: int = MISSING
     experiment_name: str = MISSING
     agent_factory: cusrl.template.Agent.Factory = MISSING
 
     def __post_init__(self):
-        # Override the methods added by configclass decorator
-        setattr(type(self), "to_dict", _configclass_to_dict)
-        setattr(type(self), "from_dict", _configclass_update_from_dict)
+        # Manually set the serialization methods to each instance
+        self.to_dict = self._to_dict
+        self.from_dict = self._update_from_dict
 
+    def _to_dict(self):
+        # Removing the methods temporarily to avoid recursion
+        del self.to_dict
+        data = to_dict(self)
+        self.to_dict = self._to_dict
+        return data
 
-def _configclass_to_dict(obj):
-    obj_type = type(obj)
-    # Removing the methods temporarily to avoid recursion
-    delattr(obj_type, "to_dict")
-    data = to_dict(obj)
-    setattr(obj_type, "to_dict", _configclass_to_dict)
-    return data
-
-
-def _configclass_update_from_dict(obj, data):
-    obj_type = type(obj)
-    # Removing the methods temporarily to avoid recursion
-    delattr(obj_type, "from_dict")
-    updated_obj = from_dict(obj, data)
-    for field in fields(obj):
-        setattr(obj, field.name, getattr(updated_obj, field.name))
-    setattr(obj_type, "from_dict", _configclass_update_from_dict)
+    def _update_from_dict(self, data):
+        # Removing the methods temporarily to avoid recursion
+        del self.from_dict
+        updated_obj = from_dict(self, data)
+        for field in fields(self):
+            setattr(self, field.name, getattr(updated_obj, field.name))
+        self.from_dict = self._update_from_dict
