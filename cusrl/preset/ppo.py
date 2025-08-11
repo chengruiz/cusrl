@@ -62,10 +62,9 @@ def hook_suite(
 def get_distribution_factory(action_space_type: str):
     if action_space_type == "continuous":
         return cusrl.NormalDist.Factory()
-    elif action_space_type == "discrete":
+    if action_space_type == "discrete":
         return cusrl.OneHotCategoricalDist.Factory()
-    else:
-        raise ValueError(f"Unsupported action space type '{action_space_type}'.")
+    raise ValueError(f"Unsupported action space type '{action_space_type}'.")
 
 
 class AgentFactory(cusrl.template.ActorCritic.Factory):

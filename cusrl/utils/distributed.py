@@ -36,7 +36,7 @@ def average_dict(info_dict: dict[str, float]) -> dict[str, float]:
     keys = {key for info in info_dict_list for key in info.keys()}
     result = {}
     for key in keys:
-        values = [value for info in info_dict_list if (value := info.get(key, None)) is not None]
+        values = [value for info in info_dict_list if (value := info.get(key)) is not None]
         if not values:
             continue
         result[key] = np.mean(values)

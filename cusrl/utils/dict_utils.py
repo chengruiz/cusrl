@@ -82,7 +82,7 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
             if hasattr(obj, key):
                 current_value = getattr(obj, key)
             elif isinstance(obj, dict):
-                current_value = obj.get(key, None)
+                current_value = obj.get(key)
             elif isinstance(obj, (list, tuple)):
                 index = int(key)
                 current_value = obj[index] if index < len(obj) else None

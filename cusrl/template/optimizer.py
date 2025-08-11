@@ -55,7 +55,7 @@ class OptimizerFactory:
             if not param.requires_grad:
                 continue
             prefix = self._match_prefix(name)
-            param_group = param_groups.get(prefix, None)
+            param_group = param_groups.get(prefix)
             if param_group is None:
                 param_group = {"param_names": [], "params": [], **self.optim_groups[prefix]}
                 param_groups[prefix] = param_group
