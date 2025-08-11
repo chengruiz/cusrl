@@ -1,3 +1,4 @@
+import inspect
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from typing import Any, TypeVar, overload
@@ -5,7 +6,7 @@ from typing import Any, TypeVar, overload
 import torch
 
 from cusrl.utils.misc import MISSING
-from cusrl.utils.str_utils import get_type_str, parse_class
+from cusrl.utils.str_utils import get_class_str, get_function_str, parse_class, parse_function
 
 __all__ = [
     "from_dict",
@@ -66,6 +67,8 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
     if isinstance(data, str):
         if cls := parse_class(data):
             return cls
+        if func := parse_function(data):
+            return func
         return data
 
     if obj is None or obj is MISSING:
@@ -158,14 +161,16 @@ def to_dict(obj) -> dict[str, Any] | Any:
     elif isinstance(obj, (list, tuple)):
         return type(obj)(to_dict(item) for item in obj)
     elif isinstance(obj, type):
-        return get_type_str(obj)
+        return get_class_str(obj)
+    elif inspect.isfunction(obj):
+        return get_function_str(obj)
     elif isinstance(obj, (str, int, float, bool, type(None))):
         return obj
 
     elif isinstance(obj, slice):
         obj_dict = {"start": obj.start, "stop": obj.stop, "step": obj.step}
     elif is_dataclass(obj):
-        obj_dict = {f.name: getattr(obj, f.name) for f in fields(obj)}
+        obj_dict = {field.name: getattr(obj, field.name) for field in fields(obj)}
     elif isinstance(obj, Mapping):
         obj_dict = dict(obj)
     else:
@@ -181,5 +186,5 @@ def to_dict(obj) -> dict[str, Any] | Any:
 
     obj_dict = {key: to_dict(value) for key, value in obj_dict.items()}
     if not isinstance(obj, dict):
-        obj_dict = {"__class__": get_type_str(obj)} | obj_dict
+        obj_dict = {"__class__": get_class_str(obj)} | obj_dict
     return obj_dict
