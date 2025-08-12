@@ -3,7 +3,7 @@ from typing import cast
 
 import numpy as np
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from cusrl.module import Module, ModuleFactoryLike, RunningMeanStd
 from cusrl.template import ActorCritic, Hook
@@ -33,10 +33,10 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             may not be recurrent.
         dataset_source (str | Array | Callable[[], Array] | None, optional):
             The source of the expert motion dataset. Can be a file path to a
-            `.npy` or `.pt` file, a `numpy.ndarray` / `torch.Tensor`, or a
-            callable that returns a `numpy.ndarray` / `torch.Tensor`. If `None`,
-            the `environment_spec.demonstration_sampler` should be provided
-            to sample expert transitions.
+            `.npy` or `.pt` file, a `numpy.ndarray` / `Tensor`, or a callable
+            that returns a `numpy.ndarray` / `Tensor`. If `None`, the
+            `environment_spec.demonstration_sampler` should be provided to
+            sample expert transitions.
         state_indices (Slice | None, optional):
             A slice object to extract the relevant parts of the state for AMP.
             If `None`, it's assumed that the environment provides an "amp_obs"
@@ -53,7 +53,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             Defaults to 5.0.
     """
 
-    dataset: torch.Tensor | None
+    dataset: Tensor | None
     discriminator: Module
     transition_dim: int
     transition_rms: RunningMeanStd
@@ -93,7 +93,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
                 self.dataset = torch.load(self.dataset_source, map_location=self.agent.device)
             else:
                 raise ValueError(f"Unsupported dataset file format: {self.dataset_source}")
-        elif isinstance(self.dataset_source, (torch.Tensor, np.ndarray)):
+        elif isinstance(self.dataset_source, (Tensor, np.ndarray)):
             self.dataset = self.agent.to_tensor(self.dataset_source)
         elif callable(self.dataset_source):
             self.dataset = self.agent.to_tensor(self.dataset_source())
@@ -107,12 +107,12 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
 
     @torch.no_grad()
     def post_step(self, transition):
-        if (agent_transition := cast(torch.Tensor, transition.pop("amp_obs", None))) is None:
+        if (agent_transition := cast(Tensor, transition.pop("amp_obs", None))) is None:
             if self.state_indices is None:
                 raise ValueError("AMP observation is not provided and indices are not specified.")
 
-            state = cast(torch.Tensor, get_first(transition, "state", "observation"))
-            next_state = cast(torch.Tensor, get_first(transition, "next_state", "next_observation"))
+            state = cast(Tensor, get_first(transition, "state", "observation"))
+            next_state = cast(Tensor, get_first(transition, "next_state", "next_observation"))
             amp_state = state[..., self.state_indices]
             amp_next_state = next_state[..., self.state_indices]
             agent_transition = torch.cat([amp_state, amp_next_state], dim=-1)
@@ -129,12 +129,12 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             logit = self.discriminator(agent_transition)
         style_reward = -torch.log(torch.clamp(1 - 1 / (1 + torch.exp(-logit)), min=1e-4))
 
-        cast(torch.Tensor, transition["reward"]).add_(style_reward)
+        cast(Tensor, transition["reward"]).add_(style_reward)
         self.agent.record(amp_reward=style_reward)
 
-    def objective(self, batch) -> torch.Tensor:
-        agent_transition = batch["agent_transition"].flatten(0, -2)
-        expert_transition = batch["expert_transition"].flatten(0, -2)
+    def objective(self, batch) -> Tensor:
+        agent_transition = cast(Tensor, batch["agent_transition"]).flatten(0, -2)
+        expert_transition = cast(Tensor, batch["expert_transition"]).flatten(0, -2)
         if self.batch_size is not None:
             batch_size = self.batch_size
             indices = torch.randint(agent_transition.size(0), (batch_size,), device=self.agent.device)
@@ -159,10 +159,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         return (discrimination_loss + grad_penalty_loss * self.grad_penalty_weight) * self.loss_weight
 
     @staticmethod
-    def _compute_grad_penalty_loss(
-        outputs: torch.Tensor,
-        inputs: torch.Tensor,
-    ) -> torch.Tensor:
+    def _compute_grad_penalty_loss(outputs: Tensor, inputs: Tensor) -> Tensor:
         gradients = torch.autograd.grad(
             outputs=outputs,
             inputs=inputs,
@@ -174,7 +171,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         gradient_penalty = gradients.square().sum(dim=-1).mean()
         return gradient_penalty
 
-    def _sample_demonstration(self, num_samples: int) -> torch.Tensor:
+    def _sample_demonstration(self, num_samples: int) -> Tensor:
         if self.dataset is not None:
             dataset_indices = torch.randint(self.dataset.size(0), (num_samples,), device=self.agent.device)
             return self.dataset[dataset_indices]

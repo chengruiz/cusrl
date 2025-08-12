@@ -1,3 +1,7 @@
+from typing import cast
+
+import torch
+
 from cusrl.template import ActorCritic, Hook
 
 __all__ = ["OnPolicyPreparation"]
@@ -30,7 +34,7 @@ class OnPolicyPreparation(Hook[ActorCritic]):
             )
             action_logp = actor.compute_logp(action_dist, batch["action"])
             entropy = actor.compute_entropy(action_dist)
-            logp_diff = action_logp - batch["action_logp"]
+            logp_diff = action_logp - cast(torch.Tensor, batch["action_logp"])
         self.agent.record(ratio=logp_diff.abs(), entropy=entropy)
 
         batch["curr_action_dist"] = action_dist

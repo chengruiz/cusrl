@@ -72,8 +72,9 @@ class RandomNetworkDistillation(Hook):
         self.agent.record(rnd_reward=rnd_reward)
 
     def objective(self, batch):
+        state = cast(torch.Tensor, get_first(batch, "state", "observation"))
+        rnd_state = state[..., self.state_indices]
         with self.agent.autocast():
-            state = get_first(batch, "state", "observation")[..., self.state_indices]
-            rnd_loss = self.criterion(self.predictor(state), self.target(state))
+            rnd_loss = self.criterion(self.predictor(rnd_state), self.target(rnd_state))
         self.agent.record(rnd_loss=rnd_loss)
         return rnd_loss

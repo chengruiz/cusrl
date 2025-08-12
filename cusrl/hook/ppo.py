@@ -1,3 +1,5 @@
+from typing import cast
+
 import torch
 
 from cusrl.template import Hook
@@ -42,14 +44,11 @@ class PpoSurrogateLoss(Hook):
         self.register_mutable("clip_ratio", clip_ratio)
 
     def objective(self, batch):
-        if (advantage := batch["advantage"]).size(-1) != 1:
+        if (advantage := cast(torch.Tensor, batch["advantage"])).size(-1) != 1:
             raise ValueError(f"Expected advantage to have shape [..., 1], got {advantage.shape}.")
+        action_prob_ratio = cast(torch.Tensor, batch["action_prob_ratio"])
         with self.agent.autocast():
-            surrogate_loss = _ppo_surrogate_loss(
-                advantage,
-                batch["action_prob_ratio"],
-                self.clip_ratio,
-            )
+            surrogate_loss = _ppo_surrogate_loss(advantage, action_prob_ratio, self.clip_ratio)
         self.agent.record(surrogate_loss=surrogate_loss)
         return surrogate_loss
 
@@ -79,4 +78,4 @@ class EntropyLoss(Hook):
         self.register_mutable("weight", weight)
 
     def objective(self, batch):
-        return -self.weight * batch["curr_entropy"].mean()
+        return -self.weight * cast(torch.Tensor, batch["curr_entropy"]).mean()

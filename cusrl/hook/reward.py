@@ -1,3 +1,7 @@
+from typing import cast
+
+import torch
+
 from cusrl.template import Hook
 
 __all__ = ["RewardShaping"]
@@ -37,6 +41,7 @@ class RewardShaping(Hook):
         self.upper_bound = upper_bound
 
     def post_step(self, transition):
-        transition["reward"].mul_(self.scale).add_(self.shift)
+        reward = cast(torch.Tensor, transition["reward"])
+        reward.mul_(self.scale).add_(self.shift)
         if self.lower_bound is not None or self.upper_bound is not None:
-            transition["reward"].clamp_(min=self.lower_bound, max=self.upper_bound)
+            reward.clamp_(min=self.lower_bound, max=self.upper_bound)

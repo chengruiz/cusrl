@@ -18,11 +18,7 @@ _T = TypeVar("_T")
 _V = TypeVar("_V")
 
 
-def get_schema(
-    value: Nested[_T],
-    prefix: str = "",
-    max_depth: int | None = None,
-) -> Nested[str]:
+def get_schema(value: Nested[_T], prefix: str = "", max_depth: int | None = None) -> Nested[str]:
     """Generates a schema of path-like strings from a nested structure.
 
     This function recursively traverses a nested structure containing
@@ -82,9 +78,7 @@ def iterate_nested(data: Nested[_T], prefix: str, max_depth: int) -> Iterator[tu
 
 
 def iterate_nested(
-    data: Nested[_T],
-    prefix: str = "",
-    max_depth: int | None = None,
+    data: Nested[_T], prefix: str = "", max_depth: int | None = None
 ) -> Iterator[tuple[str, Nested[_T]]]:
     """Generated a flattened view of the nested data.
 
@@ -153,9 +147,7 @@ def flatten_nested(data: Nested[_T], prefix: str, max_depth: int) -> dict[str, N
 
 
 def flatten_nested(
-    data: Nested[_T],
-    prefix: str = "",
-    max_depth: int | None = None,
+    data: Nested[_T], prefix: str = "", max_depth: int | None = None
 ) -> dict[str, _T] | dict[str, Nested[_T]]:
     """Flattens a nested data structure into a flat dictionary.
 
