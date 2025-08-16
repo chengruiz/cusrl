@@ -6,9 +6,9 @@ __all__ = ["GradientClipping"]
 
 
 class GradientClipping(Hook):
-    """A hook to clip gradients of model parameters before the optimizer step,
-    grouping parameters by name prefixes to handle varying gradient scales
-    across modules.
+    """Clips gradients of model parameters before the optimizer step, by
+    grouping them by name prefixes and clipping the maximum gradient norm within
+    each group.
 
     Args:
         max_grad_norm (float | None, optional):

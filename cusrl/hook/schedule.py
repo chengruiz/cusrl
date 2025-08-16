@@ -14,7 +14,7 @@ __all__ = [
 
 
 class ParameterSchedule(Hook[ActorCritic]):
-    """A hook for scheduling updates to a specific parameter of a hook.
+    """Schedules updates to a specific parameter of a hook.
 
     Args:
         hook_name (str):
@@ -45,7 +45,7 @@ class ParameterSchedule(Hook[ActorCritic]):
 
 
 class HookActivationSchedule(Hook[ActorCritic]):
-    """A hook that activates or deactivates a specific hook based on a schedule.
+    """Activates or deactivates a specific hook based on a schedule.
 
     Args:
         hook_name (str):

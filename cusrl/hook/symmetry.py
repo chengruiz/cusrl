@@ -70,15 +70,16 @@ class SymmetryLoss(SymmetryHook):
             not applied.
     """
 
-    criterion: nn.MSELoss
-    _mirrored_actor_memory: Memory
-
-    # Mutable attributes
-    weight: float | None
-
     def __init__(self, weight: float | None):
         super().__init__()
+
+        # Mutable attributes
+        self.weight: float | None
         self.register_mutable("weight", weight)
+
+        # Runtime attributes
+        self.criterion: nn.MSELoss
+        self._mirrored_actor_memory: Memory
 
     def init(self):
         super().init()
@@ -88,21 +89,30 @@ class SymmetryLoss(SymmetryHook):
     @torch.no_grad()
     def post_step(self, transition):
         actor = self.agent.actor
-        mirrored_observation = self._mirror_observation(transition["observation"])
+        observation = cast(Tensor, transition["observation"])
+        done = cast(Tensor, transition["done"])
+
+        mirrored_observation = self._mirror_observation(observation)
         transition["mirrored_actor_memory"] = self._mirrored_actor_memory
-        self._mirrored_actor_memory = actor.step_memory(mirrored_observation, memory=self._mirrored_actor_memory)
-        actor.reset_memory(self._mirrored_actor_memory, transition["done"])
+        with self.agent.autocast():
+            self._mirrored_actor_memory = actor.step_memory(
+                mirrored_observation,
+                memory=self._mirrored_actor_memory,
+            )
+            actor.reset_memory(self._mirrored_actor_memory, done)
 
     def objective(self, batch):
         if self.weight is None:
             return None
 
         actor = self.agent.actor
-        mirrored_action_dist, _ = actor(
-            self._mirror_observation(batch["observation"]),
-            memory=batch.get("mirrored_actor_memory"),
-            done=batch["done"],
-        )
+        observation = cast(Tensor, batch["observation"])
+        with self.agent.autocast():
+            mirrored_action_dist, _ = actor(
+                self._mirror_observation(observation),
+                memory=batch.get("mirrored_actor_memory"),
+                done=batch["done"],
+            )
         curr_action_dist = cast(MeanStdDict, batch["curr_action_dist"])
 
         mean_loss = self.criterion(curr_action_dist["mean"], self._mirror_action(mirrored_action_dist["mean"]))
@@ -136,10 +146,17 @@ class SymmetricDataAugmentation(SymmetryHook):
     @torch.no_grad()
     def post_step(self, transition):
         actor = self.agent.actor
-        mirrored_observation = self._mirror_observation(transition["observation"])
+        observation = cast(Tensor, transition["observation"])
+        mirrored_observation = self._mirror_observation(observation)
+        done = cast(Tensor, transition["done"])
+
         transition["mirrored_actor_memory"] = self._mirrored_actor_memory
-        self._mirrored_actor_memory = actor.step_memory(mirrored_observation, memory=self._mirrored_actor_memory)
-        actor.reset_memory(self._mirrored_actor_memory, transition["done"])
+        with self.agent.autocast():
+            self._mirrored_actor_memory = actor.step_memory(
+                mirrored_observation,
+                memory=self._mirrored_actor_memory,
+            )
+            actor.reset_memory(self._mirrored_actor_memory, done)
 
     def objective(self, batch):
         actor = self.agent.actor
@@ -151,11 +168,12 @@ class SymmetricDataAugmentation(SymmetryHook):
             )
             mirrored_action_logp = actor.compute_logp(mirrored_action_dist, self._mirror_action(batch["action"]))
             mirrored_entropy = actor.compute_entropy(mirrored_action_dist)
-            mirrored_action_logp_diff = mirrored_action_logp - batch["action_logp"]
+            mirrored_action_logp_ratio = mirrored_action_logp - batch["action_logp"]
 
-        batch["advantage"] = torch.cat([batch["advantage"], batch["advantage"]], dim=0)
-        batch["action_logp_diff"] = torch.cat([batch["action_logp_diff"], mirrored_action_logp_diff], dim=0)
-        batch["action_prob_ratio"] = torch.cat([batch["action_prob_ratio"], mirrored_action_logp_diff.exp()], dim=0)
+        advantage = batch["advantage"]
+        batch["advantage"] = torch.cat([advantage, advantage], dim=0)
+        batch["action_logp_ratio"] = torch.cat([batch["action_logp_ratio"], mirrored_action_logp_ratio], dim=0)
+        batch["action_prob_ratio"] = torch.cat([batch["action_prob_ratio"], mirrored_action_logp_ratio.exp()], dim=0)
         batch["curr_entropy"] = torch.cat([batch["curr_entropy"], mirrored_entropy], dim=0)
 
 

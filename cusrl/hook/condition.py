@@ -24,7 +24,7 @@ class EpochIndexCondition:
 
 
 class ConditionalObjectiveActivation(Hook[ActorCritic]):
-    """A hook to activate other objective hooks based on specified conditions.
+    """Activates other objective hooks based on specified conditions.
 
     This hook must be placed before any objective hooks it controls.
 

@@ -15,8 +15,9 @@ class OnPolicyPreparation(Hook[ActorCritic]):
     probability ratio. Optionally computes KL divergence if enabled.
 
     Args:
-        calculate_kl_divergence (bool): If True, computes the KL divergence
-        between the old and current policy distributions.
+        calculate_kl_divergence (bool):
+            If True, computes the KL divergence between the old and current
+            policy distributions.
     """
 
     def __init__(self, calculate_kl_divergence: bool = False):
@@ -34,13 +35,13 @@ class OnPolicyPreparation(Hook[ActorCritic]):
             )
             action_logp = actor.compute_logp(action_dist, batch["action"])
             entropy = actor.compute_entropy(action_dist)
-            logp_diff = action_logp - cast(torch.Tensor, batch["action_logp"])
-        self.agent.record(ratio=logp_diff.abs(), entropy=entropy)
+            logp_ratio = action_logp - cast(torch.Tensor, batch["action_logp"])
+        self.agent.record(ratio=logp_ratio.abs(), entropy=entropy)
 
         batch["curr_action_dist"] = action_dist
         batch["curr_action_logp"] = action_logp
         batch["curr_entropy"] = entropy
-        batch["action_logp_diff"] = logp_diff
-        batch["action_prob_ratio"] = logp_diff.exp()
+        batch["action_logp_ratio"] = logp_ratio
+        batch["action_prob_ratio"] = logp_ratio.exp()
         if self.calculate_kl_divergence:
             batch["kl_divergence"] = actor.compute_kl_div(batch["action_dist"], action_dist)

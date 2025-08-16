@@ -10,7 +10,7 @@ __all__ = ["ModuleInitialization"]
 
 
 class ModuleInitialization(Hook[ActorCritic]):
-    """A hook to initialize the weights of the actor and critic networks.
+    """Initializes the weights of the actor and critic networks.
 
     This hook applies orthogonal initialization to linear, recurrent, and multi-
     head attention layers, and Kaiming normal initialization to convolutional

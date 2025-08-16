@@ -53,18 +53,6 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             Defaults to 5.0.
     """
 
-    dataset: Tensor | None
-    discriminator: Module
-    transition_dim: int
-    transition_rms: RunningMeanStd
-    criterion: nn.BCEWithLogitsLoss
-
-    # Mutable attributes
-    batch_size: int | None
-    reward_scale: float
-    loss_weight: float
-    grad_penalty_weight: float
-
     def __init__(
         self,
         discriminator_factory: ModuleFactoryLike,
@@ -79,10 +67,23 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         self.discriminator_factory = discriminator_factory
         self.dataset_source = dataset_source
         self.state_indices = state_indices
+
+        # Mutable attributes
+        self.batch_size: int | None
+        self.reward_scale: float
+        self.loss_weight: float
+        self.grad_penalty_weight: float
         self.register_mutable("batch_size", batch_size)
         self.register_mutable("reward_scale", reward_scale)
         self.register_mutable("loss_weight", loss_weight)
         self.register_mutable("grad_penalty_weight", grad_penalty_weight)
+
+        # Runtime attributes
+        self.dataset: Tensor | None
+        self.discriminator: Module
+        self.transition_dim: int
+        self.transition_rms: RunningMeanStd
+        self.criterion: nn.BCEWithLogitsLoss
 
     def init(self):
         self.dataset = None

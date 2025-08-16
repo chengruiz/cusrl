@@ -25,10 +25,9 @@ def _generalized_advantage_estimation(
 
 
 class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
-    """A hook that computes advantages and returns using Generalized Advantage
-    Estimation (GAE).
+    """Computes advantages and returns using Generalized Advantage Estimation.
 
-    GAE is described in:
+    Generalized Advantage Estimation (GAE) is described in:
     "High-Dimensional Continuous Control Using Generalized Advantage
     Estimation",
     https://arxiv.org/abs/1506.02438
@@ -60,11 +59,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             is applied.
     """
 
-    # Mutable attributes
-    gamma: float
-    lamda: float
-    lamda_value: float | None
-
     def __init__(
         self,
         gamma: float = 0.99,
@@ -81,11 +75,18 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             raise ValueError(f"Invalid lambda value for value function {lamda_value}, which should be in [0, 1].")
 
         super().__init__()
+        self.recompute = recompute
+        self.popart_alpha = popart_alpha
+
+        # Mutable attributes
+        self.gamma: float
+        self.lamda: float
+        self.lamda_value: float | None
         self.register_mutable("gamma", gamma)
         self.register_mutable("lamda", lamda)
         self.register_mutable("lamda_value", lamda_value)
-        self.recompute = recompute
-        self.popart_alpha = popart_alpha
+
+        # Runtime attributes
         self.value_rms: ExponentialMovingNormalizer | None
 
     def init(self):

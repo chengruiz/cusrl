@@ -13,7 +13,7 @@ __all__ = ["RandomNetworkDistillation"]
 
 
 class RandomNetworkDistillation(Hook):
-    """A hook to generate intrinsic rewards with Random Network Distillation.
+    """Generates intrinsic rewards with Random Network Distillation (RND).
 
     Described in "Exploration by Random Network Distillation",
     https://arxiv.org/abs/1810.12894
@@ -29,13 +29,6 @@ class RandomNetworkDistillation(Hook):
             Indices of states used for quantifying novelty. Defaults to None.
     """
 
-    target: Module
-    predictor: Module
-    criterion: nn.MSELoss
-
-    # Mutable attributes
-    reward_scale: float
-
     def __init__(
         self,
         module_factory: ModuleFactoryLike,
@@ -45,9 +38,17 @@ class RandomNetworkDistillation(Hook):
     ):
         super().__init__()
         self.output_dim = output_dim
-        self.register_mutable("reward_scale", reward_scale)
         self.module_factory = module_factory
         self.state_indices = slice(None) if state_indices is None else state_indices
+
+        # Mutable attributes
+        self.reward_scale: float
+        self.register_mutable("reward_scale", reward_scale)
+
+        # Runtime attributes
+        self.target: Module
+        self.predictor: Module
+        self.criterion: nn.MSELoss
 
     def init(self):
         input_dim = torch.ones(1, self.agent.state_dim)[..., self.state_indices].numel()

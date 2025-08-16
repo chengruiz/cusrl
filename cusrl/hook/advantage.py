@@ -11,7 +11,7 @@ __all__ = ["AdvantageReduction", "AdvantageNormalization"]
 
 
 class AdvantageReduction(Hook):
-    """A hook to reduce a multidimensional advantage tensor into a scalar.
+    """Reduces a multidimensional advantage tensor into a scalar.
 
     This hook reduces the advantage tensor along its last dimension. This is
     useful in multi-goal settings where the advantage is a vector.
@@ -28,11 +28,6 @@ class AdvantageReduction(Hook):
         ValueError: If an invalid reduction method is provided.
     """
 
-    _weight: Tensor | None
-
-    # mutable attributes
-    weight: tuple[float, ...] | None
-
     def __init__(
         self,
         reduction: Literal["sum", "mean"] = "sum",
@@ -40,18 +35,24 @@ class AdvantageReduction(Hook):
     ):
         if reduction not in ("sum", "mean"):
             raise ValueError(f"Unknown reduction: '{reduction}'.")
-
         super().__init__()
+
         self.reduction = reduction
-        self.weight = None if weight is None else tuple(weight)
+
+        # Mutable attributes
+        self.weight: tuple[float, ...] | None
+        self.register_mutable("weight", None if weight is None else tuple(weight))
+
+        # Runtime attributes
+        self._weight_tensor: Tensor | None
 
     def init(self):
-        self._weight = None if self.weight is None else self.agent.to_tensor(self.weight)
+        self._weight_tensor = None if self.weight is None else self.agent.to_tensor(self.weight)
 
     def objective(self, batch):
         advantage = cast(torch.Tensor, batch["advantage"])
-        if self._weight is not None:
-            advantage = advantage * self._weight
+        if self._weight_tensor is not None:
+            advantage = advantage * self._weight_tensor
         if self.reduction == "sum":
             advantage = advantage.sum(-1, keepdim=True)
         elif self.reduction == "mean":
@@ -64,14 +65,14 @@ class AdvantageReduction(Hook):
         super().update_attribute(name, value)
         if name == "weight":
             if value is None:
-                self.weight = self._weight = None
+                self.weight = self._weight_tensor = None
             else:
                 self.weight = tuple(value)
-                self._weight = self.agent.to_tensor(self.weight)
+                self._weight_tensor = self.agent.to_tensor(self.weight)
 
 
 class AdvantageNormalization(Hook[ActorCritic]):
-    """A hook to normalize advantages in actor-critic algorithms.
+    """Normalizes advantages in actor-critic algorithms.
 
     This hook standardizes the advantages to have a mean of 0 and a standard
     deviation of 1. This can help stabilize training by preventing the scale of

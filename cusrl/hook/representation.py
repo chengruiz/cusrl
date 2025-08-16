@@ -1,3 +1,5 @@
+from typing import cast
+
 import torch
 from torch import nn
 
@@ -9,9 +11,6 @@ __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]
 
 
 class ReturnPrediction(Hook[ActorCritic]):
-    predictor: nn.Module
-    criterion: nn.MSELoss
-
     def __init__(
         self,
         weight: float = 0.01,
@@ -19,9 +18,16 @@ class ReturnPrediction(Hook[ActorCritic]):
         predicts_value_instead_of_return: bool = False,
     ):
         super().__init__()
-        self.weight = weight
         self.predictor_factory = predictor_factory
         self.predicts_value_instead_of_return = predicts_value_instead_of_return
+
+        # Mutable attributes
+        self.weight: float
+        self.register_mutable("weight", weight)
+
+        # Runtime attributes
+        self.predictor: nn.Module
+        self.criterion: nn.MSELoss
 
     def init(self):
         self.register_module("predictor", self.predictor_factory(self.agent.actor.latent_dim, 1))
@@ -47,9 +53,6 @@ class ReturnPrediction(Hook[ActorCritic]):
 
 
 class StatePrediction(Hook[ActorCritic]):
-    predictor: nn.Module
-    criterion: nn.MSELoss
-
     def __init__(
         self,
         target_indices: Slice,
@@ -58,8 +61,15 @@ class StatePrediction(Hook[ActorCritic]):
     ):
         super().__init__()
         self.target_indices = target_indices
-        self.weight = weight
         self.predictor_factory = predictor_factory
+
+        # Mutable attributes
+        self.weight: float
+        self.register_mutable("weight", weight)
+
+        # Runtime attributes
+        self.predictor: nn.Module
+        self.criterion: nn.MSELoss
 
     def init(self):
         if not self.agent.has_state:
@@ -69,9 +79,10 @@ class StatePrediction(Hook[ActorCritic]):
         self.criterion = nn.MSELoss()
 
     def objective(self, batch):
+        state = cast(torch.Tensor, batch["state"])
         with self.agent.autocast():
             latent = self.agent.actor.intermediate_repr["backbone.output"]
-            target = batch["state"][..., self.target_indices]
+            target = state[..., self.target_indices]
             state_prediction_loss = self.weight * self.criterion(self.predictor(latent), target)
         self.agent.record(state_prediction_loss=state_prediction_loss)
         return state_prediction_loss
@@ -109,8 +120,15 @@ class NextStatePrediction(Hook[ActorCritic]):
     ):
         super().__init__()
         self.target_indices = target_indices
-        self.weight = weight
         self.predictor_factory = predictor_factory
+
+        # Mutable attributes
+        self.weight: float
+        self.register_mutable("weight", weight)
+
+        # Runtime attributes
+        self.predictor: nn.Module
+        self.criterion: nn.MSELoss
 
     def init(self):
         if not self.agent.has_state:
@@ -121,9 +139,10 @@ class NextStatePrediction(Hook[ActorCritic]):
         self.criterion = nn.MSELoss()
 
     def objective(self, batch):
+        next_state = cast(torch.Tensor, batch["next_state"])
         with self.agent.autocast():
             latent = self.agent.actor.intermediate_repr["backbone.output"]
-            target = batch["next_state"][..., self.target_indices]
+            target = next_state[..., self.target_indices]
             prediction = self.predictor(latent, batch["action"])
             next_state_prediction_loss = self.weight * self.criterion(prediction, target)
         self.agent.record(next_state_prediction_loss=next_state_prediction_loss)

@@ -42,22 +42,23 @@ class ObservationNormalization(Hook[ActorCritic]):
             to False.
     """
 
-    observation_rms: RunningMeanStd
-    state_rms: RunningMeanStd | None = None
-    _mirror_observation: SymmetryDef | None = None
-    _mirror_state: SymmetryDef | None = None
-    _observation_is_subset_of_state: Slice | torch.Tensor | None = None
-
-    # Mutable attributes
-    frozen: bool
-
     def __init__(self, max_count: int | None = None, defer_synchronization: bool = False):
         if max_count is not None and max_count <= 0:
             raise ValueError("'max_count' must be positive or None.")
         super().__init__()
         self.max_count = max_count
-        self.register_mutable("frozen", False)
         self.defer_synchronization = defer_synchronization
+
+        # Mutable attributes
+        self.frozen: bool
+        self.register_mutable("frozen", False)
+
+        # Runtime attributes
+        self.observation_rms: RunningMeanStd
+        self.state_rms: RunningMeanStd | None
+        self._mirror_observation: SymmetryDef | None = None
+        self._mirror_state: SymmetryDef | None = None
+        self._observation_is_subset_of_state: Slice | torch.Tensor | None = None
         self._last_done: torch.Tensor | None = None
 
     def init(self):
@@ -81,6 +82,8 @@ class ObservationNormalization(Hook[ActorCritic]):
         if self.agent.has_state:
             state_rms = self._make_rms(self.agent.state_dim, self.max_count, env_spec.state_stat_groups)
             self.register_module("state_rms", state_rms)
+        else:
+            self.state_rms = None
         self._mirror_observation = env_spec.mirror_observation
         self._mirror_state = env_spec.mirror_state
 
