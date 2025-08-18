@@ -22,7 +22,7 @@ class GraphBuilder(nn.Module):
         self.graph_name = graph_name
         self.output_names = list(output_names)
         self.info = {}
-        self._named_submodules = {}
+        self.named_nodes = {}
 
     def forward(self, *args, **kwargs):
         if args:
@@ -31,7 +31,7 @@ class GraphBuilder(nn.Module):
             self.output_names = sorted(kwargs.keys())
         return tuple(kwargs[name] for name in self.output_names)
 
-    def add_module_to_graph(
+    def add_node(
         self,
         module: nn.Module,
         module_name: str,
@@ -49,9 +49,9 @@ class GraphBuilder(nn.Module):
             input_names = {name: name for name in input_names}
         if isinstance(output_names, str):
             output_names = (output_names,)
-        if module_name in self._named_submodules:
+        if module_name in self.named_nodes:
             raise ValueError(f"Module with name '{module_name}' already exists in the graph.")
-        self._named_submodules[module_name] = module
+        self.named_nodes[module_name] = module
         self.add_module(module_name, module)
 
         def hook(_: nn.Module, args: tuple, kwargs: dict[str, Any]):

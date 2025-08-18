@@ -43,7 +43,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         return return_prediction_loss
 
     def post_export(self, graph: GraphBuilder):
-        graph.add_module_to_graph(
+        graph.add_node(
             self.predictor,
             module_name="return_predictor",
             input_names={"input": "actor.backbone.output"},
@@ -88,7 +88,7 @@ class StatePrediction(Hook[ActorCritic]):
         return state_prediction_loss
 
     def post_export(self, graph: GraphBuilder):
-        graph.add_module_to_graph(
+        graph.add_node(
             self.predictor,
             module_name="state_predictor",
             input_names={"input": "actor.backbone.output"},
@@ -149,7 +149,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         return next_state_prediction_loss
 
     def post_export(self, graph: GraphBuilder):
-        graph.add_module_to_graph(
+        graph.add_node(
             self.predictor,
             module_name="next_state_predictor",
             input_names={"latent": "actor.backbone.output", "action": "action"},

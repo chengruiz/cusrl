@@ -1,5 +1,6 @@
-from collections.abc import Sequence
-from typing import cast
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from typing import TypeAlias, cast
 
 import torch
 from torch import Tensor, nn
@@ -14,6 +15,7 @@ __all__ = [
     # Elements
     "SymmetricActor",
     "SymmetryDef",
+    "SymmetryDefLike",
     # Hooks
     "SymmetryHook",
     "SymmetryLoss",
@@ -36,25 +38,40 @@ class SymmetryDef:
         self.multiplier[flipped_indices] = -1.0
 
     def __call__(self, input: Tensor):
-        if self.destination.device != input.device:
-            self.destination = self.destination.to(input.device)
-            self.multiplier = self.multiplier.to(input.device)
+        self.destination = self.destination.to(input.device)
+        self.multiplier = self.multiplier.to(dtype=input.dtype, device=input.device)
         return input[..., self.destination] * self.multiplier
 
     def __repr__(self):
         return f"SymmetryDef(destination_indices={self.destination_indices}, flipped_indices={self.flipped_indices})"
 
 
+SymmetryDefLike: TypeAlias = Callable[[Tensor], Tensor]
+
+
 class SymmetryHook(Hook[ActorCritic]):
-    _mirror_observation: SymmetryDef
-    _mirror_action: SymmetryDef
+    def __init__(self):
+        super().__init__()
+        self.mirror_observation: SymmetryDefLike
+        self.mirror_state: SymmetryDefLike | None
+        self.mirror_action: SymmetryDefLike
 
     def init(self):
-        if self.agent.environment_spec.mirror_observation is None or self.agent.environment_spec.mirror_action is None:
-            raise ValueError("'mirror_observation' and 'mirror_action' should be defined for symmetry hooks.")
+        num_symmetry_hooks = sum(isinstance(hook, SymmetryHook) for hook in self.agent.hook)
+        if num_symmetry_hooks > 1:
+            raise ValueError("At most one symmetry hook should be registered.")
 
-        self._mirror_observation = self.agent.environment_spec.mirror_observation
-        self._mirror_action = self.agent.environment_spec.mirror_action
+        if self.agent.environment_spec.mirror_observation is None:
+            raise ValueError("'mirror_observation' should be defined for symmetry hooks.")
+        self.mirror_observation = self.agent.environment_spec.mirror_observation
+
+        if self.agent.has_state and self.agent.environment_spec.mirror_state is None:
+            raise ValueError("'mirror_state' should be defined for symmetry hooks.")
+        self.mirror_state = self.agent.environment_spec.mirror_state
+
+        if self.agent.environment_spec.mirror_action is None:
+            raise ValueError("'mirror_action' should be defined for symmetry hooks.")
+        self.mirror_action = self.agent.environment_spec.mirror_action
 
 
 class SymmetryLoss(SymmetryHook):
@@ -68,10 +85,16 @@ class SymmetryLoss(SymmetryHook):
         weight (float | None):
             Scaling factor for the symmetry loss. If None, the symmetry loss is
             not applied.
+        symmetrize_action_std (bool, optional):
+            Whether to symmetrize the action standard deviation. . Defaults to
+            False.
     """
 
-    def __init__(self, weight: float | None):
+    def __init__(self, weight: float | None, symmetrize_action_std: bool = False):
+        if weight is not None and weight < 0:
+            raise ValueError("'weight' must be None or non-negative.")
         super().__init__()
+        self.symmetrize_action_std = symmetrize_action_std
 
         # Mutable attributes
         self.weight: float | None
@@ -79,12 +102,12 @@ class SymmetryLoss(SymmetryHook):
 
         # Runtime attributes
         self.criterion: nn.MSELoss
-        self._mirrored_actor_memory: Memory
+        self.mirrored_actor_memory: Memory
 
     def init(self):
         super().init()
         self.criterion = nn.MSELoss()
-        self._mirrored_actor_memory = None
+        self.mirrored_actor_memory = None
 
     @torch.no_grad()
     def post_step(self, transition):
@@ -92,14 +115,14 @@ class SymmetryLoss(SymmetryHook):
         observation = cast(Tensor, transition["observation"])
         done = cast(Tensor, transition["done"])
 
-        mirrored_observation = self._mirror_observation(observation)
-        transition["mirrored_actor_memory"] = self._mirrored_actor_memory
+        mirrored_observation = self.mirror_observation(observation)
+        transition["mirrored_actor_memory"] = self.mirrored_actor_memory
         with self.agent.autocast():
-            self._mirrored_actor_memory = actor.step_memory(
+            self.mirrored_actor_memory = actor.step_memory(
                 mirrored_observation,
-                memory=self._mirrored_actor_memory,
+                memory=self.mirrored_actor_memory,
             )
-            actor.reset_memory(self._mirrored_actor_memory, done)
+            actor.reset_memory(self.mirrored_actor_memory, done)
 
     def objective(self, batch):
         if self.weight is None:
@@ -109,15 +132,22 @@ class SymmetryLoss(SymmetryHook):
         observation = cast(Tensor, batch["observation"])
         with self.agent.autocast():
             mirrored_action_dist, _ = actor(
-                self._mirror_observation(observation),
+                self.mirror_observation(observation),
                 memory=batch.get("mirrored_actor_memory"),
                 done=batch["done"],
             )
-        curr_action_dist = cast(MeanStdDict, batch["curr_action_dist"])
 
-        mean_loss = self.criterion(curr_action_dist["mean"], self._mirror_action(mirrored_action_dist["mean"]))
-        std_loss = self.criterion(curr_action_dist["std"], self._mirror_action(mirrored_action_dist["std"]))
-        symmetry_loss = self.weight * (mean_loss + std_loss)
+        curr_action_dist = cast(MeanStdDict, batch["curr_action_dist"])
+        loss = self.criterion(
+            curr_action_dist["mean"],
+            self.mirror_action(mirrored_action_dist["mean"]),
+        )
+        if self.symmetrize_action_std:
+            loss += self.criterion(
+                curr_action_dist["std"],
+                self.mirror_action(mirrored_action_dist["std"]).abs(),
+            )
+        symmetry_loss = self.weight * loss
         self.agent.record(symmetry_loss=symmetry_loss)
         return symmetry_loss
 
@@ -141,40 +171,48 @@ class SymmetricDataAugmentation(SymmetryHook):
 
     def __init__(self):
         super().__init__()
-        self._mirrored_actor_memory = None
+
+        # Runtime attributes
+        self.mirrored_actor_memory: Memory
+        self.mirrored_critic_memory: Memory
+
+    def init(self):
+        super().init()
+        self.mirrored_actor_memory = None
+        self.mirrored_critic_memory = None
 
     @torch.no_grad()
     def post_step(self, transition):
         actor = self.agent.actor
         observation = cast(Tensor, transition["observation"])
-        mirrored_observation = self._mirror_observation(observation)
+        mirrored_observation = self.mirror_observation(observation)
         done = cast(Tensor, transition["done"])
 
-        transition["mirrored_actor_memory"] = self._mirrored_actor_memory
+        transition["mirrored_actor_memory"] = self.mirrored_actor_memory
         with self.agent.autocast():
-            self._mirrored_actor_memory = actor.step_memory(
+            self.mirrored_actor_memory = actor.step_memory(
                 mirrored_observation,
-                memory=self._mirrored_actor_memory,
+                memory=self.mirrored_actor_memory,
             )
-            actor.reset_memory(self._mirrored_actor_memory, done)
+            actor.reset_memory(self.mirrored_actor_memory, done)
 
     def objective(self, batch):
         actor = self.agent.actor
         with self.agent.autocast():
             mirrored_action_dist, _ = actor(
-                self._mirror_observation(batch["observation"]),
+                self.mirror_observation(batch["observation"]),
                 memory=batch.get("mirrored_actor_memory"),
                 done=batch["done"],
             )
-            mirrored_action_logp = actor.compute_logp(mirrored_action_dist, self._mirror_action(batch["action"]))
+            mirrored_action_logp = actor.compute_logp(mirrored_action_dist, self.mirror_action(batch["action"]))
             mirrored_entropy = actor.compute_entropy(mirrored_action_dist)
             mirrored_action_logp_ratio = mirrored_action_logp - batch["action_logp"]
 
         advantage = batch["advantage"]
-        batch["advantage"] = torch.cat([advantage, advantage], dim=0)
-        batch["action_logp_ratio"] = torch.cat([batch["action_logp_ratio"], mirrored_action_logp_ratio], dim=0)
-        batch["action_prob_ratio"] = torch.cat([batch["action_prob_ratio"], mirrored_action_logp_ratio.exp()], dim=0)
-        batch["curr_entropy"] = torch.cat([batch["curr_entropy"], mirrored_entropy], dim=0)
+        batch["advantage"] = torch.cat([advantage, advantage], dim=-2)
+        batch["action_logp_ratio"] = torch.cat([batch["action_logp_ratio"], mirrored_action_logp_ratio], dim=-2)
+        batch["action_prob_ratio"] = torch.cat([batch["action_prob_ratio"], mirrored_action_logp_ratio.exp()], dim=-2)
+        batch["curr_entropy"] = torch.cat([batch["curr_entropy"], mirrored_entropy], dim=-2)
 
 
 class SymmetricArchitecture(SymmetryHook):
@@ -187,26 +225,56 @@ class SymmetricArchitecture(SymmetryHook):
     the initialization phase, ensuring that the policy is strictly symmetric.
     """
 
-    def init(self):
-        super().init()
-        self.agent.actor = SymmetricActor(self.agent.actor, self._mirror_observation, self._mirror_action)
+    def pre_init(self, agent: ActorCritic):
+        super().pre_init(agent)
+        agent.actor_factory = SymmetricActorFactory(
+            agent.actor_factory.backbone_factory,
+            agent.actor_factory.distribution_factory,
+            agent.actor_factory.latent_dim,
+            mirror_observation=agent.environment_spec.mirror_observation,
+            mirror_action=agent.environment_spec.mirror_action,
+        )
+
+
+@dataclass
+class SymmetricActorFactory(Actor.Factory):
+    mirror_observation: SymmetryDefLike | None = None
+    mirror_action: SymmetryDefLike | None = None
+
+    def __call__(self, input_dim: int | None, output_dim: int) -> Actor:
+        actor = super().__call__(input_dim, output_dim)
+        assert self.mirror_observation is not None, "mirror_observation must be defined."
+        assert self.mirror_action is not None, "mirror_action must be defined."
+        return SymmetricActor(
+            actor,
+            mirror_observation=self.mirror_observation,
+            mirror_action=self.mirror_action,
+        )
 
 
 class SymmetricActor(Actor):
     def __init__(
         self,
         wrapped: Actor,
-        mirror_observation: SymmetryDef,
-        mirror_action: SymmetryDef,
+        mirror_observation: SymmetryDefLike,
+        mirror_action: SymmetryDefLike,
     ):
         super().__init__(wrapped.backbone, wrapped.distribution)
         if not isinstance(self.distribution, (NormalDist, AdaptiveNormalDist)):
             raise ValueError("SymmetricActor can only be used with Normal distributions.")
 
         self.wrapped = wrapped
-        self._mirror_observation = mirror_observation
-        self._mirror_action = mirror_action
+        self.mirror_observation = mirror_observation
+        self.mirror_action = mirror_action
         self.is_distributed = self.wrapped.is_distributed
+
+    def to_distributed(self):
+        if not self.is_distributed:
+            self.is_distributed = True
+            self.wrapped = self.wrapped.to_distributed()
+            self.backbone = self.wrapped.backbone
+            self.distribution = self.wrapped.distribution
+        return self
 
     def _forward_impl(
         self,
@@ -222,7 +290,7 @@ class SymmetricActor(Actor):
             memory = mirrored_memory = None
 
         self.wrapped.intermediate_repr.clear()
-        mirrored_observation = self._mirror_observation(observation)
+        mirrored_observation = self.mirror_observation(observation)
         mirrored_action_dist, mirrored_memory = self.wrapped(
             mirrored_observation,
             memory=mirrored_memory,
@@ -247,8 +315,8 @@ class SymmetricActor(Actor):
         self.intermediate_repr["mirrored.action_dist"] = mirrored_action_dist
         self.intermediate_repr.update(prefix_dict_keys(mirrored_intermediate_repr, "mirrored."))
         action_dist = {
-            "mean": (original_action_dist["mean"] + self._mirror_action(mirrored_action_dist["mean"])) / 2,
-            "std": (original_action_dist["std"] + abs(self._mirror_action(mirrored_action_dist["std"]))) / 2,
+            "mean": (original_action_dist["mean"] + self.mirror_action(mirrored_action_dist["mean"])) / 2,
+            "std": (original_action_dist["std"] + self.mirror_action(mirrored_action_dist["std"]).abs()) / 2,
         }
         if memory is None:
             return action_dist, None
@@ -279,7 +347,7 @@ class SymmetricActor(Actor):
                 observation=self.intermediate_repr["mirrored.observation"],
                 **(distribution_kwargs or {}),
             )
-            action = (original_action + self._mirror_action(mirrored_action)) / 2
+            action = (original_action + self.mirror_action(mirrored_action)) / 2
             logp = self.distribution.compute_logp(action_dist, action)
         else:
             action, logp = self.distribution.sample_from_dist(action_dist)
@@ -292,7 +360,7 @@ class SymmetricActor(Actor):
             memory = mirrored_memory = None
 
         memory = self.wrapped.step_memory(observation, memory=memory, **kwargs)
-        mirrored_observation = self._mirror_observation(observation)
+        mirrored_observation = self.mirror_observation(observation)
         mirrored_memory = self.wrapped.step_memory(mirrored_observation, memory=mirrored_memory, **kwargs)
         return None if memory is None else (memory, mirrored_memory)
 

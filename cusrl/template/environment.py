@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias
 from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
 
 if TYPE_CHECKING:
-    from cusrl.hook.symmetry import SymmetryDef
+    from cusrl.hook.symmetry import SymmetryDefLike
 
 __all__ = [
     "Environment",
@@ -46,11 +46,11 @@ class EnvironmentSpec:
             The time duration for one environment step.
 
         # Symmetry transformations
-        mirror_action (SymmetryDef | None):
+        mirror_action (SymmetryDefLike | None):
             Definition for action symmetry transformations.
-        mirror_observation (SymmetryDef | None):
+        mirror_observation (SymmetryDefLike | None):
             Definition for observation symmetry transformations.
-        mirror_state (SymmetryDef | None):
+        mirror_state (SymmetryDefLike | None):
             Definition for state symmetry transformations.
 
         # Predefined statistics
@@ -103,9 +103,9 @@ class EnvironmentSpec:
         autoreset: bool = False,
         demonstration_sampler: Callable[[int], Array] | None = None,
         final_state_is_missing: bool = False,
-        mirror_action: Optional["SymmetryDef"] = None,
-        mirror_observation: Optional["SymmetryDef"] = None,
-        mirror_state: Optional["SymmetryDef"] = None,
+        mirror_action: Optional["SymmetryDefLike"] = None,
+        mirror_observation: Optional["SymmetryDefLike"] = None,
+        mirror_state: Optional["SymmetryDefLike"] = None,
         num_instances: int = 1,
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Sequence[tuple[int, int]] = (),
@@ -190,9 +190,9 @@ class Environment(ABC, Generic[ArrayType]):
         action_denormalization: tuple[Array, Array] | None = None,
         autoreset: bool = False,
         final_state_is_missing: bool = False,
-        mirror_action: Optional["SymmetryDef"] = None,
-        mirror_observation: Optional["SymmetryDef"] = None,
-        mirror_state: Optional["SymmetryDef"] = None,
+        mirror_action: Optional["SymmetryDefLike"] = None,
+        mirror_observation: Optional["SymmetryDefLike"] = None,
+        mirror_state: Optional["SymmetryDefLike"] = None,
         num_instances: int = 1,
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Sequence[tuple[int, int]] = (),

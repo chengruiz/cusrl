@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 
-from cusrl.hook.symmetry import SymmetryDef
+from cusrl.hook.symmetry import SymmetryDefLike
 from cusrl.module import GraphBuilder, RunningMeanStd
 from cusrl.module.normalizer import mean_var_count
 from cusrl.template import ActorCritic, Hook
@@ -56,8 +56,8 @@ class ObservationNormalization(Hook[ActorCritic]):
         # Runtime attributes
         self.observation_rms: RunningMeanStd
         self.state_rms: RunningMeanStd | None
-        self._mirror_observation: SymmetryDef | None = None
-        self._mirror_state: SymmetryDef | None = None
+        self._mirror_observation: SymmetryDefLike | None = None
+        self._mirror_state: SymmetryDefLike | None = None
         self._observation_is_subset_of_state: Slice | torch.Tensor | None = None
         self._last_done: torch.Tensor | None = None
 
@@ -94,7 +94,7 @@ class ObservationNormalization(Hook[ActorCritic]):
 
         transition["original_observation"] = observation
         transition["observation"] = self.observation_rms.normalize(observation)
-        if state is not None:
+        if self.state_rms is not None:
             transition["original_state"] = state
             transition["state"] = self.state_rms.normalize(state)
 
@@ -105,7 +105,7 @@ class ObservationNormalization(Hook[ActorCritic]):
 
         transition["original_next_observation"] = next_observation
         transition["next_observation"] = self.observation_rms.normalize(next_observation)
-        if next_state is not None:
+        if self.state_rms is not None:
             transition["original_next_state"] = next_state
             transition["next_state"] = self.state_rms.normalize(next_state)
 
@@ -130,7 +130,7 @@ class ObservationNormalization(Hook[ActorCritic]):
             # Do not update the statistics during inference or if frozen
             return
 
-        if state is not None:
+        if self.state_rms is not None:
             self._update_rms_impl(state, self.state_rms, self._mirror_state, indices)
         if self._observation_is_subset_of_state is not None:
             self.observation_rms.mean.copy_(self.state_rms.mean[self._observation_is_subset_of_state])
@@ -144,7 +144,7 @@ class ObservationNormalization(Hook[ActorCritic]):
         self,
         observation: torch.Tensor,
         rms: RunningMeanStd,
-        mirror: SymmetryDef | None = None,
+        mirror: SymmetryDefLike | None = None,
         indices: torch.Tensor | None = None,
     ):
         if indices is not None:
@@ -170,7 +170,7 @@ class ObservationNormalization(Hook[ActorCritic]):
                 self.observation_rms.synchronize()
 
     def pre_export(self, graph: GraphBuilder):
-        graph.add_module_to_graph(
+        graph.add_node(
             self.observation_rms,
             module_name="observation_rms",
             input_names={"input": "observation"},

@@ -152,10 +152,10 @@ class Module(nn.Module):
         expensive than a full forward pass.
         """
 
-        _, *memory = self(input, memory=memory, **kwargs)
-        if not memory:
+        if not self.is_recurrent:
             return None
-        return memory[0]
+        _, *next_memory = self(input, memory=memory, **kwargs)
+        return next_memory[0]
 
     def reset_memory(self, memory: Memory, done: Slice | torch.Tensor | None = None):
         """Resets the memory of the model for finished environments.

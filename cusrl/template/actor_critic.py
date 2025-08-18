@@ -286,7 +286,7 @@ class ActorCritic(Agent):
             output_names.append("memory_out")
 
         self.hook.pre_export(graph)
-        graph.add_module_to_graph(
+        graph.add_node(
             actor,
             module_name="actor",
             input_names=input_names,
@@ -301,7 +301,7 @@ class ActorCritic(Agent):
         )
         self.hook.post_export(graph)
         if self.environment_spec.observation_normalization is not None:
-            graph.add_module_to_graph(
+            graph.add_node(
                 Normalization(
                     self.to_tensor(self.environment_spec.observation_normalization[1]),
                     self.to_tensor(self.environment_spec.observation_normalization[0]),
@@ -313,7 +313,7 @@ class ActorCritic(Agent):
                 prepend=True,
             )
         if self.environment_spec.action_denormalization is not None:
-            graph.add_module_to_graph(
+            graph.add_node(
                 Denormalization(
                     self.to_tensor(self.environment_spec.action_denormalization[1]),
                     self.to_tensor(self.environment_spec.action_denormalization[0]),

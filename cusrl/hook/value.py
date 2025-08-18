@@ -141,14 +141,12 @@ class ValueLoss(Hook[ActorCritic]):
     def objective(self, batch):
         critic = self.agent.critic
         with self.agent.autocast():
-            curr_value = batch.get("curr_value")
-            if curr_value is None:
-                curr_value = critic.evaluate(
-                    batch.get("state", batch["observation"]),
-                    memory=batch.get("critic_memory"),
-                    done=batch["done"],
-                )
-                batch["curr_value"] = curr_value
+            curr_value = critic.evaluate(
+                get_first(batch, "state", "observation"),
+                memory=batch.get("critic_memory"),
+                done=batch["done"],
+            )
+            batch["curr_value"] = curr_value
 
             value_loss = (
                 nn.functional.mse_loss(batch["return"], curr_value)

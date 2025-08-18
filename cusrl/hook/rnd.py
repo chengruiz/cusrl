@@ -66,8 +66,9 @@ class RandomNetworkDistillation(Hook):
 
     @torch.no_grad()
     def pre_update(self, buffer: Buffer):
-        next_state = cast(torch.Tensor, get_first(buffer, "next_state", "next_observation"))[..., self.state_indices]
-        target, prediction = self.target(next_state), self.predictor(next_state)
+        next_state = cast(torch.Tensor, get_first(buffer, "next_state", "next_observation"))
+        rnd_next_state = next_state[..., self.state_indices]
+        target, prediction = self.target(rnd_next_state), self.predictor(rnd_next_state)
         rnd_reward = self.reward_scale * (target - prediction).square().mean(dim=-1, keepdim=True)
         cast(torch.Tensor, buffer["reward"]).add_(rnd_reward)
         self.agent.record(rnd_reward=rnd_reward)
