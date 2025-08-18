@@ -86,7 +86,7 @@ class SymmetryLoss(SymmetryHook):
             Scaling factor for the symmetry loss. If None, the symmetry loss is
             not applied.
         symmetrize_action_std (bool, optional):
-            Whether to symmetrize the action standard deviation. . Defaults to
+            Whether to symmetrize the action standard deviation. Defaults to
             False.
     """
 

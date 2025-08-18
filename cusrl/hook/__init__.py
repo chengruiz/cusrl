@@ -1,6 +1,7 @@
 from .advantage import AdvantageNormalization, AdvantageReduction
 from .amp import AdversarialMotionPrior
 from .condition import ConditionalObjectiveActivation
+from .environment_spec import EnvironmentSpecOverride
 from .gae import GeneralizedAdvantageEstimation
 from .gradient import GradientClipping
 from .initialization import ModuleInitialization
@@ -41,6 +42,7 @@ __all__ = [
     "AdversarialMotionPrior",
     "ConditionalObjectiveActivation",
     "EntropyLoss",
+    "EnvironmentSpecOverride",
     "GAE",
     "GeneralizedAdvantageEstimation",
     "GradientClipping",

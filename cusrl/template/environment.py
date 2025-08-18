@@ -158,6 +158,12 @@ class EnvironmentSpec:
             return self.extras[key]
         return self.__dict__.get(key, default)
 
+    def override(self, key: str, value: Any):
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            self.extras[key] = value
+
 
 EnvironmentFactory: TypeAlias = Callable[[], "Environment"]
 
