@@ -7,6 +7,7 @@ from torch import Tensor, nn
 
 from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
 from cusrl.module.distribution import MeanStdDict
+from cusrl.module.rnn import concat_memory
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, NestedTensor, Slice
@@ -167,9 +168,15 @@ class SymmetricDataAugmentation(SymmetryHook):
     It also manages the recurrent state (memory) for the actor when processing
     mirrored observations, ensuring correct backpropagation through time for
     recurrent policies.
+
+    Args:
+        augments_value (bool):
+            Whether to augment the value function with mirrored transitions.
+            Defaults to True.
     """
 
-    def __init__(self):
+    def __init__(self, augments_value: bool = True):
+        self.augments_value = augments_value
         super().__init__()
 
         # Runtime attributes
@@ -188,7 +195,9 @@ class SymmetricDataAugmentation(SymmetryHook):
         mirrored_observation = self.mirror_observation(observation)
         done = cast(Tensor, transition["done"])
 
-        transition["mirrored_actor_memory"] = self.mirrored_actor_memory
+        transition["mirrored_actor_memory"] = self._unstack_memory(self.mirrored_actor_memory)
+        repeat_ratio = self._get_repeat_ratio(observation, mirrored_observation)
+        done = done.repeat(*repeat_ratio)
         with self.agent.autocast():
             self.mirrored_actor_memory = actor.step_memory(
                 mirrored_observation,
@@ -196,23 +205,66 @@ class SymmetricDataAugmentation(SymmetryHook):
             )
             actor.reset_memory(self.mirrored_actor_memory, done)
 
-    def objective(self, batch):
-        actor = self.agent.actor
-        with self.agent.autocast():
-            mirrored_action_dist, _ = actor(
-                self.mirror_observation(batch["observation"]),
-                memory=batch.get("mirrored_actor_memory"),
-                done=batch["done"],
-            )
-            mirrored_action_logp = actor.compute_logp(mirrored_action_dist, self.mirror_action(batch["action"]))
-            mirrored_entropy = actor.compute_entropy(mirrored_action_dist)
-            mirrored_action_logp_ratio = mirrored_action_logp - batch["action_logp"]
+        if self.augments_value:
+            critic = self.agent.critic
+            if (state := cast(torch.Tensor | None, transition.get("state"))) is not None:
+                mirrored_state = self.mirror_state(state)
+            else:
+                mirrored_state = mirrored_observation
+            transition["mirrored_critic_memory"] = self._unstack_memory(self.mirrored_critic_memory)
+            self.mirrored_critic_memory = critic.step_memory(mirrored_state, self.mirrored_critic_memory)
+            critic.reset_memory(self.mirrored_critic_memory, done)
 
-        advantage = batch["advantage"]
-        batch["advantage"] = torch.cat([advantage, advantage], dim=-2)
-        batch["action_logp_ratio"] = torch.cat([batch["action_logp_ratio"], mirrored_action_logp_ratio], dim=-2)
-        batch["action_prob_ratio"] = torch.cat([batch["action_prob_ratio"], mirrored_action_logp_ratio.exp()], dim=-2)
-        batch["curr_entropy"] = torch.cat([batch["curr_entropy"], mirrored_entropy], dim=-2)
+    def objective(self, batch):
+        observation = cast(Tensor, batch["observation"])
+        next_observation = cast(Tensor, batch["next_observation"])
+        action = cast(Tensor, batch["action"])
+        batch["observation"] = torch.cat([observation, self.mirror_observation(observation)], dim=-2)
+        batch["next_observation"] = torch.cat([next_observation, self.mirror_observation(next_observation)], dim=-2)
+        batch["action"] = torch.cat([action, self.mirror_action(action)], dim=-2)
+        if (state := cast(torch.Tensor | None, batch.get("state"))) is not None:
+            batch["state"] = torch.cat([state, self.mirror_state(state)], dim=-2)
+        if (next_state := cast(torch.Tensor | None, batch.get("next_state"))) is not None:
+            batch["next_state"] = torch.cat([next_state, self.mirror_state(next_state)], dim=-2)
+
+        repeat_ratio = self._get_repeat_ratio(observation, batch["observation"])
+        for key in ("action_logp", "advantage", "done"):
+            batch[key] = cast(Tensor, batch[key]).repeat(*repeat_ratio)
+        if (actor_memory := cast(Memory, batch.get("actor_memory"))) is not None:
+            mirrored_actor_memory = self._stack_memory(cast(Memory, batch["mirrored_actor_memory"]))
+            batch["actor_memory"] = concat_memory(actor_memory, mirrored_actor_memory)
+
+        if self.augments_value:
+            for key in ("value", "return"):
+                batch[key] = cast(Tensor, batch[key]).repeat(*repeat_ratio)
+
+            if (critic_memory := cast(Memory, batch.get("critic_memory"))) is not None:
+                mirrored_critic_memory = self._stack_memory(cast(Memory, batch["mirrored_critic_memory"]))
+                batch["critic_memory"] = concat_memory(critic_memory, mirrored_critic_memory)
+
+    def _unstack_memory(self, memory: Memory) -> Memory:
+        if memory is None:
+            return None
+        if isinstance(memory, torch.Tensor):
+            return memory.unflatten(-2, (-1, self.agent.parallelism))
+        return tuple(self._unstack_memory(mem) for mem in memory)
+
+    def _stack_memory(self, memory: Memory) -> Memory:
+        if memory is None:
+            return None
+        if isinstance(memory, torch.Tensor):
+            return memory.flatten(-3, -2)
+        return tuple(self._stack_memory(mem) for mem in memory)
+
+    def _get_repeat_ratio(self, original: Tensor, augmented: Tensor) -> tuple[int, ...]:
+        repeat_ratio = []
+        for original_size, augmented_size in zip(original.shape, augmented.shape):
+            if augmented_size % original_size != 0:
+                raise ValueError(
+                    f"The augmented size ({augmented_size}) is not a multiple of the original size ({original_size})."
+                )
+            repeat_ratio.append(augmented_size // original_size)
+        return tuple(repeat_ratio)
 
 
 class SymmetricArchitecture(SymmetryHook):

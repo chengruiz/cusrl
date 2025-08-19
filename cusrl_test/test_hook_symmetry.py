@@ -1,4 +1,5 @@
 import pytest
+import torch
 
 import cusrl
 from cusrl_test import create_dummy_env
@@ -13,11 +14,20 @@ def test_symmetry_loss(with_state, weight):
     cusrl.Trainer(environment, agent_factory, num_iterations=5).run_training_loop()
 
 
+@pytest.mark.parametrize("recurrent", [False, True])
 @pytest.mark.parametrize("with_state", [False, True])
-def test_symmetry_data_augmentation(with_state):
+@pytest.mark.parametrize("custom_mirror_function", [False, True])
+def test_symmetry_data_augmentation(recurrent, with_state, custom_mirror_function):
     environment = create_dummy_env(with_state=with_state, symmetric=True)
-    agent_factory = cusrl.preset.ppo.AgentFactory()
-    agent_factory.register_hook(cusrl.hook.SymmetricDataAugmentation(), after="on_policy_preparation")
+    agent_factory = cusrl.preset.ppo.RecurrentAgentFactory() if recurrent else cusrl.preset.ppo.AgentFactory()
+    if custom_mirror_function:
+        hook = cusrl.hook.EnvironmentSpecOverride(
+            mirror_observation=lambda obs: torch.cat([obs, obs.flip(-1)], dim=-2),
+            mirror_state=lambda state: torch.cat([state, state.flip(-1)], dim=-2),
+            mirror_action=lambda act: torch.cat([act, act.flip(-1)], dim=-2),
+        )
+        agent_factory.register_hook(hook, index=0)
+    agent_factory.register_hook(cusrl.hook.SymmetricDataAugmentation(), before="value_loss")
     cusrl.Trainer(environment, agent_factory, num_iterations=5).run_training_loop()
 
 

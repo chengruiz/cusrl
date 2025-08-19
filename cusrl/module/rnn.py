@@ -1,4 +1,4 @@
-from typing import TypeAlias
+from typing import TypeAlias, cast
 
 import torch
 from torch import nn
@@ -7,7 +7,7 @@ from cusrl.module.module import Module, ModuleFactory
 from cusrl.utils.recurrent import compute_sequence_lengths, split_and_pad_sequences, unpad_and_merge_sequences
 from cusrl.utils.typing import Memory
 
-__all__ = ["Gru", "Lstm", "Rnn", "RnnBase"]
+__all__ = ["Gru", "Lstm", "Rnn", "concat_memory", "scatter_memory", "gather_memory"]
 
 
 class RnnBase(nn.Module):
@@ -191,6 +191,18 @@ class Gru(Rnn):
 
     def __init__(self, output_dim: int | None = None, **kwargs):
         super().__init__(nn.GRU, output_dim=output_dim, **kwargs)
+
+
+def concat_memory(memory1: Memory, memory2: Memory) -> Memory:
+    """Concatenates two memory tensors along the batch dimension."""
+    if type(memory1) is not type(memory2):
+        raise TypeError("Memories must be of the same type to concatenate.")
+    if memory1 is None:
+        return None
+    if isinstance(memory1, torch.Tensor):
+        memory2 = cast(torch.Tensor, memory2)
+        return torch.cat((memory1, memory2), dim=-2)
+    return tuple(concat_memory(m1, m2) for m1, m2 in zip(memory1, memory2))
 
 
 def scatter_memory(memory: Memory, done: torch.Tensor):
