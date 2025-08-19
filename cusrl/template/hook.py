@@ -191,12 +191,10 @@ class Hook(Generic[AgentType]):
 
         This is the proper place to initialize the hook's modules.
         """
-        pass
 
     def post_init(self):
         """Called after the agent's modules and optimizers are fully
         initialized."""
-        pass
 
     def pre_act(self, transition: dict[str, NestedTensor]):
         """Called before the agent's actor takes an action.
@@ -206,7 +204,6 @@ class Hook(Generic[AgentType]):
                 The transition dictionary, which contains the observation,
                 state and other information.
         """
-        pass
 
     def post_act(self, transition: dict[str, NestedTensor]):
         """Called after the agent's actor takes an action.
@@ -216,7 +213,6 @@ class Hook(Generic[AgentType]):
                 The transition dictionary, which contains the observation,
                 state, action and other information.
         """
-        pass
 
     def post_step(self, transition: dict[str, NestedTensor]):
         """Called after the agent takes a step in the environment.
@@ -226,7 +222,6 @@ class Hook(Generic[AgentType]):
                 The transition dictionary, which contains the full transition
                 information.
         """
-        pass
 
     def pre_update(self, buffer: Buffer):
         """Called before the agent's update phase.
@@ -235,7 +230,6 @@ class Hook(Generic[AgentType]):
             buffer (Buffer):
                 The buffer containing the collected experience.
         """
-        pass
 
     def objective(self, batch: dict[str, NestedTensor | Any]) -> torch.Tensor | None:
         """Defines the objective function for the agent's update.
@@ -257,11 +251,12 @@ class Hook(Generic[AgentType]):
         This is the proper place to perform gradient clipping or other gradient-
         based operations.
         """
-        pass
+
+    def post_optim(self):
+        """Called after the optimizer's step."""
 
     def post_update(self):
         """Called after the agent's update phase."""
-        pass
 
     def apply_schedule(self, iteration: int):
         """Applies a schedule based on the current iteration.
@@ -272,7 +267,6 @@ class Hook(Generic[AgentType]):
         Args:
             iteration: The current training iteration.
         """
-        pass
 
     def pre_export(self, graph: GraphBuilder):
         """Called before exporting the agent's model.
@@ -280,7 +274,6 @@ class Hook(Generic[AgentType]):
         Args:
             graph: The graph builder instance.
         """
-        pass
 
     def post_export(self, graph: GraphBuilder):
         """Called after exporting the agent's model.
@@ -288,7 +281,6 @@ class Hook(Generic[AgentType]):
         Args:
             graph: The graph builder instance.
         """
-        pass
 
     @classmethod
     def warn(cls, message):
@@ -392,6 +384,10 @@ class HookComposite(Hook):
     def pre_optim(self, optimizer):
         for hook in self.active_hooks():
             hook.pre_optim(optimizer)
+
+    def post_optim(self):
+        for hook in self.active_hooks():
+            hook.post_optim()
 
     def post_update(self):
         for hook in self.active_hooks():
