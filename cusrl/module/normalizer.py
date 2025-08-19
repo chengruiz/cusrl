@@ -112,11 +112,6 @@ class RunningMeanStd(nn.Module):
     See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm.
     """
 
-    mean: torch.Tensor
-    var: torch.Tensor
-    std: torch.Tensor
-    count: int
-
     def __init__(
         self,
         num_channels: int,
@@ -135,10 +130,15 @@ class RunningMeanStd(nn.Module):
         self.groups = []
 
         super().__init__()
+
+        self.mean: torch.Tensor
+        self.var: torch.Tensor
+        self.std: torch.Tensor
         self.register_buffer("mean", torch.zeros(num_channels))
         self.register_buffer("var", torch.ones(num_channels))
         self.register_buffer("std", torch.ones(num_channels))
-        self.count = 0
+        self.count: int = 0
+
         self._is_synchronized = True
         self._synchronized_state = None
 

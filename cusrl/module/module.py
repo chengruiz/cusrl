@@ -95,12 +95,6 @@ class Module(nn.Module):
 
     Factory = ModuleFactory
 
-    input_dim: int
-    output_dim: int
-    is_recurrent: bool
-    is_distributed: bool
-    intermediate_repr: dict[str, Any]
-
     def __init__(
         self,
         input_dim: int | None = None,
@@ -121,12 +115,12 @@ class Module(nn.Module):
                 raise ValueError("'input_dim' should be positive integers.")
             if output_dim <= 0:
                 raise ValueError("'output_dim' should be a positive integer.")
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.is_recurrent = is_recurrent
-        self.is_distributed = False
-        self.intermediate_repr = {} if intermediate_repr is None else intermediate_repr
-        self._rnn_compatible = False
+        self.input_dim: int = input_dim
+        self.output_dim: int = output_dim
+        self.is_recurrent: bool = is_recurrent
+        self.is_distributed: bool = False
+        self.intermediate_repr: dict[str, Any] = intermediate_repr or {}
+        self._rnn_compatible: bool = False
 
     @property
     def device(self):

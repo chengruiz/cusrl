@@ -41,8 +41,6 @@ class Actor(Module):
     """
 
     Factory = ActorFactory
-    backbone: Module
-    distribution: Distribution
 
     def __init__(
         self,
@@ -54,8 +52,8 @@ class Actor(Module):
             distribution.output_dim,
             backbone.is_recurrent,
         )
-        self.backbone = backbone.rnn_compatible()
-        self.distribution = distribution
+        self.backbone: Module = backbone.rnn_compatible()
+        self.distribution: Distribution = distribution
         self.latent_dim = self.backbone.output_dim
 
     def to_distributed(self):

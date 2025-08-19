@@ -10,7 +10,8 @@ __all__ = ["Player"]
 
 
 class PlayerHook:
-    player: "Player"
+    def __init__(self):
+        self.player: Player
 
     def init(self, player: "Player"):
         self.player = player

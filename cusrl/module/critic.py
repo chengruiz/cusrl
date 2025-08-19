@@ -23,7 +23,6 @@ class ValueFactory(ModuleFactory["Value"]):
 
 class Value(Module):
     Factory = ValueFactory
-    backbone: Module
 
     def __init__(self, backbone: Module, value_dim: int = 1):
         super().__init__(
@@ -31,7 +30,7 @@ class Value(Module):
             output_dim=value_dim,
             is_recurrent=backbone.is_recurrent,
         )
-        self.backbone = backbone.rnn_compatible()
+        self.backbone: Module = backbone.rnn_compatible()
         self.value_head = nn.Linear(backbone.output_dim, value_dim)
         self.value_rms: RunningMeanStd | None = None
 

@@ -11,13 +11,10 @@ __all__ = ["Gru", "Lstm", "Rnn", "concat_memory", "scatter_memory", "gather_memo
 
 
 class RnnBase(nn.Module):
-    input_size: int
-    hidden_size: int
-
     def __init__(self, input_size: int, hidden_size: int):
         super().__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
+        self.input_size: int = input_size
+        self.hidden_size: int = hidden_size
 
     def forward(self, input: torch.Tensor, memory: Memory = None) -> tuple[torch.Tensor, Memory]:
         raise NotImplementedError

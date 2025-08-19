@@ -24,10 +24,9 @@ class Hook(Generic[AgentType]):
     performed.
     """
 
-    agent: AgentType
-
     def __init__(self):
         """Initializes the hook."""
+        self.agent: AgentType
         self._modules: dict[str, nn.Module | None] = {}
         self._mutable: set[str] = set()
         self._name: str = camel_to_snake(self.__class__.__name__)

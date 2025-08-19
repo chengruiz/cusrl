@@ -222,11 +222,10 @@ class NormalDistFactory(DistributionFactory["NormalDist"]):
 
 class NormalDist(_Normal):
     Factory = NormalDistFactory
-    std: StddevVector
 
     def __init__(self, input_dim: int, output_dim: int, bijector: str | Bijector | None = "exp"):
         super().__init__(input_dim, output_dim)
-        self.std = StddevVector(output_dim, bijector=bijector)
+        self.std: StddevVector = StddevVector(output_dim, bijector=bijector)
 
     def forward(self, latent: Tensor, **kwargs):
         return MeanStdDict(mean=self.mean_head(latent), std=self.std(latent))
@@ -260,7 +259,6 @@ class AdaptiveNormalDistFactory(DistributionFactory["AdaptiveNormalDist"]):
 
 class AdaptiveNormalDist(_Normal):
     Factory = AdaptiveNormalDistFactory
-    std_head: nn.Linear
 
     def __init__(
         self,
@@ -271,7 +269,7 @@ class AdaptiveNormalDist(_Normal):
     ):
         super().__init__(input_dim, output_dim)
 
-        self.std_head = nn.Linear(input_dim, output_dim)
+        self.std_head: nn.Linear = nn.Linear(input_dim, output_dim)
         self.bijector = get_bijector(bijector)
         self.backward = backward
 

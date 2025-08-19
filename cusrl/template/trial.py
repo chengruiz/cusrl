@@ -50,40 +50,36 @@ class Trial:
             If the path points to a file that is not a valid checkpoint file.
     """
 
-    home: Path
-    name: str
-    experiment_name: str | None
-    algorithm_name: str | None
-    environment_name: str | None
-    iteration: int
-    checkpoint_path: Path
-
     def __init__(self, path: str, verbose: bool = True):
         trial_path: Path = Path(path)
         if not trial_path.exists():
             raise FileNotFoundError(f"'{trial_path}' not found.")
 
         if trial_path.is_dir():
-            self.home = trial_path.absolute()
+            self.home: Path = trial_path.absolute()
             if (self.home / "latest").is_symlink():
                 self.home = (self.home / "latest").resolve()
             self.all_iterations = self._search_ckpt(self.home / "ckpt")
-            self.iteration = max(self.all_iterations)
+            self.iteration: int = max(self.all_iterations)
         else:
             if not trial_path.name.startswith("ckpt_") or trial_path.suffix != ".pt":
                 raise ValueError(f"'{trial_path}' is not a valid directory or checkpoint file.")
 
-            self.home = trial_path.parent.parent.absolute()
+            self.home: Path = trial_path.parent.parent.absolute()
             self.all_iterations = self._search_ckpt(self.home / "ckpt")
-            self.iteration = self._get_ckpt_iteration(trial_path)
+            self.iteration: int = self._get_ckpt_iteration(trial_path)
 
-        self.name = self.home.name
+        self.name: str = self.home.name
+        self.experiment_name: str | None
+        self.algorithm_name: str | None
+        self.environment_name: str | None
+
         self.experiment_name = self.home.parent.name
         if self.experiment_name.count(":") == 1:
             self.environment_name, self.algorithm_name = self.experiment_name.split(":")
         else:  # If the naming does not follow the convention
             self.environment_name = self.algorithm_name = self.experiment_name = None
-        self.checkpoint_path = self.home / f"ckpt/ckpt_{self.iteration}.pt"
+        self.checkpoint_path: Path = self.home / f"ckpt/ckpt_{self.iteration}.pt"
 
         if verbose:
             print(f"Trial loaded from \033[4m{self.checkpoint_path}\033[0m.")
