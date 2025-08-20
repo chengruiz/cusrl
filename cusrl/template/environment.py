@@ -40,6 +40,11 @@ class EnvironmentSpec:
         autoreset (bool):
             Whether the environment automatically resets itself on terminal
             states inside `Environment.step`.
+        environment_instance (Environment | None):
+            The environment instance associated with the specification. It is
+            recommended to define environment specifications in this class as
+            interfaces rather than directly using the environment attributes and
+            methods.
         final_state_is_missing (bool):
             Whether the environment omits the final state of an episode.
         timestep (float | None):
@@ -102,6 +107,7 @@ class EnvironmentSpec:
         action_denormalization: tuple[Array, Array] | None = None,
         autoreset: bool = False,
         demonstration_sampler: Callable[[int], Array] | None = None,
+        environment_instance: Optional["Environment"] = None,
         final_state_is_missing: bool = False,
         mirror_action: Optional["SymmetryDefLike"] = None,
         mirror_observation: Optional["SymmetryDefLike"] = None,
@@ -122,6 +128,7 @@ class EnvironmentSpec:
         self.action_denormalization = action_denormalization
         self.autoreset = autoreset
         self.demonstration_sampler = demonstration_sampler
+        self.environment_instance = environment_instance
         self.final_state_is_missing = final_state_is_missing
         self.mirror_action = mirror_action
         self.mirror_observation = mirror_observation
@@ -195,6 +202,7 @@ class Environment(ABC, Generic[ArrayType]):
         *,
         action_denormalization: tuple[Array, Array] | None = None,
         autoreset: bool = False,
+        demonstration_sampler: Callable[[int], Array] | None = None,
         final_state_is_missing: bool = False,
         mirror_action: Optional["SymmetryDefLike"] = None,
         mirror_observation: Optional["SymmetryDefLike"] = None,
@@ -219,6 +227,8 @@ class Environment(ABC, Generic[ArrayType]):
             action_dim=action_dim,
             action_denormalization=action_denormalization,
             autoreset=autoreset,
+            environment_instance=self,
+            demonstration_sampler=demonstration_sampler,
             final_state_is_missing=final_state_is_missing,
             mirror_action=mirror_action,
             mirror_observation=mirror_observation,

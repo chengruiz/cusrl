@@ -1,11 +1,18 @@
 from .advantage import AdvantageNormalization, AdvantageReduction
 from .amp import AdversarialMotionPrior
 from .condition import ConditionalObjectiveActivation
-from .environment_spec import EnvironmentSpecOverride
+from .environment_spec import (
+    DynamicEnvironmentSpecOverride,
+    EnvironmentSpecOverride,
+)
 from .gae import GeneralizedAdvantageEstimation
 from .gradient import GradientClipping
 from .initialization import ModuleInitialization
-from .lr_schedule import AdaptiveLRSchedule, MiniBatchWiseLRSchedule, ThresholdLRSchedule
+from .lr_schedule import (
+    AdaptiveLRSchedule,
+    MiniBatchWiseLRSchedule,
+    ThresholdLRSchedule,
+)
 from .normalization import ObservationNormalization
 from .on_policy import OnPolicyPreparation
 from .ppo import EntropyLoss, PpoSurrogateLoss
@@ -41,6 +48,7 @@ __all__ = [
     "AdvantageReduction",
     "AdversarialMotionPrior",
     "ConditionalObjectiveActivation",
+    "DynamicEnvironmentSpecOverride",
     "EntropyLoss",
     "EnvironmentSpecOverride",
     "GAE",
