@@ -7,7 +7,6 @@ __all__ = [
     "HookActivationSchedule",
     "LessThan",
     "NotLessThan",
-    "OnPolicyBufferCapacitySchedule",
     "ParameterSchedule",
     "PiecewiseFunction",
 ]
@@ -64,17 +63,6 @@ class HookActivationSchedule(Hook[ActorCritic]):
 
     def apply_schedule(self, iteration: int):
         self.agent.hook[self.hook_name].active_(self.schedule(iteration))
-
-
-class OnPolicyBufferCapacitySchedule(Hook[ActorCritic]):
-    def __init__(self, schedule: Callable[[int], int]):
-        super().__init__()
-        self.schedule = schedule
-
-    def apply_schedule(self, iteration: int):
-        capacity = self.schedule(iteration)
-        self.agent.num_steps_per_update = capacity
-        self.agent.resize_buffer(capacity)
 
 
 class LessThan:

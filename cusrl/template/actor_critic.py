@@ -29,7 +29,7 @@ class HookList(list[Hook]):
         for hook in self:
             if hook.name == name:
                 return hook
-        raise AttributeError(f"'{type(name).__name__}' object has no attribute '{name}'.")
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'.")
 
 
 class ActorCriticFactory(AgentFactory["ActorCritic"]):

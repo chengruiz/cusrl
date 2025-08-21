@@ -1,4 +1,7 @@
-from .advantage import AdvantageNormalization, AdvantageReduction
+from .advantage import (
+    AdvantageNormalization,
+    AdvantageReduction,
+)
 from .amp import AdversarialMotionPrior
 from .condition import ConditionalObjectiveActivation
 from .environment_spec import (
@@ -14,8 +17,15 @@ from .lr_schedule import (
     ThresholdLRSchedule,
 )
 from .normalization import ObservationNormalization
-from .on_policy import OnPolicyPreparation
-from .ppo import EntropyLoss, PpoSurrogateLoss
+from .on_policy import (
+    OnPolicyBufferCapacitySchedule,
+    OnPolicyPreparation,
+    OnPolicyStatistics,
+)
+from .ppo import (
+    EntropyLoss,
+    PpoSurrogateLoss,
+)
 from .representation import (
     NextStatePrediction,
     ReturnPrediction,
@@ -25,11 +35,9 @@ from .reward import RewardShaping
 from .rnd import RandomNetworkDistillation
 from .schedule import (
     HookActivationSchedule,
-    OnPolicyBufferCapacitySchedule,
     ParameterSchedule,
 )
 from .smoothness import ActionSmoothnessLoss
-from .statistics import OnPolicyStatistics
 from .symmetry import (
     SymmetricArchitecture,
     SymmetricDataAugmentation,
@@ -37,7 +45,7 @@ from .symmetry import (
 )
 from .value import ValueComputation, ValueLoss
 
-# alias
+# alias for backward compatibility
 GAE = GeneralizedAdvantageEstimation
 PPOSurrogateLoss = PpoSurrogateLoss
 
