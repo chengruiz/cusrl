@@ -15,6 +15,7 @@ from .mlp import Mlp
 from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
 from .normalization import Denormalization, Normalization
 from .normalizer import ExponentialMovingNormalizer, RunningMeanStd
+from .parameter import ParameterWrapper
 from .rnn import Gru, Lstm, Rnn
 from .sequential import Sequential
 from .simba import Simba
@@ -36,6 +37,7 @@ __all__ = [
     "Mlp",
     "MultiheadSelfAttention",
     "Normalization",
+    "ParameterWrapper",
     "Rnn",
     "RunningMeanStd",
     "Sequential",

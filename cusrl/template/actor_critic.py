@@ -142,7 +142,9 @@ class ActorCritic(Agent):
         self.hook = HookComposite(hooks)
         self.hook.pre_init(self)
         self.actor: Actor = self.actor_factory(self.observation_dim, self.action_dim)
-        self.critic: Value = self.critic_factory(self.state_dim, self.value_dim)
+        self.critic: Value = self.critic_factory(
+            self.state_dim + self.action_dim * self.critic_factory.action_aware, self.value_dim
+        )
         self.buffer = Buffer(self.buffer_capacity, self.parallelism, device=self.device)
         self.sampler = sampler
         self.grad_scaler = torch.GradScaler(enabled=self.autocast_enabled)
