@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias
 
+import gymnasium as gym
+
 from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
 
 if TYPE_CHECKING:
@@ -37,6 +39,9 @@ class EnvironmentSpec:
             The dimension of the reward. Defaults to 1.
 
         # Additional properties
+        action_space (gym.spaces.Space | None):
+            The action space of the environment. If provided, this space defines
+            the valid actions that can be taken in the environment.
         autoreset (bool):
             Whether the environment automatically resets itself on terminal
             states inside `Environment.step`.
@@ -47,6 +52,10 @@ class EnvironmentSpec:
             methods.
         final_state_is_missing (bool):
             Whether the environment omits the final state of an episode.
+        observation_space (gym.spaces.Space | None):
+            The observation space of the environment. If provided, this space
+            defines the valid observations that can be received from the
+            environment.
         timestep (float | None):
             The time duration for one environment step.
 
@@ -105,6 +114,7 @@ class EnvironmentSpec:
         action_dim: int,
         *,
         action_denormalization: tuple[Array, Array] | None = None,
+        action_space: gym.spaces.Space | None = None,
         autoreset: bool = False,
         demonstration_sampler: Callable[[int], Array] | None = None,
         environment_instance: Optional["Environment"] = None,
@@ -116,6 +126,7 @@ class EnvironmentSpec:
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Sequence[tuple[int, int]] = (),
         observation_normalization: tuple[Array, Array] | None = None,
+        observation_space: gym.spaces.Space | None = None,
         reward_dim: int = 1,
         state_dim: int | None = None,
         state_stat_groups: Sequence[tuple[int, int]] = (),
@@ -126,6 +137,7 @@ class EnvironmentSpec:
         self.observation_dim = observation_dim
         self.action_dim = action_dim
         self.action_denormalization = action_denormalization
+        self.action_space = action_space
         self.autoreset = autoreset
         self.demonstration_sampler = demonstration_sampler
         self.environment_instance = environment_instance
@@ -137,6 +149,7 @@ class EnvironmentSpec:
         self.observation_is_subset_of_state = observation_is_subset_of_state
         self.observation_stat_groups = tuple(observation_stat_groups)
         self.observation_normalization = observation_normalization
+        self.observation_space = observation_space
         self.reward_dim = reward_dim
         self.state_dim = state_dim
         self.state_stat_groups = tuple(state_stat_groups)
@@ -201,6 +214,7 @@ class Environment(ABC, Generic[ArrayType]):
         action_dim: int,
         *,
         action_denormalization: tuple[Array, Array] | None = None,
+        action_space: gym.spaces.Space | None = None,
         autoreset: bool = False,
         demonstration_sampler: Callable[[int], Array] | None = None,
         final_state_is_missing: bool = False,
@@ -211,6 +225,7 @@ class Environment(ABC, Generic[ArrayType]):
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Sequence[tuple[int, int]] = (),
         observation_normalization: tuple[Array, Array] | None = None,
+        observation_space: gym.spaces.Space | None = None,
         reward_dim: int = 1,
         state_dim: int | None = None,
         state_stat_groups: Sequence[tuple[int, int]] = (),
@@ -226,6 +241,7 @@ class Environment(ABC, Generic[ArrayType]):
             observation_dim=observation_dim,
             action_dim=action_dim,
             action_denormalization=action_denormalization,
+            action_space=action_space,
             autoreset=autoreset,
             environment_instance=self,
             demonstration_sampler=demonstration_sampler,
@@ -237,6 +253,7 @@ class Environment(ABC, Generic[ArrayType]):
             observation_is_subset_of_state=observation_is_subset_of_state,
             observation_stat_groups=observation_stat_groups,
             observation_normalization=observation_normalization,
+            observation_space=observation_space,
             reward_dim=reward_dim,
             state_dim=state_dim,
             state_stat_groups=state_stat_groups,

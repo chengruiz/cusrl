@@ -30,11 +30,13 @@ class GymEnvAdapter(Environment[np.ndarray]):
             raise ValueError(f"Unsupported action space type: {wrapped.action_space}.")
 
         super().__init__(
-            num_instances=1,
-            observation_dim=wrapped.observation_space.shape[0],
             action_dim=action_dim,
+            action_space=wrapped.action_space,
             gym_spec=wrapped.spec,
             gym_metadata=wrapped.metadata,
+            num_instances=1,
+            observation_dim=wrapped.observation_space.shape[0],
+            observation_space=wrapped.observation_space,
         )
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
@@ -84,11 +86,13 @@ class GymVectorEnvAdapter(Environment[np.ndarray]):
             raise ValueError("'autoreset_mode' of vector environments must be 'DISABLED'.")
 
         super().__init__(
-            num_instances=wrapped.num_envs,
-            observation_dim=wrapped.single_observation_space.shape[0],
             action_dim=action_dim,
+            action_space=wrapped.single_action_space,
             gym_spec=wrapped.spec,
             gym_metadata=wrapped.metadata,
+            num_instances=wrapped.num_envs,
+            observation_dim=wrapped.single_observation_space.shape[0],
+            observation_space=wrapped.single_observation_space,
         )
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
