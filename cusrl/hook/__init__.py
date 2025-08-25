@@ -35,7 +35,7 @@ from .reward import RewardShaping
 from .rnd import RandomNetworkDistillation
 from .schedule import (
     HookActivationSchedule,
-    ParameterSchedule,
+    HookParameterSchedule,
 )
 from .smoothness import ActionSmoothnessLoss
 from .symmetry import (
@@ -63,6 +63,7 @@ __all__ = [
     "GeneralizedAdvantageEstimation",
     "GradientClipping",
     "HookActivationSchedule",
+    "HookParameterSchedule",
     "MiniBatchWiseLRSchedule",
     "ModuleInitialization",
     "NextStatePrediction",
@@ -70,7 +71,6 @@ __all__ = [
     "OnPolicyBufferCapacitySchedule",
     "OnPolicyPreparation",
     "OnPolicyStatistics",
-    "ParameterSchedule",
     "PPOSurrogateLoss",
     "PpoSurrogateLoss",
     "RandomNetworkDistillation",

@@ -5,14 +5,11 @@ from cusrl.template import ActorCritic, Hook
 
 __all__ = [
     "HookActivationSchedule",
-    "LessThan",
-    "NotLessThan",
-    "ParameterSchedule",
-    "PiecewiseFunction",
+    "HookParameterSchedule",
 ]
 
 
-class ParameterSchedule(Hook[ActorCritic]):
+class HookParameterSchedule(Hook[ActorCritic]):
     """Schedules updates to a specific parameter of a hook.
 
     Args:
@@ -20,7 +17,7 @@ class ParameterSchedule(Hook[ActorCritic]):
             The name of the hook whose parameter will be updated.
         parameter (str):
             The name of the parameter to be updated.
-        schedule (Callable[[int], Any]):
+        scheduler (Callable[[int], Any]):
             A callable that defines the schedule for updating the parameter.
             It takes the current iteration as input and returns the new value
             for the parameter.
@@ -30,17 +27,17 @@ class ParameterSchedule(Hook[ActorCritic]):
         self,
         hook_name: str,
         parameter: str,
-        schedule: Callable[[int], Any],
+        scheduler: Callable[[int], Any],
     ):
         super().__init__()
         self.hook_name = hook_name
         self.parameter = parameter
-        self.schedule = schedule
+        self.scheduler = scheduler
         self.name_(f"{self.hook_name}_{self.parameter}_schedule")
 
     def apply_schedule(self, iteration: int):
         hook = self.agent.hook[self.hook_name]
-        hook.update_attribute(self.parameter, self.schedule(iteration))
+        hook.update_attribute(self.parameter, self.scheduler(iteration))
 
 
 class HookActivationSchedule(Hook[ActorCritic]):
@@ -49,47 +46,17 @@ class HookActivationSchedule(Hook[ActorCritic]):
     Args:
         hook_name (str):
             The name of the hook to be activated or deactivated.
-        schedule (Callable[[int], bool]):
+        scheduler (Callable[[int], bool]):
             A callable that defines the schedule for activating or deactivating
             the hook. It takes the current iteration as input and returns a
             boolean value indicating whether to activate the hook.
     """
 
-    def __init__(self, hook_name: str, schedule: Callable[[int], bool]):
+    def __init__(self, hook_name: str, scheduler: Callable[[int], bool]):
         super().__init__()
         self.hook_name = hook_name
-        self.schedule = schedule
+        self.scheduler = scheduler
         self.name_(f"{hook_name}_activation_schedule")
 
     def apply_schedule(self, iteration: int):
-        self.agent.hook[self.hook_name].active_(self.schedule(iteration))
-
-
-class LessThan:
-    def __init__(self, threshold: int):
-        self.threshold = threshold
-
-    def __call__(self, value: int) -> bool:
-        return value < self.threshold
-
-
-class NotLessThan:
-    def __init__(self, threshold: int):
-        self.threshold = threshold
-
-    def __call__(self, value: int) -> bool:
-        return value >= self.threshold
-
-
-class PiecewiseFunction:
-    def __init__(self, initial_value: Any, *segments: tuple[int, Any]):
-        self.initial_value = initial_value
-        self.segments = segments
-
-    def __call__(self, iteration: int) -> Any:
-        value = self.initial_value
-        for threshold, segment_value in self.segments:
-            if iteration < threshold:
-                return value
-            value = segment_value
-        return value
+        self.agent.hook[self.hook_name].active_(self.scheduler(iteration))

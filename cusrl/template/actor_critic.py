@@ -261,8 +261,9 @@ class ActorCritic(Agent):
             self.hook.apply_schedule(self.iteration)
 
     def resize_buffer(self, capacity: int):
-        self.buffer_capacity = capacity
-        self.buffer.resize(capacity)
+        if self.buffer_capacity != capacity:
+            self.buffer_capacity = capacity
+            self.buffer.resize(capacity)
 
     def export(
         self,

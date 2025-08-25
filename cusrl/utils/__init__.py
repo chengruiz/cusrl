@@ -1,4 +1,4 @@
-from cusrl.utils import distributed
+from cusrl.utils import distributed, scheduler
 
 from .config import CONFIG, device, is_autocast_available
 from .dict_utils import from_dict, to_dict
@@ -13,6 +13,7 @@ __all__ = [
     "Rate",
     "Timer",
     "distributed",
+    "scheduler",
     "device",
     "from_dict",
     "is_autocast_available",

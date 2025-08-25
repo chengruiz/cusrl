@@ -2,6 +2,7 @@ import pytest
 import torch
 
 import cusrl
+from cusrl.utils.scheduler import StepFunction
 from cusrl_test import create_dummy_env
 
 
@@ -45,7 +46,7 @@ def test_symmetry_loss_with_schedule():
     agent_factory = cusrl.preset.ppo.AgentFactory()
     agent_factory.register_hook(cusrl.hook.SymmetryLoss(0.01), after="ppo_surrogate_loss")
     agent_factory.register_hook(
-        cusrl.hook.ParameterSchedule("symmetry_loss", "weight", cusrl.hook.schedule.PiecewiseFunction(0.1, (3, 1.0)))
+        cusrl.hook.HookParameterSchedule("symmetry_loss", "weight", StepFunction(0.1, (3, 1.0)))
     )
 
     def assert_weight_equals(trainer):

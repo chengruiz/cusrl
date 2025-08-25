@@ -2,6 +2,7 @@ import torch
 
 import cusrl
 from cusrl.utils import from_dict, to_dict
+from cusrl.utils.scheduler import LessThan
 
 
 def test_dict_conversions():
@@ -33,7 +34,7 @@ def test_dict_conversions():
             cusrl.hook.EntropyLoss(),
             cusrl.hook.GeneralizedAdvantageEstimation(),
             cusrl.hook.GradientClipping(),
-            cusrl.hook.HookActivationSchedule("gradient_clipping", cusrl.hook.schedule.LessThan(100)),
+            cusrl.hook.HookActivationSchedule("gradient_clipping", LessThan(100)),
             cusrl.hook.MiniBatchWiseLRSchedule(),
             cusrl.hook.ModuleInitialization(),
             cusrl.hook.NextStatePrediction(slice(8, 16)),
@@ -41,7 +42,7 @@ def test_dict_conversions():
             cusrl.hook.OnPolicyBufferCapacitySchedule(lambda i: 32 if i < 100 else 64),
             cusrl.hook.OnPolicyPreparation(),
             cusrl.hook.OnPolicyStatistics(sampler=cusrl.AutoMiniBatchSampler()),
-            cusrl.hook.ParameterSchedule(
+            cusrl.hook.HookParameterSchedule(
                 "action_smoothness_loss", "weight_1st_order", lambda i: 0.01 if i < 100 else 0.02
             ),
             cusrl.hook.PPOSurrogateLoss(),
