@@ -1,7 +1,8 @@
 from collections.abc import Sequence
+from typing import cast
 
 import numpy as np
-import torch
+from torch import Tensor
 
 from cusrl.hook.symmetry import SymmetryDefLike
 from cusrl.module import GraphBuilder, RunningMeanStd
@@ -32,22 +33,33 @@ class ObservationNormalization(Hook[ActorCritic]):
     inputs are automatically normalized.
 
     Args:
-        max_count:
+        max_count (int | None, optional):
             The maximum count for the running statistics to prevent numerical
             overflow. Defaults to None.
-        defer_synchronization:
+        defer_synchronization (bool, optional):
             If True, synchronization of running statistics in a distributed
             setting is deferred until the end of a rollout. This can improve
             performance by reducing the frequency of synchronization. Defaults
             to False.
+        renormalize (bool, optional):
+            If True, re-normalize batch data in objective phase using the latest
+            running stats and the saved `original_*` tensors. This ensures that
+            training uses up-to-date normalization even when stats have been
+            updated after data collection. Defaults to False.
     """
 
-    def __init__(self, max_count: int | None = None, defer_synchronization: bool = False):
+    def __init__(
+        self,
+        max_count: int | None = None,
+        defer_synchronization: bool = False,
+        renormalize: bool = False,
+    ):
         if max_count is not None and max_count <= 0:
             raise ValueError("'max_count' must be positive or None.")
         super().__init__()
         self.max_count = max_count
         self.defer_synchronization = defer_synchronization
+        self.renormalize = renormalize
 
         # Mutable attributes
         self.frozen: bool
@@ -58,8 +70,8 @@ class ObservationNormalization(Hook[ActorCritic]):
         self.state_rms: RunningMeanStd | None
         self._mirror_observation: SymmetryDefLike | None = None
         self._mirror_state: SymmetryDefLike | None = None
-        self._observation_is_subset_of_state: Slice | torch.Tensor | None = None
-        self._last_done: torch.Tensor | None = None
+        self._observation_is_subset_of_state: Slice | Tensor | None = None
+        self._last_done: Tensor | None = None
 
     def init(self):
         # Retrieve and normalize the subset index spec
@@ -87,25 +99,29 @@ class ObservationNormalization(Hook[ActorCritic]):
         self._mirror_observation = env_spec.mirror_observation
         self._mirror_state = env_spec.mirror_state
 
-    def pre_act(self, transition: dict):
-        observation, state = transition["observation"], transition.get("state")
+    def pre_act(self, transition):
+        observation = cast(Tensor, transition["observation"])
+        state = cast(Tensor | None, transition.get("state"))
         if self._last_done is None or not self.agent.environment_spec.final_state_is_missing:
             self._update_rms(observation, state, self._last_done)
 
         transition["original_observation"] = observation
         transition["observation"] = self.observation_rms.normalize(observation)
         if self.state_rms is not None:
+            assert state is not None
             transition["original_state"] = state
             transition["state"] = self.state_rms.normalize(state)
 
-    def post_step(self, transition: dict):
-        next_observation, next_state = transition["next_observation"], transition.get("next_state")
+    def post_step(self, transition):
+        next_observation = cast(Tensor, transition["next_observation"])
+        next_state = cast(Tensor | None, transition.get("next_state"))
         self._update_rms(next_observation, next_state)
-        self._last_done = transition["done"].squeeze(-1)
+        self._last_done = cast(Tensor, transition["done"]).squeeze(-1)
 
         transition["original_next_observation"] = next_observation
         transition["next_observation"] = self.observation_rms.normalize(next_observation)
         if self.state_rms is not None:
+            assert next_state is not None
             transition["original_next_state"] = next_state
             transition["next_state"] = self.state_rms.normalize(next_state)
 
@@ -122,30 +138,28 @@ class ObservationNormalization(Hook[ActorCritic]):
 
     def _update_rms(
         self,
-        observation: torch.Tensor,
-        state: torch.Tensor | None,
-        indices: torch.Tensor | None = None,
+        observation: Tensor,
+        state: Tensor | None,
+        indices: Tensor | None = None,
     ):
         if self.agent.inference_mode or self.frozen:
             # Do not update the statistics during inference or if frozen
             return
 
-        if self.state_rms is not None:
+        if state is not None:
+            assert self.state_rms is not None
             self._update_rms_impl(state, self.state_rms, self._mirror_state, indices)
         if self._observation_is_subset_of_state is not None:
-            self.observation_rms.mean.copy_(self.state_rms.mean[self._observation_is_subset_of_state])
-            self.observation_rms.var.copy_(self.state_rms.var[self._observation_is_subset_of_state])
-            self.observation_rms.std.copy_(self.state_rms.std[self._observation_is_subset_of_state])
-            self.observation_rms.count = self.state_rms.count
+            self._copy_observation_stats_from_state()
         else:
             self._update_rms_impl(observation, self.observation_rms, self._mirror_observation, indices)
 
     def _update_rms_impl(
         self,
-        observation: torch.Tensor,
+        observation: Tensor,
         rms: RunningMeanStd,
         mirror: SymmetryDefLike | None = None,
-        indices: torch.Tensor | None = None,
+        indices: Tensor | None = None,
     ):
         if indices is not None:
             observation = observation[indices]
@@ -157,17 +171,33 @@ class ObservationNormalization(Hook[ActorCritic]):
             mean = (mean + mirrored_mean) / 2
         rms.update_from_stats(mean, var, count, synchronize=not self.defer_synchronization)
 
+    def _copy_observation_stats_from_state(self):
+        assert self.state_rms is not None
+        self.observation_rms.mean.copy_(self.state_rms.mean[self._observation_is_subset_of_state])
+        self.observation_rms.var.copy_(self.state_rms.var[self._observation_is_subset_of_state])
+        self.observation_rms.std.copy_(self.state_rms.std[self._observation_is_subset_of_state])
+        self.observation_rms.count = self.state_rms.count
+
     def pre_update(self, buffer):
         if self.defer_synchronization:
             if self.state_rms is not None:
                 self.state_rms.synchronize()
             if self._observation_is_subset_of_state is not None:
-                self.observation_rms.mean.copy_(self.state_rms.mean[self._observation_is_subset_of_state])
-                self.observation_rms.var.copy_(self.state_rms.var[self._observation_is_subset_of_state])
-                self.observation_rms.std.copy_(self.state_rms.std[self._observation_is_subset_of_state])
-                self.observation_rms.count = self.state_rms.count
+                self._copy_observation_stats_from_state()
             else:
                 self.observation_rms.synchronize()
+
+    def objective(self, batch):
+        if self.renormalize:
+            original_observation = cast(Tensor, batch["original_observation"])
+            original_next_observation = cast(Tensor, batch["original_next_observation"])
+            batch["observation"] = self.observation_rms.normalize(original_observation)
+            batch["next_observation"] = self.observation_rms.normalize(original_next_observation)
+            if self.state_rms is not None:
+                original_state = cast(Tensor, batch["original_state"])
+                original_next_state = cast(Tensor, batch["original_next_state"])
+                batch["state"] = self.state_rms.normalize(original_state)
+                batch["next_state"] = self.state_rms.normalize(original_next_state)
 
     def pre_export(self, graph: GraphBuilder):
         graph.add_node(
