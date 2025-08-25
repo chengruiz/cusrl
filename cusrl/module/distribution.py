@@ -68,10 +68,23 @@ class Distribution(Module, Generic[ParamType]):
         return dist_params, (action, logp)
 
     def sample_from_dist(self, dist_params: ParamType) -> tuple[Tensor, Tensor]:
+        """Samples an action and computes its log-probability from the
+        distribution defined by dist_params.
+
+        Args:
+            dist_params (ParamType):
+                The parameters of the distribution as produced by forward().
+
+        Returns:
+            action (Tensor):
+                A sample from the distribution with shape [..., output_dim].
+            logp (Tensor):
+                The log-probability of the sample under the distribution, with
+                shape [..., 1].
+        """
         raise NotImplementedError
 
-    @classmethod
-    def compute_logp(cls, dist_params: ParamType, sample: torch.Tensor) -> Tensor:
+    def compute_logp(self, dist_params: ParamType, sample: torch.Tensor) -> Tensor:
         """Computes the log probability of a sample given the distribution
         parameters.
 
@@ -83,13 +96,16 @@ class Distribution(Module, Generic[ParamType]):
 
         Returns:
             log_probability (Tensor):
-                The log probability of the sample.
+                The log probability of the sample, a tensor of shape [..., 1].
         """
         raise NotImplementedError
 
-    @classmethod
-    def compute_entropy(cls, dist_params: ParamType) -> Tensor:
-        """Computes the entropy of the distribution.
+    def compute_entropy(self, dist_params: ParamType) -> Tensor:
+        r"""Computes the entropy of the distribution. Defaults to a single-
+        sample Monte Carlo estimate.
+
+        .. math::
+            H(P) = -\int P(x) \log P(x) dx
 
         Args:
             dist_params (ParamType):
@@ -97,28 +113,32 @@ class Distribution(Module, Generic[ParamType]):
 
         Returns:
             entropy (Tensor):
-                The entropy of the distribution.
+                The entropy of the distribution, a tensor of shape [..., 1].
         """
-        raise NotImplementedError
+        _, logp = self.sample_from_dist(dist_params)
+        return -logp
 
-    @classmethod
-    def compute_kl_div(cls, dist_params1: ParamType, dist_params2: ParamType) -> Tensor:
+    def compute_kl_div(self, dist_params1: ParamType, dist_params2: ParamType) -> Tensor:
         r"""Computes the KL divergence between two distributions P and Q.
+        Defaults to a single-sample Monte Carlo estimate.
 
         .. math::
             D_{KL}(P || Q) = \int P(x) \log \frac{P(x)}{Q(x)} dx
 
         Args:
-            dist_params1 (Tensor):
+            dist_params1 (ParamType):
                 The parameters of the first distribution (P).
-            dist_params2 (Tensor):
+            dist_params2 (ParamType):
                 The parameters of the second distribution (Q).
 
         Returns:
             kl_divergence (Tensor):
-                The KL divergence between the two distributions.
+                The KL divergence between the two distributions, a tensor of
+                shape [..., 1].
         """
-        raise NotImplementedError
+        sample, logp = self.sample_from_dist(dist_params1)
+        logq = self.compute_logp(dist_params2, sample)
+        return logp - logq
 
     def determine(self, latent: Tensor, **kwargs) -> Tensor:
         """Returns the deterministic action for a given latent state.
@@ -173,17 +193,14 @@ class _Normal(Distribution[MeanStdDict]):
         logp = dist.log_prob(sample).sum(dim=-1, keepdim=True)
         return sample, logp
 
-    @classmethod
-    def compute_logp(cls, dist_params, sample) -> Tensor:
-        return cls._dist(dist_params).log_prob(sample).sum(dim=-1, keepdim=True)
+    def compute_logp(self, dist_params, sample) -> Tensor:
+        return self._dist(dist_params).log_prob(sample).sum(dim=-1, keepdim=True)
 
-    @classmethod
-    def compute_entropy(cls, dist_params) -> Tensor:
-        return cls._dist(dist_params).entropy().sum(dim=-1, keepdim=True)
+    def compute_entropy(self, dist_params) -> Tensor:
+        return self._dist(dist_params).entropy().sum(dim=-1, keepdim=True)
 
-    @classmethod
-    def compute_kl_div(cls, dist_params1, dist_params2) -> Tensor:
-        kl = distributions.kl_divergence(cls._dist(dist_params1), cls._dist(dist_params2))
+    def compute_kl_div(self, dist_params1, dist_params2) -> Tensor:
+        kl = distributions.kl_divergence(self._dist(dist_params1), self._dist(dist_params2))
         return kl.sum(dim=-1, keepdim=True)
 
 
@@ -310,7 +327,7 @@ class OneHotCategoricalDist(Distribution[LogitDict]):
 
     def forward(self, latent: Tensor, **kwargs):
         logit: Tensor = self.mean_head(latent)
-        return {"logit": logit}
+        return LogitDict(logit=logit)
 
     def determine(self, latent: Tensor, **kwargs) -> Tensor:
         logit: Tensor = self.mean_head(latent)
@@ -327,15 +344,12 @@ class OneHotCategoricalDist(Distribution[LogitDict]):
         logp = dist.log_prob(action).unsqueeze(-1)
         return action, logp
 
-    @classmethod
-    def compute_logp(cls, dist_params, sample: Tensor) -> Tensor:
-        logp = cls._dist(dist_params).log_prob(sample).unsqueeze(-1)
+    def compute_logp(self, dist_params, sample: Tensor) -> Tensor:
+        logp = self._dist(dist_params).log_prob(sample).unsqueeze(-1)
         return logp
 
-    @classmethod
-    def compute_entropy(cls, dist_params) -> Tensor:
-        return cls._dist(dist_params).entropy().unsqueeze(-1)
+    def compute_entropy(self, dist_params) -> Tensor:
+        return self._dist(dist_params).entropy().unsqueeze(-1)
 
-    @classmethod
-    def compute_kl_div(cls, dist_params1, dist_params2) -> Tensor:
-        return distributions.kl_divergence(cls._dist(dist_params1), cls._dist(dist_params2)).unsqueeze(-1)
+    def compute_kl_div(self, dist_params1, dist_params2) -> Tensor:
+        return distributions.kl_divergence(self._dist(dist_params1), self._dist(dist_params2)).unsqueeze(-1)
