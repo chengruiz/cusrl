@@ -37,7 +37,10 @@ class HookParameterSchedule(Hook[ActorCritic]):
 
     def apply_schedule(self, iteration: int):
         hook = self.agent.hook[self.hook_name]
-        hook.update_attribute(self.parameter, self.scheduler(iteration))
+        value = self.scheduler(iteration)
+        hook.update_attribute(self.parameter, value)
+        if isinstance(value, float):
+            self.agent.record(**{f"{self.hook_name}_{self.parameter}": value})
 
 
 class HookActivationSchedule(Hook[ActorCritic]):
