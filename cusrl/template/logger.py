@@ -7,7 +7,12 @@ from typing import TypeAlias
 
 import torch
 
-__all__ = ["LoggerFactory", "LoggerFactoryLike", "Logger"]
+__all__ = [
+    "LoggerFactory",
+    "LoggerFactoryLike",
+    "Logger",
+    "make_logger_factory",
+]
 
 
 @dataclass(slots=True)
@@ -30,6 +35,34 @@ LoggerFactoryLike: TypeAlias = Callable[[], "Logger"]
 
 
 class Logger:
+    """A base class for logging experiment data.
+
+    This class handles the creation of a structured log directory, saving model
+    checkpoints, and logging metric data. It is designed to be subclassed to
+    implement specific logging backends (e.g., TensorBoard, Weights & Biases)
+    by overriding the `_log_impl` method.
+
+    The logger creates a directory structure as follows:
+    `[log_dir]/`
+        `[timestamp]:[name]/`
+            `info/` - For storing text-based information.
+            `ckpt/` - For storing model checkpoints.
+        `latest` -> symlink to `[timestamp]:[name]/`
+
+    Args:
+        log_dir (str):
+            The root directory where logs will be stored.
+        name (str | None, optional):
+            A specific name for the experiment run. If None, the name is empty.
+            Defaults to None.
+        interval (int, optional):
+            The interval at which to log data. If greater than 1, data is
+            averaged over the interval before logging. Defaults to 1.
+        add_datetime_prefix (bool, optional):
+            If True, a timestamp prefix (YYYY-MM-DD-HH-MM-SS) is added to the
+            experiment directory name. Defaults to True.
+    """
+
     Factory = LoggerFactory
 
     def __init__(
@@ -87,3 +120,26 @@ class Logger:
 
     def _log_impl(self, data: dict[str, float], iteration: int):
         pass
+
+
+def make_logger_factory(
+    logger_type: str | None = None,
+    log_dir: str | None = None,
+    name: str | None = None,
+    interval: int = 1,
+    add_datetime_prefix: bool = True,
+    **kwargs,
+) -> LoggerFactoryLike | None:
+    if log_dir is None:
+        return None
+    if logger_type is None or logger_type.lower() == "none":
+        return Logger.Factory(log_dir=log_dir, name=name, interval=interval, **kwargs)
+    logger_cls_dict = {cls.__name__.lower(): cls for cls in Logger.__subclasses__()}
+    logger_cls = logger_cls_dict[logger_type.lower()]
+    return logger_cls.Factory(
+        log_dir=log_dir,
+        name=name,
+        interval=interval,
+        add_datetime_prefix=add_datetime_prefix,
+        **kwargs,
+    )

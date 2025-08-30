@@ -49,6 +49,7 @@ from cusrl.template import (
     Sampler,
     Trainer,
     Trial,
+    make_logger_factory,
 )
 from cusrl.utils import (
     device,
@@ -121,5 +122,6 @@ __all__ = [
     "make_gym_env",
     "make_gym_vec",
     "make_isaaclab_env",
+    "make_logger_factory",
     "set_global_seed",
 ]

@@ -1,4 +1,5 @@
-from .make_factory import make_factory
+from cusrl.template import make_logger_factory as make_factory  # For compatibility
+
 from .tensorboard_logger import Tensorboard
 from .wandb_logger import Wandb
 

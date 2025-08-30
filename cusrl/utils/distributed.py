@@ -1,5 +1,5 @@
 from io import StringIO
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import numpy as np
 import torch
@@ -93,7 +93,7 @@ def local_rank() -> int:
     return CONFIG.local_rank
 
 
-def make_distributed(module, *, force=False):
+def make_distributed(module, *, force: bool = False) -> Any:
     from cusrl.module.module import DistributedDataParallel
 
     if not CONFIG.distributed:

@@ -52,7 +52,7 @@ def main(args):
     experiment.make_trainer(
         environment_kwargs=cli_utils.process_environment_args(args),
         agent_factory_kwargs={"device": args.device, "autocast": args.autocast, "compile": args.compile},
-        logger_factory=cusrl.logger.make_factory(
+        logger_factory=cusrl.make_logger_factory(
             args.logger,
             log_dir=f"{args.log_dir}/{experiment.name}",
             name=args.name,

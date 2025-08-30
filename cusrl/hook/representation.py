@@ -109,9 +109,6 @@ class ActionAwarePredictor(nn.Module):
 
 
 class NextStatePrediction(Hook[ActorCritic]):
-    predictor: nn.Module
-    criterion: nn.MSELoss
-
     def __init__(
         self,
         target_indices: Slice,

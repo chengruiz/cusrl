@@ -4,12 +4,32 @@ from typing import TypeVar
 import torch
 from torch import Tensor, nn
 
-__all__ = ["Bijector", "DummyBijector", "ExponentialBijector", "SoftplusBijector", "SigmoidBijector", "get_bijector"]
+__all__ = [
+    "Bijector",
+    "DummyBijector",
+    "ExponentialBijector",
+    "SoftplusBijector",
+    "SigmoidBijector",
+    "make_bijector",
+]
 
 FloatOrTensor = TypeVar("FloatOrTensor", float, Tensor)
 
 
 class Bijector(nn.Module):
+    """Abstract base class for bijective transformations.
+
+    A bijector represents an invertible function. This class provides an
+    interface for such transformations. Subclasses should implement both the
+    `forward` and `inverse` methods.
+
+    Methods:
+        forward(input):
+            Computes the forward transformation, f(x).
+        inverse(input):
+            Computes the inverse transformation, f^-1(y).
+    """
+
     def forward(self, input: FloatOrTensor) -> FloatOrTensor:
         raise NotImplementedError
 
@@ -96,7 +116,7 @@ class SoftplusBijector(Bijector):
         return f"SoftplusBijector(scale={self.scale}, min={self.min_value}, max={self.max_value})"
 
 
-def get_bijector(bijector: str | Bijector | None) -> Bijector:
+def make_bijector(bijector: str | Bijector | None) -> Bijector:
     if isinstance(bijector, Bijector):
         return bijector
     if bijector is None:

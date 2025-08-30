@@ -7,7 +7,7 @@ from torch import Tensor, distributions, nn
 from torch.nn.functional import one_hot
 
 from cusrl import utils
-from cusrl.module.bijector import Bijector, get_bijector
+from cusrl.module.bijector import Bijector, make_bijector
 from cusrl.module.module import Module, ModuleFactory
 
 __all__ = [
@@ -84,7 +84,7 @@ class Distribution(Module, Generic[ParamType]):
         """
         raise NotImplementedError
 
-    def compute_logp(self, dist_params: ParamType, sample: torch.Tensor) -> Tensor:
+    def compute_logp(self, dist_params: ParamType, sample: Tensor) -> Tensor:
         """Computes the log probability of a sample given the distribution
         parameters.
 
@@ -207,7 +207,7 @@ class _Normal(Distribution[MeanStdDict]):
 class StddevVector(nn.Module):
     def __init__(self, output_dim: int, bijector: str | Bijector | None = "exp"):
         super().__init__()
-        self.bijector = get_bijector(bijector)
+        self.bijector = make_bijector(bijector)
         self.param = nn.Parameter(torch.ones(output_dim) * self.bijector.inverse(1.0))
 
     def forward(self, input: Tensor):
@@ -287,7 +287,7 @@ class AdaptiveNormalDist(_Normal):
         super().__init__(input_dim, output_dim)
 
         self.std_head: nn.Linear = nn.Linear(input_dim, output_dim)
-        self.bijector = get_bijector(bijector)
+        self.bijector = make_bijector(bijector)
         self.backward = backward
 
     def to_distributed(self):
