@@ -74,27 +74,28 @@ class ValueComputation(Hook[ActorCritic]):
         if critic.value_rms is not None:
             critic.value_rms.normalize_(termination_value)
         next_value[terminated] = termination_value
-        if self.bootstrap_truncated_states:
-            next_memory = buffer.get("next_critic_memory")
-            if next_memory is not None:
-                # fmt: off
-                next_memory = map_nested(
-                    next_memory,
-                    lambda memory:
-                        memory             # [ N, ..., B, C]
-                        .unsqueeze(1)      # [ N, 1, ..., B, C]
-                        .transpose(1, -2)  # [ N, B, ..., 1, C]
-                        [truncated]        # [ M, ..., 1, C]
-                        .transpose(0, -2)  # [ 1, ..., M, C]
-                        .squeeze(0)        # [ ..., M, C]
-                        .contiguous(),
-                )
-                # fmt: on
+        if truncated.any():
+            if self.bootstrap_truncated_states:
+                next_memory = buffer.get("next_critic_memory")
+                if next_memory is not None:
+                    # fmt: off
+                    next_memory = map_nested(
+                        next_memory,
+                        lambda memory:
+                            memory             # [ N, ..., B, C]
+                            .unsqueeze(1)      # [ N, 1, ..., B, C]
+                            .transpose(1, -2)  # [ N, B, ..., 1, C]
+                            [truncated]        # [ M, ..., 1, C]
+                            .transpose(0, -2)  # [ 1, ..., M, C]
+                            .squeeze(0)        # [ ..., M, C]
+                            .contiguous(),
+                    )
+                    # fmt: on
 
-            with self.agent.autocast():
-                next_value[truncated] = critic.evaluate(next_state[truncated], memory=next_memory)
-        else:
-            next_value[truncated] = value[truncated]
+                with self.agent.autocast():
+                    next_value[truncated] = critic.evaluate(next_state[truncated], memory=next_memory)
+            else:
+                next_value[truncated] = value[truncated]
 
 
 def _clipped_value_loss(
