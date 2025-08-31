@@ -1,11 +1,11 @@
 import pytest
 import torch
 
-from cusrl.module.attention import MultiheadSelfAttention, TransformerEncoderLayer
+from cusrl import MultiheadAttention, MultiheadCrossAttention, MultiheadSelfAttention, TransformerEncoderLayer
 from cusrl_test import test_module_consistency
 
 
-@pytest.mark.skipif(not MultiheadSelfAttention.is_available(), reason="Attention not available")
+@pytest.mark.skipif(not MultiheadAttention.is_available(), reason="Attention not available")
 def test_self_mha_step_by_step_consistency():
     batch, seq, embed_dim, num_heads, window = 1, 7, 8, 2, 3
     attn = MultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
@@ -27,7 +27,7 @@ def test_self_mha_step_by_step_consistency():
     assert torch.allclose(out_full, out_seq, atol=1e-2)
 
 
-@pytest.mark.skipif(not MultiheadSelfAttention.is_available(), reason="Attention not available")
+@pytest.mark.skipif(not MultiheadAttention.is_available(), reason="Attention not available")
 def test_self_mha():
     batch, seq, embed_dim, num_heads, window = 1, 8, 2, 1, 3
     attn = MultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
@@ -43,7 +43,7 @@ def test_self_mha():
     assert out2.shape == (seq, batch, embed_dim)
 
 
-@pytest.mark.skipif(not MultiheadSelfAttention.is_available(), reason="Attention not available")
+@pytest.mark.skipif(not MultiheadAttention.is_available(), reason="Attention not available")
 def test_transformer_encoder_layer():
     batch, seq, embed_dim, num_heads, window = 1, 16, 32, 4, 6
     input_dim, output_dim = 24, 12
@@ -66,7 +66,7 @@ def test_transformer_encoder_layer():
     assert out2.shape == (seq, batch, output_dim)
 
 
-@pytest.mark.skipif(not MultiheadSelfAttention.is_available(), reason="Attention not available")
+@pytest.mark.skipif(not MultiheadAttention.is_available(), reason="Attention not available")
 @pytest.mark.parametrize("gate_type", [None, "residual", "highway", "output", "input", "sig_tanh", "gru"])
 @pytest.mark.parametrize("layer_norm", [None, "pre", "post"])
 @pytest.mark.parametrize("use_alibi", [False, True])
@@ -85,3 +85,109 @@ def test_transformer_alibi_consistency(gate_type, layer_norm, use_alibi, rope_ba
         is_recurrent=True,
         atol=1e-2,
     )
+
+
+@torch.no_grad()
+@pytest.mark.skipif(not MultiheadAttention.is_available(), reason="Attention not available")
+@pytest.mark.parametrize("is_causal", [False, True])
+def test_mha_consistency_with_torch(is_causal):
+    torch.manual_seed(0)
+    batch, seq, embed_dim, num_heads = 2, 9, 32, 4
+
+    mha_flash = MultiheadAttention(
+        embed_dim,
+        num_heads,
+        dropout=0.0,
+        batch_first=True,
+        dtype=torch.float16,
+    ).cuda()
+    mha_flash.eval()
+
+    mha_torch = torch.nn.MultiheadAttention(
+        embed_dim=embed_dim,
+        num_heads=num_heads,
+        dropout=0.0,
+        bias=True,
+        batch_first=True,
+    ).cuda()
+    mha_torch.eval()
+
+    # Align weights: in-proj (Q,K,V) and out-proj
+    if mha_torch.in_proj_weight is not None:
+        mha_torch.in_proj_weight.copy_(
+            torch.cat([mha_flash.q_proj.weight, mha_flash.k_proj.weight, mha_flash.v_proj.weight], dim=0)
+        )
+    if mha_torch.in_proj_bias is not None:
+        mha_torch.in_proj_bias.copy_(
+            torch.cat([mha_flash.q_proj.bias, mha_flash.k_proj.bias, mha_flash.v_proj.bias], dim=0)
+        )
+
+    if (mha_torch.q_proj_weight) is not None:
+        mha_torch.q_proj_weight.copy_(mha_flash.q_proj.weight)
+    if (mha_torch.k_proj_weight) is not None:
+        mha_torch.k_proj_weight.copy_(mha_flash.k_proj.weight)
+    if (mha_torch.v_proj_weight) is not None:
+        mha_torch.v_proj_weight.copy_(mha_flash.v_proj.weight)
+    mha_torch.out_proj.weight.copy_(mha_flash.out_proj.weight)
+    if mha_torch.out_proj.bias is not None and mha_flash.out_proj.bias is not None:
+        mha_torch.out_proj.bias.copy_(mha_flash.out_proj.bias)
+
+    x = torch.randn(batch, seq, embed_dim, device="cuda", dtype=torch.bfloat16)
+
+    # forward
+    with torch.autocast("cuda", dtype=torch.float16):
+        out_flash, _ = mha_flash(x, x, x, is_causal=is_causal)
+        # Build causal mask for PyTorch MHA to avoid relying on is_causal arg
+        attn_mask = None
+        if is_causal:
+            L = S = seq
+            attn_mask = torch.triu(torch.ones(L, S, dtype=torch.bool, device="cuda"), diagonal=1)
+        out_torch, _ = mha_torch(x, x, x, need_weights=False, average_attn_weights=False, attn_mask=attn_mask)
+
+    assert out_flash.shape == out_torch.shape
+    assert torch.allclose(out_flash, out_torch, atol=1e-6, rtol=1e-6)
+
+
+@torch.no_grad()
+@pytest.mark.skipif(not MultiheadAttention.is_available(), reason="Attention not available")
+def test_cross_mha_consistency_with_torch():
+    torch.manual_seed(0)
+    batch, q_len, kv_len = 2, 5, 7
+    embed_dim, num_heads, kv_dim = 32, 4, 24
+
+    mha_flash = MultiheadCrossAttention(embed_dim, num_heads, dropout=0.0, kv_dim=kv_dim, batch_first=True).cuda()
+    mha_flash.eval()
+
+    mha_torch = torch.nn.MultiheadAttention(
+        embed_dim=embed_dim,
+        num_heads=num_heads,
+        dropout=0.0,
+        bias=True,
+        batch_first=True,
+        kdim=kv_dim,
+        vdim=kv_dim,
+    ).cuda()
+    mha_torch.eval()
+
+    k_w, v_w = mha_flash.kv_proj.weight.chunk(2, dim=0)
+    k_b, v_b = mha_flash.kv_proj.bias.chunk(2, dim=0)
+    if mha_torch.q_proj_weight is not None:
+        mha_torch.q_proj_weight.copy_(mha_flash.q_proj.weight)
+        mha_torch.k_proj_weight.copy_(k_w)
+        mha_torch.v_proj_weight.copy_(v_w)
+    elif mha_torch.in_proj_weight is not None:
+        mha_torch.in_proj_weight.copy_(torch.cat([mha_flash.q_proj.weight, k_w, v_w], dim=0))
+
+    if mha_torch.in_proj_bias is not None:
+        mha_torch.in_proj_bias.copy_(torch.cat([mha_flash.q_proj.bias, k_b, v_b], dim=0))
+    mha_torch.out_proj.weight.copy_(mha_flash.out_proj.weight)
+    mha_torch.out_proj.bias.copy_(mha_flash.out_proj.bias)
+
+    q = torch.randn(batch, q_len, embed_dim, device="cuda", dtype=torch.float16)
+    kv = torch.randn(batch, kv_len, kv_dim, device="cuda", dtype=torch.float16)
+    with torch.autocast("cuda", dtype=torch.float16):
+        out_flash, _ = mha_flash(q, kv)
+        out_torch, _ = mha_torch(q, kv, kv, need_weights=False, average_attn_weights=False)
+
+    assert out_flash.shape == out_torch.shape
+    assert torch.allclose(out_flash, out_torch, atol=1e-6, rtol=1e-6)

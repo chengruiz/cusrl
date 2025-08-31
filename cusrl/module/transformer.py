@@ -4,6 +4,7 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
+from cusrl.module.mha import FlashAttentionBasedModule
 from cusrl.module.module import Module, ModuleFactory
 from cusrl.utils.recurrent import (
     compute_reverse_cumulative_timesteps,
@@ -50,12 +51,8 @@ class MultiheadSelfAttentionFactory(ModuleFactory["MultiheadSelfAttention"]):
         )
 
 
-class MultiheadSelfAttention(Module):
+class MultiheadSelfAttention(Module, FlashAttentionBasedModule):
     Factory = MultiheadSelfAttentionFactory
-
-    @classmethod
-    def is_available(cls) -> bool:
-        return flash_attn is not None and torch.cuda.is_available()
 
     def __init__(
         self,
@@ -69,9 +66,6 @@ class MultiheadSelfAttention(Module):
         input_dim: int | None = None,
         output_dim: int | None = None,
     ):
-        if not self.is_available():
-            raise ImportError("FlashAttention is not installed. See https://github.com/Dao-AILab/flash-attention.")
-
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.window_size = window_size
@@ -200,8 +194,11 @@ class MultiheadSelfAttention(Module):
         if self.rope_base is not None:
             self._update_cos_sin_cache(seq_len + self.window_size, q.device)
             original_kv = kv.clone()
+            assert apply_rotary_emb is not None and apply_rotary_emb_kv_ is not None
             q = apply_rotary_emb(q, self._rotary_cos, self._rotary_sin, inplace=True, seqlen_offsets=self.window_size)
             kv = apply_rotary_emb_kv_(kv, self._rotary_cos, self._rotary_sin)
+
+        assert flash_attn_varlen_kvpacked_func is not None
         attn_out = flash_attn_varlen_kvpacked_func(
             q=q.flatten(0, 1).to(self.dtype),
             kv=kv[kv_mask].to(self.dtype),

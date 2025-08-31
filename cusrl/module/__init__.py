@@ -1,5 +1,4 @@
 from .actor import Actor
-from .attention import FeedForward, MultiheadSelfAttention, TransformerEncoderLayer
 from .cnn import Cnn
 from .critic import Value
 from .distribution import (
@@ -11,6 +10,7 @@ from .distribution import (
 )
 from .export import GraphBuilder
 from .inference import InferenceModule
+from .mha import MultiheadAttention, MultiheadCrossAttention
 from .mlp import Mlp
 from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
 from .normalization import Denormalization, Normalization
@@ -19,6 +19,7 @@ from .parameter import ParameterWrapper
 from .rnn import Gru, Lstm, Rnn
 from .sequential import Sequential
 from .simba import Simba
+from .transformer import FeedForward, MultiheadSelfAttention, TransformerEncoderLayer
 
 __all__ = [
     # Simple modules
@@ -35,6 +36,8 @@ __all__ = [
     "ModuleFactory",
     "ModuleFactoryLike",
     "Mlp",
+    "MultiheadAttention",
+    "MultiheadCrossAttention",
     "MultiheadSelfAttention",
     "Normalization",
     "ParameterWrapper",
