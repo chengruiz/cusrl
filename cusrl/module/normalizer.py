@@ -229,7 +229,7 @@ class RunningMeanStd(nn.Module):
         output = (input - self.mean) / self.std
         if self.clamp is not None:
             output = output.clamp(-self.clamp, self.clamp)
-        return output.to(input.dtype)
+        return output.type_as(input)
 
     def normalize_(self, input: torch.Tensor) -> torch.Tensor:
         """Inplace version of `normalize`."""
@@ -240,7 +240,7 @@ class RunningMeanStd(nn.Module):
 
     def unnormalize(self, input: torch.Tensor) -> torch.Tensor:
         """Unnormalizes the given values."""
-        return (input * self.std + self.mean).to(input.dtype)
+        return (input * self.std + self.mean).type_as(input)
 
     def unnormalize_(self, input: torch.Tensor) -> torch.Tensor:
         """Inplace version of `unnormalize`."""

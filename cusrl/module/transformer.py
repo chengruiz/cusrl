@@ -210,7 +210,7 @@ class MultiheadSelfAttention(Module, FlashAttentionBasedModule):
             causal=True,
             window_size=(self.window_size, 0),
             alibi_slopes=self.alibi_slopes,
-        ).to(input.dtype)
+        ).type_as(input)
 
         # Combine heads and project to output_dim
         output = self.out_proj(attn_out.flatten(-2))

@@ -136,7 +136,7 @@ class MultiheadAttention(FlashAttentionBasedModule):
         )
 
         assert isinstance(attn_out, torch.Tensor)
-        attn_out = self.out_proj(attn_out.flatten(-2, -1).to(q.dtype))
+        attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(q))
 
         # Project back to (L, B, E) if batch_first=False
         if not self.batch_first:
@@ -242,7 +242,7 @@ class MultiheadCrossAttention(FlashAttentionBasedModule):
         )
 
         assert isinstance(attn_out, torch.Tensor)
-        attn_out = self.out_proj(attn_out.flatten(-2, -1).to(q.dtype))
+        attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(q))
 
         # Project back to (L, B, E) if batch_first=False
         if not self.batch_first:

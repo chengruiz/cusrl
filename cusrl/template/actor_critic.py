@@ -245,9 +245,8 @@ class ActorCritic(Agent):
         return super().update()
 
     def _train_step(self, batch: dict[str, NestedTensor | Any]):
-        loss = self.hook.objective(batch)
-        self.optimizer.zero_grad()
-        if loss is not None:
+        if (loss := self.hook.objective(batch)) is not None:
+            self.optimizer.zero_grad()
             self.grad_scaler.scale(loss).backward()
             self.grad_scaler.unscale_(self.optimizer)
             self.hook.pre_optim(self.optimizer)
