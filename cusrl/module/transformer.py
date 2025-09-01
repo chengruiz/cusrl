@@ -4,7 +4,7 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
-from cusrl.module.mha import FlashAttentionBasedModule
+from cusrl.module.mha import FlashAttention
 from cusrl.module.module import Module, ModuleFactory
 from cusrl.utils.recurrent import (
     compute_reverse_cumulative_timesteps,
@@ -51,7 +51,7 @@ class MultiheadSelfAttentionFactory(ModuleFactory["MultiheadSelfAttention"]):
         )
 
 
-class MultiheadSelfAttention(Module, FlashAttentionBasedModule):
+class MultiheadSelfAttention(Module, FlashAttention):
     Factory = MultiheadSelfAttentionFactory
 
     def __init__(
