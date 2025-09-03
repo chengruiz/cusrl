@@ -62,8 +62,8 @@ class ExponentialBijector(Bijector):
             return torch.log(input.clamp(self.min_value, self.max_value))
         return math.log(min(max(input, self.min_value), self.max_value))
 
-    def __repr__(self):
-        return f"ExponentialBijector(min={self.min_value}, max={self.max_value})"
+    def extra_repr(self):
+        return f"min={self.min_value}, max={self.max_value}"
 
 
 class SigmoidBijector(Bijector):
@@ -86,8 +86,8 @@ class SigmoidBijector(Bijector):
         clamped_input = max(self.min_value + self.eps, min(input, self.max_value - self.eps))
         return math.log((clamped_input - self.min_value) / (self.max_value - clamped_input))
 
-    def __repr__(self):
-        return f"SigmoidBijector(min={self.min_value}, max={self.max_value}, eps={self.eps})"
+    def extra_repr(self):
+        return f"min={self.min_value}, max={self.max_value}, eps={self.eps}"
 
 
 class SoftplusBijector(Bijector):
@@ -112,8 +112,8 @@ class SoftplusBijector(Bijector):
         clamped_input = max(self.min_value, min(input, self.max_value))
         return math.log(math.expm1(clamped_input * self.scale)) / self.scale
 
-    def __repr__(self):
-        return f"SoftplusBijector(scale={self.scale}, min={self.min_value}, max={self.max_value})"
+    def extra_repr(self):
+        return f"scale={self.scale}, min={self.min_value}, max={self.max_value}"
 
 
 def make_bijector(bijector: str | Bijector | None) -> Bijector:

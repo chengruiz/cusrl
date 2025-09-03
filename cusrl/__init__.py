@@ -7,9 +7,10 @@ from cusrl.module import (
     Denormalization,
     Distribution,
     DistributionFactoryLike,
+    ExponentialMovingNormalizer,
     FeedForward,
+    GeGlu,
     Gru,
-    InferenceModule,
     LayerFactoryLike,
     Lstm,
     Mlp,
@@ -22,9 +23,12 @@ from cusrl.module import (
     NormalDist,
     Normalization,
     OneHotCategoricalDist,
+    ParameterWrapper,
     Rnn,
+    RunningMeanStd,
     Sequential,
     Simba,
+    SwiGlu,
     TransformerEncoderLayer,
     Value,
 )
@@ -58,7 +62,7 @@ from cusrl.utils import (
     set_global_seed,
 )
 
-# alias
+# alias for backward compatibility
 CNN = Cnn
 MLP = Mlp
 RNN = Rnn
@@ -87,10 +91,11 @@ __all__ = [
     "DistributionFactoryLike",
     "Environment",
     "EnvironmentSpec",
+    "ExponentialMovingNormalizer",
     "FeedForward",
+    "GeGlu",
     "Gru",
     "Hook",
-    "InferenceModule",
     "LayerFactoryLike",
     "Logger",
     "LoggerFactory",
@@ -109,13 +114,16 @@ __all__ = [
     "Normalization",
     "OneHotCategoricalDist",
     "OptimizerFactory",
+    "ParameterWrapper",
     "Player",
     "RNN",
     "RandomSampler",
     "Rnn",
+    "RunningMeanStd",
     "Sampler",
     "Sequential",
     "Simba",
+    "SwiGlu",
     "TemporalMiniBatchSampler",
     "TemporalRandomSampler",
     "Trainer",

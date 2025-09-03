@@ -1,3 +1,4 @@
+from .activation import GeGlu, SwiGlu
 from .actor import Actor
 from .cnn import Cnn
 from .critic import Value
@@ -27,15 +28,16 @@ __all__ = [
     "Denormalization",
     "ExponentialMovingNormalizer",
     "FeedForward",
+    "GeGlu",
     "GraphBuilder",
     "Gru",
     "InferenceModule",
     "LayerFactoryLike",
     "Lstm",
+    "Mlp",
     "Module",
     "ModuleFactory",
     "ModuleFactoryLike",
-    "Mlp",
     "MultiheadAttention",
     "MultiheadCrossAttention",
     "MultiheadSelfAttention",
@@ -45,6 +47,7 @@ __all__ = [
     "RunningMeanStd",
     "Sequential",
     "Simba",
+    "SwiGlu",
     "TransformerEncoderLayer",
     # RL modules
     "Actor",
