@@ -48,8 +48,8 @@ class Mlp(Module):
             The activation function class to be used after each hidden layer.
             Defaults to `nn.ReLU`.
         ends_with_activation (bool, optional):
-            If `True`, an activation function is applied to the final output
-            layer. Defaults to `False`.
+            If `True`, an activation function and a dropout are applied to the
+            final output layer. Defaults to `False`.
         dropout (float, optional):
             The dropout rate to be applied after each activation function in the
             hidden layers. A value of 0.0 means no dropout. Defaults to `0.0`.
@@ -67,24 +67,24 @@ class Mlp(Module):
         dropout: float = 0.0,
     ):
         hidden_dims = list(hidden_dims)
-        if output_dim is None:
-            if not hidden_dims:
-                raise ValueError("'hidden_dims' should not be empty if output_dim is None.")
-            output_dim = hidden_dims[-1]
-            hidden_dims = hidden_dims[:-1]
-        super().__init__(input_dim, output_dim)
+        if output_dim is not None:
+            hidden_dims.append(output_dim)
 
-        self.layers = nn.Sequential()
-        hidden_dims.insert(0, input_dim)
-        for i in range(len(hidden_dims) - 1):
-            self.layers.append(nn.Linear(hidden_dims[i], hidden_dims[i + 1]))
-            self.layers.append(activation_fn())
-            if dropout > 0.0:
-                self.layers.append(nn.Dropout(dropout))
-
-        self.layers.append(nn.Linear(hidden_dims[-1], output_dim))
-        if ends_with_activation:
-            self.layers.append(activation_fn())
+        original_input_dim = input_dim
+        layers = nn.Sequential()
+        for i, hidden_dim in enumerate(hidden_dims):
+            layer = nn.Sequential(nn.Linear(input_dim, hidden_dim))
+            if i != len(hidden_dims) - 1 or ends_with_activation:
+                layer.append(activation_fn())
+                if dropout > 0.0:
+                    layer.append(nn.Dropout(dropout))
+            input_dim = layer(torch.zeros(1, input_dim)).size(-1)
+            layers.extend(layer)
+        super().__init__(original_input_dim, input_dim)
+        self.layers = layers
 
     def forward(self, input: torch.Tensor, **kwargs) -> torch.Tensor:
         return self.layers(input)
+
+    def __getitem__(self, index: int) -> nn.Module:
+        return self.layers[index]

@@ -312,21 +312,19 @@ class FeedForward(Module):
         feedforward_dim: int | None = None,
         dropout: float = 0.0,
         output_dim: int | None = None,
+        activation_fn: type[nn.Module] = nn.GELU,
     ):
-        super().__init__(
-            input_dim=input_dim,
-            output_dim=output_dim or input_dim,
-            is_recurrent=False,
-        )
+        super().__init__(input_dim, output_dim or input_dim)
         self.feedforward_dim = feedforward_dim or input_dim * 4
 
         self.layers = nn.Sequential(
             nn.Linear(self.input_dim, self.feedforward_dim),
-            nn.GELU(),
+            activation_fn(),
         )
         if dropout > 0.0:
             self.layers.append(nn.Dropout(dropout))
-        self.layers.append(nn.Linear(self.feedforward_dim, self.output_dim))
+        hidden_dim = self.layers(torch.zeros(1, self.input_dim)).size(-1)
+        self.layers.append(nn.Linear(hidden_dim, self.output_dim))
 
     def forward(self, input: Tensor) -> Tensor:
         return self.layers(input)
