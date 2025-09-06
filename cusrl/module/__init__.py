@@ -1,6 +1,6 @@
 from .activation import GeGlu, SwiGlu
 from .actor import Actor
-from .cnn import Cnn
+from .cnn import Cnn, SeparableConv2d
 from .critic import Value
 from .distribution import (
     AdaptiveNormalDist,
@@ -45,6 +45,7 @@ __all__ = [
     "ParameterWrapper",
     "Rnn",
     "RunningMeanStd",
+    "SeparableConv2d",
     "Sequential",
     "Simba",
     "SwiGlu",

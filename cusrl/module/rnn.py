@@ -166,7 +166,7 @@ class LstmFactory(ModuleFactory["Lstm"]):
 class Lstm(Rnn):
     Factory = LstmFactory
 
-    def __init__(self, output_dim: int | None = None, **kwargs):
+    def __init__(self, *, output_dim: int | None = None, **kwargs):
         super().__init__(nn.LSTM, output_dim=output_dim, **kwargs)
 
 
@@ -186,7 +186,7 @@ class GruFactory(ModuleFactory["Gru"]):
 class Gru(Rnn):
     Factory = GruFactory
 
-    def __init__(self, output_dim: int | None = None, **kwargs):
+    def __init__(self, *, output_dim: int | None = None, **kwargs):
         super().__init__(nn.GRU, output_dim=output_dim, **kwargs)
 
 

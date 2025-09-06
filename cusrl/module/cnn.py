@@ -7,7 +7,7 @@ from torch import nn
 
 from cusrl.module.module import Module, ModuleFactory
 
-__all__ = ["Cnn"]
+__all__ = ["Cnn", "SeparableConv2d"]
 
 
 @dataclass(slots=True)
@@ -71,8 +71,8 @@ class Cnn(Module):
         output_dim: int | None = None,
     ):
         layers = nn.Sequential(*layers)
-        if len(input_shape) == 1:
-            raise ValueError("'input_shape' should be at least 2-dimensional.")
+        if len(input_shape) not in (2, 3):
+            raise ValueError("'input_shape' should be 2- or 3-dimensional.")
         if len(input_shape) == 2:
             # add channel dimension if missing
             input_shape = (1, *input_shape)
@@ -102,3 +102,44 @@ class Cnn(Module):
         if batch_dims:
             output = output.unflatten(0, batch_dims)
         return output
+
+
+class SeparableConv2d(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: str | int | tuple[int, int] = 0,
+        dilation: int | tuple[int, int] = 1,
+        bias: bool = True,
+        padding_mode: str = "zeros",
+        device=None,
+        dtype=None,
+    ):
+        super().__init__()
+        self.depthwise = nn.Conv2d(
+            in_channels,
+            in_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=in_channels,
+            bias=bias,
+            padding_mode=padding_mode,
+            device=device,
+            dtype=dtype,
+        )
+        self.pointwise = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=1,
+            bias=bias,
+            device=device,
+            dtype=dtype,
+        )
+
+    def forward(self, x):
+        return self.pointwise(self.depthwise(x))
