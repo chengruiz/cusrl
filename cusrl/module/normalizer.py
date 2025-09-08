@@ -2,7 +2,7 @@ from typing import Any, overload
 
 import numpy as np
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from cusrl.utils import distributed
 from cusrl.utils.typing import ArrayType
@@ -17,7 +17,7 @@ __all__ = [
 
 
 @overload
-def mean_var_count(input: torch.Tensor, *, uncentered: bool = False) -> tuple[torch.Tensor, torch.Tensor, int]: ...
+def mean_var_count(input: Tensor, *, uncentered: bool = False) -> tuple[Tensor, Tensor, int]: ...
 @overload
 def mean_var_count(input: np.ndarray, *, uncentered: bool = False) -> tuple[np.ndarray, np.ndarray, int]: ...
 
@@ -26,15 +26,15 @@ def mean_var_count(input: ArrayType, *, uncentered: bool = False) -> tuple[Array
     """Calculates mean, variance and count of the input array.
 
     Args:
-        input (np.ndarray | torch.Tensor):
+        input (np.ndarray | Tensor):
             Input array with shape (N, D).
         uncentered (bool, optional):
             Whether to calculate uncentered variance. Defaults to False.
 
     Returns:
-        - mean (np.ndarray | torch.Tensor):
+        - mean (np.ndarray | Tensor):
             The mean of the input array.
-        - var (np.ndarray | torch.Tensor):
+        - var (np.ndarray | Tensor):
             The variance of the input array.
         - count (int):
             The number of samples in the input array.
@@ -60,11 +60,7 @@ def mean_var_count(input: ArrayType, *, uncentered: bool = False) -> tuple[Array
     return mean, var, count
 
 
-def synchronize_mean_var_count(
-    mean: torch.Tensor,
-    var: torch.Tensor,
-    count: int,
-) -> tuple[torch.Tensor, torch.Tensor, int]:
+def synchronize_mean_var_count(mean: Tensor, var: Tensor, count: int) -> tuple[Tensor, Tensor, int]:
     if not distributed.enabled():
         return mean, var, count
 
@@ -90,11 +86,11 @@ def synchronize_mean_var_count(
 
 
 def merge_mean_var_(
-    old_mean: torch.Tensor,
-    old_var: torch.Tensor,
+    old_mean: Tensor,
+    old_var: Tensor,
     w_old: int | float,
-    new_mean: torch.Tensor,
-    new_var: torch.Tensor,
+    new_mean: Tensor,
+    new_var: Tensor,
     w_new: int | float,
 ):
     w_sum = w_old + w_new
@@ -131,9 +127,9 @@ class RunningMeanStd(nn.Module):
 
         super().__init__()
 
-        self.mean: torch.Tensor
-        self.var: torch.Tensor
-        self.std: torch.Tensor
+        self.mean: Tensor
+        self.var: Tensor
+        self.std: Tensor
         self.register_buffer("mean", torch.zeros(num_channels))
         self.register_buffer("var", torch.ones(num_channels))
         self.register_buffer("std", torch.ones(num_channels))
@@ -156,7 +152,7 @@ class RunningMeanStd(nn.Module):
 
     def update(
         self,
-        input: torch.Tensor,
+        input: Tensor,
         *,
         uncentered: bool = False,
         synchronize: bool = True,
@@ -164,7 +160,7 @@ class RunningMeanStd(nn.Module):
         """Updates statistics with new data.
 
         Args:
-            input (torch.Tensor):
+            input (Tensor):
                 Input tensor.
             uncentered (bool, optional):
                 Whether to calculate uncentered variance. Defaults to False.
@@ -179,8 +175,8 @@ class RunningMeanStd(nn.Module):
     @torch.no_grad()
     def update_from_stats(
         self,
-        batch_mean: torch.Tensor,
-        batch_var: torch.Tensor,
+        batch_mean: Tensor,
+        batch_var: Tensor,
         batch_count: int,
         *,
         synchronize: bool = True,
@@ -221,38 +217,38 @@ class RunningMeanStd(nn.Module):
         self._is_synchronized = True
         self._synchronized_state = (total_mean, total_var, self.count)
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: Tensor) -> Tensor:
         return self.normalize(input)
 
-    def normalize(self, input: torch.Tensor) -> torch.Tensor:
+    def normalize(self, input: Tensor) -> Tensor:
         """Normalizes the given values."""
         output = (input - self.mean) / self.std
         if self.clamp is not None:
             output = output.clamp(-self.clamp, self.clamp)
         return output.type_as(input)
 
-    def normalize_(self, input: torch.Tensor) -> torch.Tensor:
+    def normalize_(self, input: Tensor) -> Tensor:
         """Inplace version of `normalize`."""
         input.sub_(self.mean).div_(self.std)
         if self.clamp is not None:
             input.clamp_(-self.clamp, self.clamp)
         return input
 
-    def unnormalize(self, input: torch.Tensor) -> torch.Tensor:
+    def unnormalize(self, input: Tensor) -> Tensor:
         """Unnormalizes the given values."""
         return (input * self.std + self.mean).type_as(input)
 
-    def unnormalize_(self, input: torch.Tensor) -> torch.Tensor:
+    def unnormalize_(self, input: Tensor) -> Tensor:
         """Inplace version of `unnormalize`."""
         return input.mul_(self.std).add_(self.mean)
 
     def to_distributed(self):
         return self
 
-    def _update_mean_var(self, batch_mean: torch.Tensor, batch_var: torch.Tensor, batch_count: int):
+    def _update_mean_var(self, batch_mean: Tensor, batch_var: Tensor, batch_count: int):
         merge_mean_var_(self.mean, self.var, self.count, batch_mean, batch_var, batch_count)
 
-    def _average_intra_group(self, batch_mean: torch.Tensor, batch_var: torch.Tensor):
+    def _average_intra_group(self, batch_mean: Tensor, batch_var: Tensor):
         """Collapse the statistics within dimensions in registered groups."""
         for start, end in self.groups:
             group_mean = batch_mean[start:end].mean()
@@ -267,7 +263,7 @@ class RunningMeanStd(nn.Module):
     def set_extra_state(self, state: Any):
         if state < 0:
             raise ValueError("State must be non-negative.")
-        self.count = int(state.item() if isinstance(state, torch.Tensor) else state)
+        self.count = int(state.item() if isinstance(state, Tensor) else state)
         self._synchronized_state = (self.mean.clone(), self.var.clone(), self.count)
 
 
@@ -287,7 +283,7 @@ class ExponentialMovingNormalizer(RunningMeanStd):
         self.alpha = alpha
         self.warmup = warmup
 
-    def _update_mean_var(self, batch_mean: torch.Tensor, batch_var: torch.Tensor, batch_count: int):
+    def _update_mean_var(self, batch_mean: Tensor, batch_var: Tensor, batch_count: int):
         wb = self.alpha
         if self.warmup:
             wb = max(batch_count / (batch_count + self.count), wb)

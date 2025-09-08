@@ -1,7 +1,7 @@
 from typing import TypeAlias, cast
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from cusrl.module.module import Module, ModuleFactory
 from cusrl.utils.recurrent import compute_sequence_lengths, split_and_pad_sequences, unpad_and_merge_sequences
@@ -16,7 +16,7 @@ class RnnBase(nn.Module):
         self.input_size: int = input_size
         self.hidden_size: int = hidden_size
 
-    def forward(self, input: torch.Tensor, memory: Memory = None) -> tuple[torch.Tensor, Memory]:
+    def forward(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
         raise NotImplementedError
 
 
@@ -74,24 +74,20 @@ class Rnn(Module):
 
     def forward(
         self,
-        input: torch.Tensor,
+        input: Tensor,
         *,
         memory: Memory = None,
-        done: torch.Tensor | None = None,
+        done: Tensor | None = None,
         pack_sequence: bool = False,
         **kwargs,
-    ) -> tuple[torch.Tensor, Memory]:
+    ) -> tuple[Tensor, Memory]:
         if done is not None:
             if pack_sequence:
                 return self._forward_packed_sequence(input, memory, done)
             return self._forward_sequence(input, memory, done)
         return self._forward_tensor(input, memory)
 
-    def _forward_tensor(
-        self,
-        input: torch.Tensor,
-        memory: Memory = None,
-    ) -> tuple[torch.Tensor, Memory]:
+    def _forward_tensor(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
         if input.dim() not in (2, 3):
             raise ValueError("Input of RNNs must be 2- or 3-dimensional.")
         if input.dim() == 3:
@@ -102,12 +98,7 @@ class Rnn(Module):
             latent = latent.squeeze(0)
         return self.output_proj(latent), memory
 
-    def _forward_sequence(
-        self,
-        input: torch.Tensor,
-        memory: Memory,
-        done: torch.Tensor,
-    ) -> tuple[torch.Tensor, Memory]:
+    def _forward_sequence(self, input: Tensor, memory: Memory, done: Tensor) -> tuple[Tensor, Memory]:
         if input.dim() != 3:
             raise ValueError(f"Input sequences of RNNs must be 3-dimensional, got {input.ndim}.")
         padded_input, mask = split_and_pad_sequences(input, done)
@@ -115,12 +106,7 @@ class Rnn(Module):
         latent = unpad_and_merge_sequences(padded_latent, mask)
         return self.output_proj(latent), None
 
-    def _forward_packed_sequence(
-        self,
-        input: torch.Tensor,
-        memory: Memory,
-        done: torch.Tensor,
-    ) -> tuple[torch.Tensor, Memory]:
+    def _forward_packed_sequence(self, input: Tensor, memory: Memory, done: Tensor) -> tuple[Tensor, Memory]:
         # a slower version of forward_sequence, but preserves the final memory
         if input.dim() != 3:
             raise ValueError(f"Input of RNNs must be 3-dimensional to be packed, got {input.ndim}.")
@@ -141,7 +127,7 @@ class Rnn(Module):
         memory = gather_memory(memory, done)
         return self.output_proj(latent), memory
 
-    def step_memory(self, input: torch.Tensor, memory: Memory = None, **kwargs):
+    def step_memory(self, input: Tensor, memory: Memory = None, **kwargs):
         if input.dim() not in (2, 3):
             raise ValueError("Input of RNNs must be 2- or 3-dimensional.")
         if input.dim() == 2:
@@ -196,13 +182,13 @@ def concat_memory(memory1: Memory, memory2: Memory) -> Memory:
         raise TypeError("Memories must be of the same type to concatenate.")
     if memory1 is None:
         return None
-    if isinstance(memory1, torch.Tensor):
-        memory2 = cast(torch.Tensor, memory2)
+    if isinstance(memory1, Tensor):
+        memory2 = cast(Tensor, memory2)
         return torch.cat((memory1, memory2), dim=-2)
     return tuple(concat_memory(m1, m2) for m1, m2 in zip(memory1, memory2))
 
 
-def scatter_memory(memory: Memory, done: torch.Tensor):
+def scatter_memory(memory: Memory, done: Tensor):
     """Restructures memory tensors from a batch of sequences into a batch of
     episodes.
 
@@ -216,7 +202,7 @@ def scatter_memory(memory: Memory, done: torch.Tensor):
             The memory tensor(s) to be scattered. The tensor shape is expected
             to be `(..., N, C)`, where `N` is the number of environments, and
             `C` is the channel dimension.
-        done (torch.Tensor):
+        done (Tensor):
             A boolean tensor of shape `(T, C, 1)` indicating episode
             terminations.
 
@@ -245,7 +231,7 @@ def scatter_memory(memory: Memory, done: torch.Tensor):
     return result
 
 
-def gather_memory(memory: Memory, done: torch.Tensor):
+def gather_memory(memory: Memory, done: Tensor):
     if memory is None:
         return None
     if isinstance(memory, tuple):

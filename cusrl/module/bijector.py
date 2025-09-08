@@ -53,12 +53,12 @@ class ExponentialBijector(Bijector):
         self.max_input = self.inverse(max_value)
 
     def forward(self, input: FloatOrTensor) -> FloatOrTensor:
-        if isinstance(input, torch.Tensor):
+        if isinstance(input, Tensor):
             return torch.exp(input.clamp(self.min_input, self.max_input))
         return math.exp(min(max(input, self.min_input), self.max_input))
 
     def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
-        if isinstance(input, torch.Tensor):
+        if isinstance(input, Tensor):
             return torch.log(input.clamp(self.min_value, self.max_value))
         return math.log(min(max(input, self.min_value), self.max_value))
 
@@ -75,12 +75,12 @@ class SigmoidBijector(Bijector):
         self.eps = eps
 
     def forward(self, input: FloatOrTensor) -> FloatOrTensor:
-        if isinstance(input, torch.Tensor):
+        if isinstance(input, Tensor):
             return self.min_value + self.range * torch.sigmoid(input)
         return self.min_value + self.range * (1 / (1 + math.exp(-input)))
 
     def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
-        if isinstance(input, torch.Tensor):
+        if isinstance(input, Tensor):
             clamped_input = input.clamp(self.min_value + self.eps, self.max_value - self.eps)
             return torch.log((clamped_input - self.min_value) / (self.max_value - clamped_input))
         clamped_input = max(self.min_value + self.eps, min(input, self.max_value - self.eps))
@@ -99,14 +99,14 @@ class SoftplusBijector(Bijector):
         self.max_input = self.inverse(max_value)
 
     def forward(self, input: FloatOrTensor) -> FloatOrTensor:
-        if isinstance(input, torch.Tensor):
+        if isinstance(input, Tensor):
             clamped_input = input.clamp(self.min_input, self.max_input)
             return torch.nn.functional.softplus(clamped_input * self.scale) / self.scale
         clamped_input = max(self.min_input, min(input, self.max_input))
         return math.log1p(math.exp(clamped_input * self.scale)) / self.scale
 
     def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
-        if isinstance(input, torch.Tensor):
+        if isinstance(input, Tensor):
             clamped_input = input.clamp(self.min_value, self.max_value)
             return torch.log(torch.expm1(clamped_input * self.scale)) / self.scale
         clamped_input = max(self.min_value, min(input, self.max_value))

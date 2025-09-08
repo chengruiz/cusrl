@@ -174,7 +174,7 @@ def flatten_nested(
     return dict(iterate_nested(data, prefix, max_depth=max_depth))
 
 
-def map_nested(data: Nested[_T], func: Callable[[_T], _V]) -> Nested[_V]:
+def map_nested(func: Callable[[_T], _V], data: Nested[_T]) -> Nested[_V]:
     """Applies a function to each leaf element of a nested structure.
 
     This function traverses a nested dictionaries, lists, and tuples, applies
@@ -182,10 +182,10 @@ def map_nested(data: Nested[_T], func: Callable[[_T], _V]) -> Nested[_V]:
     structure of the same structure with the transformed values.
 
     Args:
-        data (Nested[_T]):
-            The nested structure to process.
         func (Callable[[_T], _V]):
             A function to apply to each leaf value in the nested structure.
+        data (Nested[_T]):
+            The nested structure to process.
 
     Returns:
         Nested[_V]:

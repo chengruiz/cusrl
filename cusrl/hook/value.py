@@ -80,7 +80,6 @@ class ValueComputation(Hook[ActorCritic]):
                 if next_memory is not None:
                     # fmt: off
                     next_memory = map_nested(
-                        next_memory,
                         lambda memory:
                             memory             # [ N, ..., B, C]
                             .unsqueeze(1)      # [ N, 1, ..., B, C]
@@ -89,6 +88,7 @@ class ValueComputation(Hook[ActorCritic]):
                             .transpose(0, -2)  # [ 1, ..., M, C]
                             .squeeze(0)        # [ ..., M, C]
                             .contiguous(),
+                        next_memory,
                     )
                     # fmt: on
 
