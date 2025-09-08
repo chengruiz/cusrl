@@ -213,7 +213,7 @@ class StddevVector(nn.Module):
     def forward(self, input: Tensor):
         return self.bijector(self.param.repeat(*input.shape[:-1], 1))
 
-    def clamp(self, lb: float | None = None, ub: float | None = None, indices=slice(None)):
+    def clamp_(self, lb: float | None = None, ub: float | None = None, indices=slice(None)):
         if lb is None and ub is None:
             return
         if lb is not None:
@@ -222,7 +222,7 @@ class StddevVector(nn.Module):
             ub = self.bijector.inverse(ub)
         self.param.data[indices].clamp_(min=lb, max=ub)
 
-    def set(self, value):
+    def fill_(self, value):
         self.param.data[:] = self.bijector.inverse(value)
 
     def __repr__(self):
@@ -254,10 +254,10 @@ class NormalDist(_Normal):
         return self
 
     def set_std(self, std):
-        self.std.set(std)
+        self.std.fill_(std)
 
     def clamp_std(self, lb: float | None = None, ub: float | None = None, indices=slice(None)):
-        self.std.clamp(lb=lb, ub=ub, indices=indices)
+        self.std.clamp_(lb=lb, ub=ub, indices=indices)
 
 
 @dataclass(slots=True)
