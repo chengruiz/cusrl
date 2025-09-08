@@ -11,6 +11,7 @@ from .distribution import (
 )
 from .export import GraphBuilder
 from .inference import InferenceModule
+from .loss import NormalNllLoss
 from .mha import MultiheadAttention, MultiheadCrossAttention
 from .mlp import Mlp
 from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
@@ -41,6 +42,7 @@ __all__ = [
     "MultiheadAttention",
     "MultiheadCrossAttention",
     "MultiheadSelfAttention",
+    "NormalNllLoss",
     "Normalization",
     "ParameterWrapper",
     "Rnn",
