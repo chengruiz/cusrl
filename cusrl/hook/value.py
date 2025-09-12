@@ -1,7 +1,7 @@
 from typing import cast
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from cusrl.template import ActorCritic, Buffer, Hook
 from cusrl.utils.dict_utils import get_first
@@ -58,14 +58,14 @@ class ValueComputation(Hook[ActorCritic]):
     @torch.no_grad()
     def pre_update(self, buffer: Buffer):
         critic = self.agent.critic
-        value = cast(torch.Tensor, buffer["value"])
+        value = cast(Tensor, buffer["value"])
         if (next_value := buffer.get("next_value")) is None:
-            buffer["next_value"] = torch.zeros_like(cast(torch.Tensor, value))
+            buffer["next_value"] = torch.zeros_like(cast(Tensor, value))
             next_value = buffer["next_value"]
-        next_value = cast(torch.Tensor, next_value)
-        next_state = cast(torch.Tensor, get_first(buffer, "next_state", "next_observation"))
-        terminated = cast(torch.Tensor, buffer["terminated"]).squeeze(-1)
-        truncated = cast(torch.Tensor, buffer["truncated"]).squeeze(-1)
+        next_value = cast(Tensor, next_value)
+        next_state = cast(Tensor, get_first(buffer, "next_state", "next_observation"))
+        terminated = cast(Tensor, buffer["terminated"]).squeeze(-1)
+        truncated = cast(Tensor, buffer["truncated"]).squeeze(-1)
 
         next_value[:-1] = value[1:]
         with self.agent.autocast():
@@ -98,12 +98,7 @@ class ValueComputation(Hook[ActorCritic]):
                 next_value[truncated] = value[truncated]
 
 
-def _clipped_value_loss(
-    value: torch.Tensor,
-    curr_value: torch.Tensor,
-    return_: torch.Tensor,
-    loss_clip: float,
-):
+def _clipped_value_loss(value: Tensor, curr_value: Tensor, return_: Tensor, loss_clip: float):
     clipped_value = value + (curr_value - value).clamp(-loss_clip, loss_clip)
     value_loss = (curr_value - return_).square()
     value_loss_clipped = (clipped_value - return_).square()
