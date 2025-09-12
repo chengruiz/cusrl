@@ -27,15 +27,15 @@ class EnvironmentStats:
     def __init__(self, num_envs: int, reward_dim: int = 1, buffer_size: int = 100):
         self.num_envs = num_envs
         self.reward_dim = reward_dim
-        self.episode_rew = torch.zeros([num_envs, reward_dim])
-        self.episode_len = torch.zeros([num_envs, 1])
-        self.rew_buffer = torch.zeros([buffer_size, reward_dim])
-        self.len_buffer = torch.zeros([buffer_size, 1])
+        self.episode_rew = torch.zeros([num_envs, reward_dim], device="cpu")
+        self.episode_len = torch.zeros([num_envs, 1], device="cpu")
+        self.rew_buffer = torch.zeros([buffer_size, reward_dim], device="cpu")
+        self.len_buffer = torch.zeros([buffer_size, 1], device="cpu")
         self.num_episodes = 0
         self.total_steps = 0
 
         self.num_steps = 0
-        self.reward = torch.zeros([reward_dim])
+        self.reward = torch.zeros([reward_dim], device="cpu")
 
     def track_step(self, reward):
         reward = torch.as_tensor(reward, device="cpu")
