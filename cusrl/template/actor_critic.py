@@ -12,6 +12,7 @@ from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
+from cusrl.utils.nest import map_nested
 from cusrl.utils.typing import ArrayType, Nested, NestedArray, NestedTensor, Observation, State
 
 __all__ = ["ActorCritic"]
@@ -180,10 +181,14 @@ class ActorCritic(Agent):
 
         with self.autocast():
             action_dist, (action, action_logp), next_actor_memory = self.actor.explore(
-                self.transition["observation"],
+                self.transition["observation"].unsqueeze(0),
                 memory=self.actor_memory,
                 deterministic=self.deterministic,
             )
+
+            action_dist = map_nested(lambda x: x.squeeze(0), action_dist)
+            action = action.squeeze(0)
+            action_logp = action_logp.squeeze(0)
 
         self._save_transition(
             actor_memory=self.actor_memory,
