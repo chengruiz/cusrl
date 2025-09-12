@@ -112,7 +112,6 @@ def compute_cumulative_sequence_lengths(done: Tensor) -> Tensor:
     return cumulate_sequence_lengths(compute_sequence_lengths(done))
 
 
-@torch.jit.script
 def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Tensor, Tensor]:
     """Splits and pads sequences from a batch of environment rollouts.
 
@@ -123,9 +122,9 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
 
     Args:
         compact_sequences (Tensor):
-            A tensor of compact sequence data of shape `(T, N, C)`, where `T`
-            is the number of timesteps, `N` is the number of environments, and
-            `C` is the channel dimension.
+            A tensor of compact sequence data of shape `(T, ..., N, C)`, where
+            `T` is the number of timesteps, `N` is the number of environments,
+            and `C` is the channel dimension.
         done (Tensor):
             A boolean tensor of shape `(T, N, 1)` that indicates sequence
             terminations. If `done[t, n, 0] == 1`, it signifies the end of a
@@ -133,28 +132,34 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
 
     Returns:
         - padded_sequences (Tensor):
-            A tensor of shape `(T, E, C)`, where `E >= N` is the total number of
-            episodes extracted from all environments. Each episode is padded
-            with zeros to length `T`.
+            A tensor of shape `(T, ..., E, C)`, where `E >= N` is the total
+            number of episodes extracted from all environments. Each episode is
+            padded with zeros to length `T`.
         - mask (Tensor):
             A boolean tensor of shape `(T, E)`. `mask[t, i]` is `True` if
             timestep `t` is a valid part of episode `i` (i.e., not padding).
     """
-    if compact_sequences.dim() != 3:
-        raise ValueError(f"'compact_sequences' must be 3-dimensional, but got shape {compact_sequences.shape}.")
+    if compact_sequences.dim() < 3:
+        raise ValueError(f"'compact_sequences' must be at least 3D, but got shape {compact_sequences.shape}.")
     if done.dim() != 3 or done.size(-1) != 1:
-        raise ValueError(f"'done' must be 3-dimensional with the last dimension of 1, but got shape {done.shape}.")
+        raise ValueError(f"'done' must be 3D with the last dimension of 1, but got shape {done.shape}.")
 
-    max_len = compact_sequences.size(0)
-    seq_lens = compute_sequence_lengths(done)
-    num_seq = seq_lens.size(0)
-    padded_seqs = compact_sequences.new_zeros(num_seq, max_len, compact_sequences.size(-1))
-    mask = seq_lens.unsqueeze_(1) > torch.arange(0, max_len, device=seq_lens.device)
-    padded_seqs[mask] = compact_sequences.transpose(0, 1).flatten(0, 1)
-    return padded_seqs.transpose(0, 1), mask.transpose(0, 1)
+    max_sequence_len = compact_sequences.size(0)
+    sequence_lens = compute_sequence_lengths(done)
+    num_sequences = sequence_lens.size(0)
+    padded_sequences = compact_sequences.new_zeros(
+        num_sequences,
+        max_sequence_len,
+        *compact_sequences.shape[1:-2],
+        1,
+        compact_sequences.size(-1),
+    )
+
+    mask = sequence_lens.unsqueeze_(1) > torch.arange(0, max_sequence_len, device=sequence_lens.device)
+    padded_sequences[mask] = compact_sequences.unsqueeze(0).transpose(0, -2).flatten(0, 1)
+    return padded_sequences.transpose(0, -2).squeeze(0), mask.transpose(0, 1)
 
 
-@torch.jit.script
 def unpad_and_merge_sequences(
     padded_sequences: Tensor,
     masks: Tensor,
@@ -163,21 +168,26 @@ def unpad_and_merge_sequences(
     """Does the inverse operation of `split_and_pad_sequences`"""
     if original_sequence_len is None:
         original_sequence_len = padded_sequences.size(0)
+
+    # fmt: off
     return (
-        padded_sequences.transpose(1, 0)[masks.transpose(1, 0)]
-        .reshape(-1, original_sequence_len, padded_sequences.size(-1))
-        .transpose(1, 0)
+        padded_sequences                            # (T, ..., E, C)
+        .unsqueeze(0)                               # (1, T, ..., E, C)
+        .transpose(0, -2)                           # (E, T, ..., 1, C)
+        [masks.transpose(0, 1)]                     # (N * T, ..., 1, C)
+        .unflatten(0, (-1, original_sequence_len))  # (N, T, ..., 1, C)
+        .transpose(0, -2)                           # (1, T, ..., N, C)
+        .squeeze(0)                                 # (T, ..., N, C)
     )
+    # fmt: on
 
 
-@torch.jit.script
 def compute_cumulative_timesteps(done: Tensor) -> Tensor:
     valid, mask = split_and_pad_sequences(torch.ones_like(done), done)
     cumulative_timesteps = valid.cumsum(dim=0) - 1
     return unpad_and_merge_sequences(cumulative_timesteps, mask)
 
 
-@torch.jit.script
 def compute_reverse_cumulative_timesteps(done: Tensor) -> Tensor:
     valid, mask = split_and_pad_sequences(torch.ones_like(done), done)
     cumulative_timesteps = valid.cumsum(dim=0)

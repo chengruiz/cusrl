@@ -5,11 +5,34 @@ import cusrl
 from cusrl_test import test_module_consistency
 
 
+def test_rnn_multi_batch():
+    observation_dim = 10
+    hidden_size = 32
+    num_seqs = 8
+    seq_len = 16
+    repeat = 3
+
+    input = torch.randn(seq_len, repeat * num_seqs, observation_dim)
+    rnn = cusrl.Lstm(input_size=observation_dim, num_layers=2, hidden_size=hidden_size)
+    output1, memory1 = rnn(input)
+
+    input_reshaped = input.view(seq_len, repeat, num_seqs, observation_dim)
+    output2, memory2 = rnn(input_reshaped)
+    assert torch.allclose(output1, output2.flatten(1, -2))
+    assert all(torch.allclose(m1, m2.flatten(1, -2)) for m1, m2 in zip(memory1, memory2))
+
+    done = torch.rand(seq_len, num_seqs, 1) < 0.1
+    done_repeat = done.repeat(1, repeat, 1)
+    output1, _ = rnn(input, memory=memory1, done=done_repeat)
+    output2, _ = rnn(input_reshaped, memory=memory2, done=done)
+    assert torch.allclose(output1, output2.flatten(1, -2), atol=1e-5)
+
+
 def test_rnn_consistency():
     input_dim = 10
     hidden_size = 32
-    num_seqs = 20
-    seq_len = 30
+    num_seqs = 8
+    seq_len = 16
 
     rnn = cusrl.Lstm(num_layers=2, hidden_size=hidden_size, input_size=input_dim)
     input = torch.randn(seq_len, num_seqs, input_dim)
@@ -29,9 +52,9 @@ def test_rnn_consistency():
 
 def test_rnn_actor_consistency():
     observation_dim = 10
-    hidden_size = 24
-    num_seqs = 20
-    seq_len = 30
+    hidden_size = 32
+    num_seqs = 8
+    seq_len = 16
     action_dim = 5
 
     rnn = cusrl.Actor.Factory(
@@ -65,8 +88,8 @@ def test_consistency_during_training(rnn_type):
 def test_step_memory():
     input_dim = 10
     hidden_size = 32
-    num_seqs = 20
-    seq_len = 30
+    num_seqs = 8
+    seq_len = 16
 
     rnn = cusrl.Actor.Factory(
         cusrl.Gru.Factory(num_layers=2, hidden_size=hidden_size),

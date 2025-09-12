@@ -4,6 +4,7 @@ import torch
 from torch import Tensor, nn
 
 from cusrl.module.module import Module, ModuleFactory
+from cusrl.utils.nest import map_nested
 from cusrl.utils.recurrent import compute_sequence_lengths, split_and_pad_sequences, unpad_and_merge_sequences
 from cusrl.utils.typing import Memory
 
@@ -82,57 +83,75 @@ class Rnn(Module):
         **kwargs,
     ) -> tuple[Tensor, Memory]:
         if done is not None:
-            if pack_sequence:
-                return self._forward_packed_sequence(input, memory, done)
-            return self._forward_sequence(input, memory, done)
-        return self._forward_tensor(input, memory)
-
-    def _forward_tensor(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
-        if input.dim() not in (2, 3):
-            raise ValueError("Input of RNNs must be 2- or 3-dimensional.")
-        if input.dim() == 3:
-            latent, memory = self.rnn(input, memory)
+            latent, memory = self._forward_rnn_sequence(input, memory, done, pack_sequence=pack_sequence)
         else:
-            # for x.dim() == 2, treat the 1st dim as batch instead of time
-            latent, memory = self.rnn(input.unsqueeze(0), memory)
-            latent = latent.squeeze(0)
+            latent, memory = self._forward_rnn_tensor(input, memory)
         return self.output_proj(latent), memory
 
-    def _forward_sequence(self, input: Tensor, memory: Memory, done: Tensor) -> tuple[Tensor, Memory]:
-        if input.dim() != 3:
-            raise ValueError(f"Input sequences of RNNs must be 3-dimensional, got {input.ndim}.")
+    def _forward_rnn_tensor(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
+        reshaped_input, reshaped_memory = self._reshape_input(input, memory)
+        reshaped_latent, reshaped_output_memory = self.rnn(reshaped_input, reshaped_memory)
+        return self._reshape_output(reshaped_latent, reshaped_output_memory, input.shape)
+
+    def _forward_rnn_sequence(
+        self,
+        input: Tensor,
+        memory: Memory,
+        done: Tensor,
+        pack_sequence: bool = False,
+    ) -> tuple[Tensor, Memory]:
         padded_input, mask = split_and_pad_sequences(input, done)
-        padded_latent, _ = self.rnn(padded_input, scatter_memory(memory, done))
+        scattered_memory = scatter_memory(memory, done)
+        if pack_sequence:
+            if input.dim() != 3:
+                raise ValueError(f"Input of RNNs must be 3D to be packed, got {input.dim()}.")
+            sequence_lens = compute_sequence_lengths(done)
+            reshaped_padded_input, reshaped_scattered_memory = self._reshape_input(padded_input, scattered_memory)
+            reshaped_packed_input = nn.utils.rnn.pack_padded_sequence(
+                reshaped_padded_input, lengths=sequence_lens.cpu(), enforce_sorted=False
+            )
+            reshaped_packed_latent, reshaped_scattered_output_memory = self.rnn(
+                reshaped_packed_input, reshaped_scattered_memory
+            )
+            reshaped_padded_latent, _ = nn.utils.rnn.pad_packed_sequence(reshaped_packed_latent)
+            padded_latent, scattered_output_memory = self._reshape_output(
+                reshaped_padded_latent, reshaped_scattered_output_memory, padded_input.shape
+            )
+            output_memory = gather_memory(scattered_output_memory, done)
+        else:
+            padded_latent, _ = self._forward_rnn_tensor(padded_input, scattered_memory)
+            output_memory = None
         latent = unpad_and_merge_sequences(padded_latent, mask)
-        return self.output_proj(latent), None
+        return latent, output_memory
 
-    def _forward_packed_sequence(self, input: Tensor, memory: Memory, done: Tensor) -> tuple[Tensor, Memory]:
-        # a slower version of forward_sequence, but preserves the final memory
-        if input.dim() != 3:
-            raise ValueError(f"Input of RNNs must be 3-dimensional to be packed, got {input.ndim}.")
-        sequence_lengths = compute_sequence_lengths(done)
-        padded_input, mask = split_and_pad_sequences(input, done)
-        packed_input = nn.utils.rnn.pack_padded_sequence(
-            padded_input,
-            lengths=sequence_lengths.cpu(),
-            enforce_sorted=False,
-        )
-        packed_latent, memory = self.rnn(packed_input, scatter_memory(memory, done))
-        padded_latent, _ = nn.utils.rnn.pad_packed_sequence(packed_latent)
-        latent = unpad_and_merge_sequences(
-            padded_latent,
-            mask[: padded_latent.size(0)],
-            original_sequence_len=input.size(0),
-        )
-        memory = gather_memory(memory, done)
-        return self.output_proj(latent), memory
+    def _reshape_input(self, input: Tensor, memory: Memory) -> tuple[Tensor, Memory]:
+        if input.dim() < 3:
+            input = input.reshape(1, -1, input.size(-1))
+        if input.dim() > 3:
+            input = input.flatten(1, -2)
+            if memory is not None:
+                memory = map_nested(lambda mem: mem.flatten(1, -2), memory)
+        return input, memory
+
+    def _reshape_output(
+        self,
+        output: Tensor,
+        memory: Memory,
+        original_input_shape: tuple[int, ...],
+    ) -> tuple[Tensor, Memory]:
+        if len(original_input_shape) < 3:
+            return output.reshape(*original_input_shape[:-1], output.size(-1)), memory
+        if len(original_input_shape) > 3:
+            output = output.unflatten(-2, original_input_shape[1:-1])
+            if memory is not None:
+                memory = map_nested(lambda mem: mem.unflatten(-2, original_input_shape[1:-1]), memory)
+        return output, memory
 
     def step_memory(self, input: Tensor, memory: Memory = None, **kwargs):
-        if input.dim() not in (2, 3):
-            raise ValueError("Input of RNNs must be 2- or 3-dimensional.")
-        if input.dim() == 2:
-            input = input.unsqueeze(0)
-        _, memory = self.rnn(input, memory)
+        original_input_shape = input.shape
+        input, memory = self._reshape_input(input, memory)
+        latent, memory = self.rnn(input, memory)
+        _, memory = self._reshape_output(latent, memory, original_input_shape)
         return memory
 
 
@@ -188,7 +207,7 @@ def concat_memory(memory1: Memory, memory2: Memory) -> Memory:
     return tuple(concat_memory(m1, m2) for m1, m2 in zip(memory1, memory2))
 
 
-def scatter_memory(memory: Memory, done: Tensor):
+def scatter_memory(memory: Memory, done: Tensor) -> Memory:
     """Restructures memory tensors from a batch of sequences into a batch of
     episodes.
 
@@ -231,7 +250,7 @@ def scatter_memory(memory: Memory, done: Tensor):
     return result
 
 
-def gather_memory(memory: Memory, done: Tensor):
+def gather_memory(memory: Memory, done: Tensor) -> Memory:
     if memory is None:
         return None
     if isinstance(memory, tuple):
