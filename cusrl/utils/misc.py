@@ -149,9 +149,8 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
     if seed is None:
         seed = 42 if deterministic else int.from_bytes(os.urandom(4), "big")
 
-    if distributed.is_main_process():
-        print(f"Setting seed: {seed} (deterministic={deterministic})")
-    seed += distributed.local_rank()
+    distributed.print_rank0(f"Setting seed: {seed} (deterministic={deterministic})")
+    seed += distributed.rank()
     random.seed(seed)
     np.random.seed(random.getrandbits(4))
     torch.manual_seed(random.getrandbits(4))

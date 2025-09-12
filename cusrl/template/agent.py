@@ -288,7 +288,7 @@ class Agent(ABC):
 
     @classmethod
     def warn(cls, info_str):
-        distributed.print_once(f"\033[1;33mAgent: {info_str}\033[0m")
+        distributed.print_rank0(f"\033[1;33mAgent: {info_str}\033[0m")
 
     @contextmanager
     def autocast(self):

@@ -8,13 +8,6 @@ __all__ = ["CONFIG", "device", "is_autocast_available"]
 
 
 class Configurations:
-    cuda: bool
-    device: torch.device
-    device_id: int
-    distributed: bool
-    local_rank: int
-    world_size: int
-    seed: int | None = None
     __instance = None
 
     def __new__(cls):
@@ -23,33 +16,73 @@ class Configurations:
         return cls.__instance
 
     def __init__(self):
-        self.cuda = torch.cuda.is_available()
-        self.device = torch.device("cuda:0" if self.cuda else "cpu")
-        self.device_id = 0
+        self._cuda = torch.cuda.is_available()
+        self._device = torch.device("cuda:0" if self._cuda else "cpu")
+        self._device_id = 0
+        self._seed = None
 
         if "LOCAL_RANK" in os.environ:
-            self.distributed = True
-            self.local_rank = int(os.environ["LOCAL_RANK"])
-            self.world_size = int(os.environ["LOCAL_WORLD_SIZE"])
-            if self.cuda:
-                self.device_id = self.local_rank
-                self.device = torch.device(f"cuda:{self.device_id}")
-                torch.cuda.set_device(self.device_id)
+            self._distributed = True
+            self._rank = int(os.environ["RANK"])
+            self._local_rank = int(os.environ["LOCAL_RANK"])
+            self._world_size = int(os.environ["WORLD_SIZE"])
+            if self._cuda:
+                self._device = torch.device(f"cuda:{self._local_rank}")
+                self._device_id = self._local_rank
             if GroupMember.WORLD is None:
-                if self.local_rank == 0:
-                    print(f"\033[1;32mInitializing distributed training with {self.world_size} processes.\033[0m")
+                if self._rank == 0:
+                    print(f"\033[1;32mInitializing distributed training with {self._world_size} processes.\033[0m")
                 torch.distributed.init_process_group(
-                    backend="nccl" if self.cuda else "gloo",
-                    world_size=self.world_size,
-                    rank=self.local_rank,
-                    device_id=self.device,
+                    backend="nccl" if self._cuda else "gloo",
+                    world_size=self._world_size,
+                    rank=self._rank,
+                    device_id=self._device,
                 )
         else:
-            self.distributed = False
-            self.local_rank = 0
-            self.world_size = 1
+            self._distributed = False
+            self._rank = 0
+            self._local_rank = 0
+            self._world_size = 1
 
+        if self._cuda:
+            torch.cuda.set_device(self._device)
         torch.set_float32_matmul_precision("high")
+
+    @property
+    def cuda(self) -> bool:
+        return self._cuda
+
+    @property
+    def device(self) -> torch.device:
+        return self._device
+
+    @property
+    def device_id(self) -> int:
+        return self._device_id
+
+    @property
+    def distributed(self) -> bool:
+        return self._distributed
+
+    @property
+    def rank(self) -> int:
+        return self._rank
+
+    @property
+    def local_rank(self) -> int:
+        return self._local_rank
+
+    @property
+    def world_size(self) -> int:
+        return self._world_size
+
+    @property
+    def seed(self) -> int | None:
+        return self._seed
+
+    @seed.setter
+    def seed(self, value: int | None):
+        self._seed = value
 
 
 def device(device: str | torch.device | None = None) -> torch.device:
@@ -70,6 +103,6 @@ CONFIG = Configurations()
 @atexit.register
 def clean_distributed():
     if CONFIG.distributed and GroupMember.WORLD is not None:
-        if CONFIG.local_rank == 0:
+        if CONFIG.rank == 0:
             print("\033[1;32mCleaning distributed training resources.\033[0m")
         torch.distributed.destroy_process_group()

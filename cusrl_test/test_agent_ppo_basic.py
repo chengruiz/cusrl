@@ -24,7 +24,7 @@ def test_environment_with_observation_and_state():
 
     if distributed.enabled():
         torch.set_printoptions(precision=3)
-        distributed.print_all(agent.actor.state_dict()["backbone.layers.0.bias"][:5])
+        distributed.gather_print(agent.actor.state_dict()["backbone.layers.0.bias"][:5])
 
     agent.load_state_dict(state_dict)
 

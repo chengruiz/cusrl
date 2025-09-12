@@ -13,13 +13,14 @@ __all__ = [
     "enabled",
     "is_main_process",
     "gather_obj",
+    "gather_print",
     "gather_stack",
     "gather_tensor",
     "local_rank",
     "make_distributed",
     "make_none_obj_list",
-    "print_all",
-    "print_once",
+    "print_rank0",
+    "rank",
     "reduce_mean_",
     "reduce_mean_var_",
     "world_size",
@@ -55,7 +56,7 @@ def enabled() -> bool:
 
 def is_main_process() -> bool:
     """Checks if the current process is the main process."""
-    return CONFIG.local_rank == 0
+    return CONFIG.rank == 0
 
 
 def gather_obj(obj: _T) -> list[_T]:
@@ -64,6 +65,20 @@ def gather_obj(obj: _T) -> list[_T]:
     obj_list = [None for _ in range(CONFIG.world_size)]
     torch.distributed.all_gather_object(obj_list, obj)
     return obj_list
+
+
+def gather_print(*args, **kwargs):
+    if not CONFIG.distributed:
+        print(*args, **kwargs)
+        return
+    buf = StringIO()
+    print(*args, **kwargs, file=buf)
+
+    output = make_none_obj_list()
+    torch.distributed.all_gather_object(output, buf.getvalue())
+    if CONFIG.local_rank == 0:
+        for rank, out in enumerate(output):
+            print(f"Rank {rank}: {out}", end="")
 
 
 def gather_stack(tensor: torch.Tensor) -> torch.Tensor:
@@ -83,10 +98,6 @@ def gather_tensor(tensor: torch.Tensor) -> list[torch.Tensor]:
     tensor_list = [torch.empty_like(tensor) for _ in range(CONFIG.world_size)]
     torch.distributed.all_gather(tensor_list, tensor)
     return tensor_list
-
-
-def world_size() -> int:
-    return CONFIG.world_size
 
 
 def local_rank() -> int:
@@ -111,23 +122,13 @@ def make_none_obj_list() -> list[object]:
     return [None for _ in range(CONFIG.world_size)]
 
 
-def print_all(*args, **kwargs):
-    if not CONFIG.distributed:
+def print_rank0(*args, **kwargs):
+    if CONFIG.rank == 0:
         print(*args, **kwargs)
-        return
-    buf = StringIO()
-    print(*args, **kwargs, file=buf)
-
-    output = make_none_obj_list()
-    torch.distributed.all_gather_object(output, buf.getvalue())
-    if CONFIG.local_rank == 0:
-        for rank, out in enumerate(output):
-            print(f"Rank {rank}: {out}", end="")
 
 
-def print_once(*args, **kwargs):
-    if not CONFIG.distributed or CONFIG.local_rank == 0:
-        print(*args, **kwargs)
+def rank() -> int:
+    return CONFIG.rank
 
 
 def reduce_mean_(tensor: torch.Tensor) -> torch.Tensor:
@@ -149,3 +150,7 @@ def reduce_mean_var_(mean: torch.Tensor, var: torch.Tensor) -> tuple[torch.Tenso
     torch.mean(all_means, dim=0, out=mean)
     torch.mean(all_vars + (all_means - mean).square(), dim=0, out=var)
     return mean, var
+
+
+def world_size() -> int:
+    return CONFIG.world_size

@@ -284,7 +284,7 @@ class Hook(Generic[AgentType]):
     @classmethod
     def warn(cls, message):
         """Prints a warning message."""
-        distributed.print_once(f"\033[1;31m{cls.__name__}: {message}\033[0m")
+        distributed.print_rank0(f"\033[1;31m{cls.__name__}: {message}\033[0m")
 
 
 class HookComposite(Hook):
