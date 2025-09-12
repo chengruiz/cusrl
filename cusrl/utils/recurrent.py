@@ -2,15 +2,37 @@ import torch
 from torch import Tensor
 
 __all__ = [
+    "apply_sequence_batch_mask",
     "compute_cumulative_sequence_lengths",
     "compute_cumulative_timesteps",
     "compute_sequence_indices",
     "compute_sequence_lengths",
     "compute_reverse_cumulative_timesteps",
     "cumulate_sequence_lengths",
+    "set_sequence_batch_masked_",
     "split_and_pad_sequences",
     "unpad_and_merge_sequences",
 ]
+
+
+def apply_sequence_batch_mask(tensor: Tensor, mask: Tensor) -> Tensor:
+    # fmt: off
+    return (
+        tensor             # [ N, ..., B, C]
+        .unsqueeze(1)      # [ N, 1, ..., B, C]
+        .transpose(1, -2)  # [ N, B, ..., 1, C]
+        [mask]             # [ M, ..., 1, C]
+        .transpose(0, -2)  # [ 1, ..., M, C]
+        .squeeze(0)        # [ ..., M, C]
+    )
+    # fmt: on
+
+
+def set_sequence_batch_masked_(tensor: Tensor, mask: Tensor, value) -> None:
+    if isinstance(value, Tensor):
+        tensor.unsqueeze(1).transpose(1, -2)[mask] = value.unsqueeze(0).transpose(0, -2)
+    else:
+        tensor.unsqueeze(1).transpose(1, -2).masked_fill_(mask, value)
 
 
 @torch.jit.script

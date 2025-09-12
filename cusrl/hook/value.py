@@ -6,6 +6,7 @@ from torch import Tensor, nn
 from cusrl.template import ActorCritic, Buffer, Hook
 from cusrl.utils.dict_utils import get_first
 from cusrl.utils.nest import map_nested
+from cusrl.utils.recurrent import apply_sequence_batch_mask, set_sequence_batch_masked_
 from cusrl.utils.typing import Memory
 
 __all__ = ["ValueComputation", "ValueLoss"]
@@ -71,29 +72,21 @@ class ValueComputation(Hook[ActorCritic]):
         termination_value = value.new_full([value.size(-1)], self.termination_value)
         if critic.value_rms is not None:
             critic.value_rms.normalize_(termination_value)
-        next_value[terminated] = termination_value
+        set_sequence_batch_masked_(next_value, terminated, termination_value)
         if truncated.any():
             if self.bootstrap_truncated_states:
-                next_memory = buffer.get("next_critic_memory")
-                if next_memory is not None:
-                    # fmt: off
+                if (next_memory := buffer.get("next_critic_memory")) is not None:
                     next_memory = map_nested(
-                        lambda memory:
-                            memory             # [ N, ..., B, C]
-                            .unsqueeze(1)      # [ N, 1, ..., B, C]
-                            .transpose(1, -2)  # [ N, B, ..., 1, C]
-                            [truncated]        # [ M, ..., 1, C]
-                            .transpose(0, -2)  # [ 1, ..., M, C]
-                            .squeeze(0)        # [ ..., M, C]
-                            .contiguous(),
+                        lambda memory: apply_sequence_batch_mask(memory, truncated).contiguous(),
                         next_memory,
                     )
-                    # fmt: on
 
+                truncated_next_state = apply_sequence_batch_mask(next_state, truncated)
                 with self.agent.autocast():
-                    next_value[truncated] = critic.evaluate(next_state[truncated], memory=next_memory)
+                    truncated_next_value = critic.evaluate(truncated_next_state, memory=next_memory)
+                set_sequence_batch_masked_(next_value, truncated, truncated_next_value)
             else:
-                next_value[truncated] = value[truncated]
+                set_sequence_batch_masked_(next_value, truncated, apply_sequence_batch_mask(value, truncated))
 
 
 def _clipped_value_loss(value: Tensor, curr_value: Tensor, return_: Tensor, loss_clip: float):

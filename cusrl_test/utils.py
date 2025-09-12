@@ -31,7 +31,7 @@ class DummyEnvironment(cusrl.Environment):
             None if self.state_dim is None else torch.randn(self.num_instances, self.state_dim),
             torch.randn(self.num_instances, self.spec.reward_dim),
             torch.rand(self.num_instances, 1) > 0.9,
-            torch.zeros(self.num_instances, 1, dtype=torch.bool),
+            torch.rand(self.num_instances, 1) > 0.9,
             {},
         )
 
