@@ -173,19 +173,22 @@ def make_isaaclab_env(
     return IsaacLabEnvLauncher(id, argv, **kwargs)
 
 
-class SerializationMethodGuard(type):
-    def __setattr__(self, name: str, value: Any):
-        # Prevent setting the serialization methods by configclass
-        if name != "to_dict" and name != "from_dict":
-            super().__setattr__(name, value)
-
-
 @dataclass
-class TrainerCfg(metaclass=SerializationMethodGuard):
+class TrainerCfg:
     max_iterations: int = MISSING
     save_interval: int = MISSING
     experiment_name: str = MISSING
     agent_factory: cusrl.template.Agent.Factory = MISSING
+
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        for field in fields(cls):
+            if (value := getattr(cls, field.name, MISSING)) is MISSING:
+                if field.default is MISSING and field.default_factory is MISSING:
+                    raise ValueError(f"The default value or factory of field '{field.name}' is not defined.")
+            elif field.name not in cls.__annotations__:  # will be processed by dataclass
+                field.default = value
+                delattr(cls, field.name)
 
     def __post_init__(self):
         # Manually set the serialization methods to each instance
