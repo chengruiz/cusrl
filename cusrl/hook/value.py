@@ -120,25 +120,26 @@ class ValueLoss(Hook[ActorCritic]):
         super().__init__()
 
         # Mutable attributes
-        self.weight: float
-        self.loss_clip: float | None
-        self.register_mutable("weight", weight)
-        self.register_mutable("loss_clip", loss_clip)
+        self.weight: float = weight
+        self.loss_clip: float | None = loss_clip
+        self.register_mutable("weight")
+        self.register_mutable("loss_clip")
 
     def objective(self, batch):
         critic = self.agent.critic
+        state = cast(Tensor, get_first(batch, "state", "observation"))
+        done = cast(Tensor, batch["done"])
+        value = cast(Tensor, batch["value"])
+        return_ = cast(Tensor, batch["return"])
+
         with self.agent.autocast():
-            curr_value = critic.evaluate(
-                get_first(batch, "state", "observation"),
-                memory=batch.get("critic_memory"),
-                done=batch["done"],
-            )
+            curr_value = critic.evaluate(state, memory=batch.get("critic_memory"), done=done)
             batch["curr_value"] = curr_value
 
             value_loss = (
-                nn.functional.mse_loss(batch["return"], curr_value)
+                nn.functional.mse_loss(return_, curr_value)
                 if self.loss_clip is None
-                else _clipped_value_loss(batch["value"], curr_value, batch["return"], self.loss_clip)
+                else _clipped_value_loss(value, curr_value, return_, self.loss_clip)
             ) * self.weight
 
         with torch.no_grad():

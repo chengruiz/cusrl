@@ -42,8 +42,8 @@ class RandomNetworkDistillation(Hook):
         self.state_indices = slice(None) if state_indices is None else state_indices
 
         # Mutable attributes
-        self.reward_scale: float
-        self.register_mutable("reward_scale", reward_scale)
+        self.reward_scale: float = reward_scale
+        self.register_mutable("reward_scale")
 
         # Runtime attributes
         self.target: Module

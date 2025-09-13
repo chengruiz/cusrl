@@ -23,8 +23,8 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
         self.scale_all_params = scale_all_params
 
         # Mutable attributes
-        self.desired_kl_divergence: float
-        self.register_mutable("desired_kl_divergence", desired_kl_divergence)
+        self.desired_kl_divergence: float = desired_kl_divergence
+        self.register_mutable("desired_kl_divergence")
 
         self._lr_scale = 1.0
 

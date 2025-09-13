@@ -22,8 +22,8 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.predicts_value_instead_of_return = predicts_value_instead_of_return
 
         # Mutable attributes
-        self.weight: float
-        self.register_mutable("weight", weight)
+        self.weight: float = weight
+        self.register_mutable("weight")
 
         # Runtime attributes
         self.predictor: nn.Module
@@ -64,8 +64,8 @@ class StatePrediction(Hook[ActorCritic]):
         self.predictor_factory = predictor_factory
 
         # Mutable attributes
-        self.weight: float
-        self.register_mutable("weight", weight)
+        self.weight: float = weight
+        self.register_mutable("weight")
 
         # Runtime attributes
         self.predictor: nn.Module
@@ -120,8 +120,8 @@ class NextStatePrediction(Hook[ActorCritic]):
         self.predictor_factory = predictor_factory
 
         # Mutable attributes
-        self.weight: float
-        self.register_mutable("weight", weight)
+        self.weight: float = weight
+        self.register_mutable("weight")
 
         # Runtime attributes
         self.predictor: nn.Module

@@ -40,8 +40,8 @@ class AdvantageReduction(Hook):
         self.reduction = reduction
 
         # Mutable attributes
-        self.weight: tuple[float, ...] | None
-        self.register_mutable("weight", None if weight is None else tuple(weight))
+        self.weight: tuple[float, ...] | None = None if weight is None else tuple(weight)
+        self.register_mutable("weight")
 
         # Runtime attributes
         self._weight_tensor: Tensor | None

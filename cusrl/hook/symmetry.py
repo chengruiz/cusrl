@@ -98,8 +98,8 @@ class SymmetryLoss(SymmetryHook):
         self.symmetrize_action_std = symmetrize_action_std
 
         # Mutable attributes
-        self.weight: float | None
-        self.register_mutable("weight", weight)
+        self.weight: float | None = weight
+        self.register_mutable("weight")
 
         # Runtime attributes
         self.criterion: nn.MSELoss

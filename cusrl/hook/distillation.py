@@ -34,8 +34,8 @@ class PolicyDistillationLoss(Hook[ActorCritic]):
         super().__init__()
         self.expert_path = expert_path
         self.observation_name = observation_name
-        self.weight: float
-        self.register_mutable("weight", weight)
+        self.weight: float = weight
+        self.register_mutable("weight")
 
         # Runtime attributes
         self.expert: torch.jit.ScriptModule

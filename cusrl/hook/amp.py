@@ -69,14 +69,14 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         self.state_indices = state_indices
 
         # Mutable attributes
-        self.batch_size: int | None
-        self.reward_scale: float
-        self.loss_weight: float
-        self.grad_penalty_weight: float
-        self.register_mutable("batch_size", batch_size)
-        self.register_mutable("reward_scale", reward_scale)
-        self.register_mutable("loss_weight", loss_weight)
-        self.register_mutable("grad_penalty_weight", grad_penalty_weight)
+        self.batch_size: int | None = batch_size
+        self.reward_scale: float = reward_scale
+        self.loss_weight: float = loss_weight
+        self.grad_penalty_weight: float = grad_penalty_weight
+        self.register_mutable("batch_size")
+        self.register_mutable("reward_scale")
+        self.register_mutable("loss_weight")
+        self.register_mutable("grad_penalty_weight")
 
         # Runtime attributes
         self.dataset: Tensor | None

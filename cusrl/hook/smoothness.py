@@ -39,10 +39,10 @@ class ActionSmoothnessLoss(Hook):
         super().__init__()
 
         # Mutable attributes
-        self.weight_1st_order: float | Sequence[float] | None
-        self.weight_2nd_order: float | Sequence[float] | None
-        self.register_mutable("weight_1st_order", weight_1st_order)
-        self.register_mutable("weight_2nd_order", weight_2nd_order)
+        self.weight_1st_order: float | Sequence[float] | None = weight_1st_order
+        self.weight_2nd_order: float | Sequence[float] | None = weight_2nd_order
+        self.register_mutable("weight_1st_order")
+        self.register_mutable("weight_2nd_order")
 
         # Runtime attributes
         self._weight1_tensor: torch.Tensor | None

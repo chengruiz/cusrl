@@ -40,8 +40,8 @@ class PpoSurrogateLoss(Hook):
         super().__init__()
 
         # Mutable attributes
-        self.clip_ratio: float
-        self.register_mutable("clip_ratio", clip_ratio)
+        self.clip_ratio: float = clip_ratio
+        self.register_mutable("clip_ratio")
 
     def objective(self, batch):
         if (advantage := cast(torch.Tensor, batch["advantage"])).size(-1) != 1:
@@ -74,8 +74,8 @@ class EntropyLoss(Hook):
         super().__init__()
 
         # Mutable attributes
-        self.weight: float
-        self.register_mutable("weight", weight)
+        self.weight: float = weight
+        self.register_mutable("weight")
 
     def objective(self, batch):
         return -self.weight * cast(torch.Tensor, batch["curr_entropy"]).mean()

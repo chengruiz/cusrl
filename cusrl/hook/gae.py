@@ -79,12 +79,12 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         self.popart_alpha = popart_alpha
 
         # Mutable attributes
-        self.gamma: float
-        self.lamda: float
-        self.lamda_value: float | None
-        self.register_mutable("gamma", gamma)
-        self.register_mutable("lamda", lamda)
-        self.register_mutable("lamda_value", lamda_value)
+        self.gamma: float = gamma
+        self.lamda: float = lamda
+        self.lamda_value: float | None = lamda_value
+        self.register_mutable("gamma")
+        self.register_mutable("lamda")
+        self.register_mutable("lamda_value")
 
         # Runtime attributes
         self.value_rms: ExponentialMovingNormalizer | None

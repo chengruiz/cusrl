@@ -10,6 +10,7 @@ from cusrl.module import GraphBuilder
 from cusrl.template.agent import AgentType
 from cusrl.template.buffer import Buffer
 from cusrl.utils import distributed
+from cusrl.utils.misc import MISSING
 from cusrl.utils.str_utils import camel_to_snake
 from cusrl.utils.typing import NestedTensor
 
@@ -79,7 +80,7 @@ class Hook(Generic[AgentType]):
         setattr(self, name, module)
         self._modules[name] = module
 
-    def register_mutable(self, name: str, value: Any):
+    def register_mutable(self, name: str, value: Any = MISSING):
         """Registers a mutable attribute with the hook.
 
         Mutable attributes can be updated during training via
@@ -89,9 +90,10 @@ class Hook(Generic[AgentType]):
             name (str):
                 The name of the attribute.
             value (Any):
-                The value to assign.
+                The value to assign, if specified.
         """
-        setattr(self, name, value)
+        if value is not MISSING:
+            setattr(self, name, value)
         self._mutable.add(name)
 
     def update_attribute(self, name: str, value: Any):

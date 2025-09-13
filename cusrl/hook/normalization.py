@@ -62,8 +62,8 @@ class ObservationNormalization(Hook[ActorCritic]):
         self.renormalize = renormalize
 
         # Mutable attributes
-        self.frozen: bool
-        self.register_mutable("frozen", False)
+        self.frozen: bool = False
+        self.register_mutable("frozen")
 
         # Runtime attributes
         self.observation_rms: RunningMeanStd
