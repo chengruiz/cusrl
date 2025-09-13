@@ -94,7 +94,7 @@ class Cnn(Module):
         if self.input_flattened:
             input = input.unflatten(-1, self.input_shape)
 
-        # enable multiple batch dimensions
+        # Flatten batch dimensions
         batch_dims = input.shape[:-3]
         if batch_dims:
             input = input.flatten(0, -4)

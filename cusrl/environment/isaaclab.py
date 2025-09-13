@@ -188,7 +188,10 @@ class TrainerCfg:
                     raise ValueError(f"The default value or factory of field '{field.name}' is not defined.")
             elif field.name not in cls.__annotations__:  # will be processed by dataclass
                 field.default = value
-                delattr(cls, field.name)
+                try:
+                    delattr(cls, field.name)
+                except AttributeError:
+                    pass
 
     def __post_init__(self):
         # Manually set the serialization methods to each instance

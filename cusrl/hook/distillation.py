@@ -32,9 +32,6 @@ class PolicyDistillationLoss(Hook[ActorCritic]):
         weight: float = 1.0,
     ):
         super().__init__()
-        if not expert_path:
-            raise ValueError("'expert_path' cannot be empty.")
-
         self.expert_path = expert_path
         self.observation_name = observation_name
         self.weight: float
@@ -45,6 +42,9 @@ class PolicyDistillationLoss(Hook[ActorCritic]):
         self.criterion: nn.MSELoss
 
     def init(self):
+        if not self.expert_path:
+            raise ValueError("'expert_path' cannot be empty.")
+
         self.expert = torch.jit.load(self.expert_path, map_location=self.agent.device)
         self.criterion = nn.MSELoss()
 

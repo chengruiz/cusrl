@@ -68,7 +68,7 @@ class ActionSmoothnessLoss(Hook):
         smoothness_loss = None
         if self._weight1_tensor is not None:
             smoothness_1st_order = (
-                # convolve at time dimension
+                # Convolve at time dimension
                 nn.functional.conv1d(action_sequence, self.conv_1st_order)  # [N * C, 1, T-1]
                 .reshape(*padded_action.shape[1:], -1)  # [N, C, T-1]
                 .permute(2, 0, 1)  # [T-1, N, C]

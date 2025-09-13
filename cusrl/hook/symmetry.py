@@ -190,7 +190,7 @@ class SymmetricDataAugmentation(SymmetryHook):
 
     @torch.no_grad()
     def post_step(self, transition):
-        # Augments observation and next_observation
+        # Augment observation and next_observation
         observation = cast(Tensor, transition["observation"])
         mirrored_observation, transition["augmented_observation"] = self._build_augmented_tensor(
             observation, self.mirror_observation
@@ -199,7 +199,7 @@ class SymmetricDataAugmentation(SymmetryHook):
             cast(Tensor, transition["next_observation"]), self.mirror_observation
         )
 
-        # Augments state and next_state if available
+        # Augment state and next_state if available
         if (state := cast(torch.Tensor | None, transition.get("state"))) is not None:
             assert self.mirror_state is not None
             mirrored_state, transition["augmented_state"] = self._build_augmented_tensor(state, self.mirror_state)
@@ -209,12 +209,12 @@ class SymmetricDataAugmentation(SymmetryHook):
         else:
             mirrored_state = mirrored_observation
 
-        # Augments action
+        # Augment action
         _, transition["augmented_action"] = self._build_augmented_tensor(
             cast(Tensor, transition["action"]), self.mirror_action
         )
 
-        # Augments memory for actor
+        # Augment memory for actor
         actor, critic = self.agent.actor, self.agent.critic
         done = cast(Tensor, transition["done"])
         with self.agent.autocast():
@@ -228,7 +228,7 @@ class SymmetricDataAugmentation(SymmetryHook):
             )
             actor.reset_memory(self.mirrored_actor_memory, done)
 
-        # Augments memory for critic if needed
+        # Augment memory for critic if needed
         if self.augments_value:
             if self.mirrored_critic_memory is not None:
                 transition["augmented_critic_memory"] = self._concat_memory(
