@@ -22,6 +22,8 @@ def configure_parser(parser):
                         help="Whether to disable optimization during export")
     parser.add_argument("--silent", action="store_true",
                         help="Whether to suppress output messages")
+    parser.add_argument("--batch-size", type=int, default=1, metavar="N",
+                        help="Batch size for the exported model")
     parser.add_argument("--dynamo", action="store_true",
                         help="Whether to use PyTorch Dynamo for onnx export")
     parser.add_argument("--load-experiment-spec", action="store_true",
@@ -54,6 +56,7 @@ def main(args):
         output_dir=args.output_dir,
         target_format=args.format,
         optimize=args.optimize,
+        batch_size=args.batch_size,
         dynamo=args.dynamo,
         verbose=not args.silent,
     )

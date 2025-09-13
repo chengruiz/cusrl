@@ -274,6 +274,7 @@ class ActorCritic(Agent):
         output_dir: str,
         target_format: Literal["onnx", "jit"] = "onnx",
         optimize: bool = True,
+        batch_size: int = 1,
         dynamo: bool = False,
         verbose: bool = True,
         **kwargs,
@@ -283,7 +284,7 @@ class ActorCritic(Agent):
         actor = self.actor_factory(self.observation_dim, self.action_dim).to(device=self.device)
         actor.load_state_dict(self.actor.state_dict())
         graph = GraphBuilder(graph_name="actor")
-        inputs = {"observation": torch.zeros(1, 1, self.environment_spec.observation_dim, device=self.device)}
+        inputs = {"observation": torch.zeros(1, batch_size, self.environment_spec.observation_dim, device=self.device)}
         input_names = {"observation": "observation"}
         output_names = ["action"]
         if actor.is_recurrent:

@@ -104,10 +104,15 @@ class GraphBuilder(nn.Module):
         stateful_wrapper = StatefulWrapper(stateless_wrapper, example_inputs)
         non_memory_inputs = tuple(flattened_inputs[name] for name in stateful_wrapper.input_names)
         traced_stateful_module = torch.jit.trace_module(
-            stateful_wrapper, inputs={"forward": non_memory_inputs, "reset": ()}, strict=False
+            stateful_wrapper,
+            inputs={
+                "forward": non_memory_inputs,
+                "reset": torch.rand(example_inputs["observation"].size(-2)) < 0.5,
+            },
+            strict=False,
         )
         if optimize:
-            traced_stateful_module = torch.jit.optimize_for_inference(traced_stateful_module)
+            traced_stateful_module = torch.jit.optimize_for_inference(traced_stateful_module, other_methods=["reset"])
         torch.jit.save(traced_stateful_module, f"{output_dir}/{self.graph_name}.pt")
 
         # Save additional information
@@ -320,16 +325,11 @@ class StatefulWrapper(nn.Module):
         outputs = tuple(outputs[name] for name in self.output_names)
         return outputs[0] if len(outputs) == 1 else outputs
 
-    def reset(self):
-        memories = []
+    def reset(self, indices: torch.Tensor):
         for memory_name in self.memory_names:
             memory = self._get_memory(memory_name)
-            memory.zero_()
-            memories.append(memory)
-        # Return memories to avoid being traced as a no-op
-        if len(memories) > 1:
-            return tuple(memories)
-        return memories[0] if memories else torch.zeros(())
+            memory[..., indices, :] = 0
+        return indices
 
     def _get_memory(self, memory_name: str) -> torch.Tensor:
         return getattr(self, memory_name.replace(".", "__"))
