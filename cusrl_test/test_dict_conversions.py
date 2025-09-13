@@ -45,7 +45,7 @@ def test_dict_conversions():
             cusrl.hook.HookParameterSchedule(
                 "action_smoothness_loss", "weight_1st_order", lambda i: 0.01 if i < 100 else 0.02
             ),
-            cusrl.hook.PPOSurrogateLoss(),
+            cusrl.hook.PpoSurrogateLoss(),
             cusrl.hook.RandomNetworkDistillation(
                 cusrl.Mlp.Factory(hidden_dims=(256, 256)), output_dim=16, reward_scale=0.1
             ),

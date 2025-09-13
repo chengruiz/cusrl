@@ -46,10 +46,6 @@ from .symmetry import (
 )
 from .value import ValueComputation, ValueLoss
 
-# alias for backward compatibility
-GAE = GeneralizedAdvantageEstimation
-PPOSurrogateLoss = PpoSurrogateLoss
-
 __all__ = [
     "ActionSmoothnessLoss",
     "AdaptiveLRSchedule",
@@ -60,7 +56,6 @@ __all__ = [
     "DynamicEnvironmentSpecOverride",
     "EntropyLoss",
     "EnvironmentSpecOverride",
-    "GAE",
     "GeneralizedAdvantageEstimation",
     "GradientClipping",
     "HookActivationSchedule",
@@ -73,7 +68,6 @@ __all__ = [
     "OnPolicyPreparation",
     "OnPolicyStatistics",
     "PolicyDistillationLoss",
-    "PPOSurrogateLoss",
     "PpoSurrogateLoss",
     "RandomNetworkDistillation",
     "ReturnPrediction",

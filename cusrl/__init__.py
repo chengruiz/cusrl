@@ -64,11 +64,6 @@ from cusrl.utils import (
     set_global_seed,
 )
 
-# alias for backward compatibility
-CNN = Cnn
-MLP = Mlp
-RNN = Rnn
-
 __all__ = [
     "hook",
     "logger",
@@ -86,7 +81,6 @@ __all__ = [
     "AutoMiniBatchSampler",
     "AutoRandomSampler",
     "Buffer",
-    "CNN",
     "Cnn",
     "Denormalization",
     "Distribution",
@@ -103,7 +97,6 @@ __all__ = [
     "LoggerFactory",
     "LoggerFactoryLike",
     "Lstm",
-    "MLP",
     "MiniBatchSampler",
     "Mlp",
     "Module",
@@ -118,7 +111,6 @@ __all__ = [
     "OptimizerFactory",
     "ParameterWrapper",
     "Player",
-    "RNN",
     "RandomSampler",
     "Rnn",
     "RunningMeanStd",
