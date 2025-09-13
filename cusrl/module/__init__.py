@@ -21,6 +21,7 @@ from .parameter import ParameterWrapper
 from .rnn import Gru, Lstm, Rnn
 from .sequential import Sequential
 from .simba import Simba
+from .stub import StubModule
 from .transformer import FeedForward, MultiheadSelfAttention, TransformerEncoderLayer
 
 __all__ = [
@@ -50,6 +51,7 @@ __all__ = [
     "SeparableConv2d",
     "Sequential",
     "Simba",
+    "StubModule",
     "SwiGlu",
     "TransformerEncoderLayer",
     # RL modules
