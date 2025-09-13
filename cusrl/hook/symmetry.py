@@ -7,9 +7,9 @@ from torch import Tensor, nn
 
 from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
 from cusrl.module.distribution import MeanStdDict
-from cusrl.module.rnn import concat_memory
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.dict_utils import prefix_dict_keys
+from cusrl.utils.nest import map_nested
 from cusrl.utils.typing import Memory, NestedTensor, Slice
 
 __all__ = [
@@ -190,81 +190,87 @@ class SymmetricDataAugmentation(SymmetryHook):
 
     @torch.no_grad()
     def post_step(self, transition):
-        actor = self.agent.actor
+        # Augments observation and next_observation
         observation = cast(Tensor, transition["observation"])
-        mirrored_observation = self.mirror_observation(observation)
-        done = cast(Tensor, transition["done"])
+        mirrored_observation, transition["augmented_observation"] = self._build_augmented_tensor(
+            observation, self.mirror_observation
+        )
+        _, transition["augmented_next_observation"] = self._build_augmented_tensor(
+            cast(Tensor, transition["next_observation"]), self.mirror_observation
+        )
 
-        transition["mirrored_actor_memory"] = self._unstack_memory(self.mirrored_actor_memory)
-        repeat_ratio = self._get_repeat_ratio(observation, mirrored_observation)
-        done = done.repeat(*repeat_ratio)
+        # Augments state and next_state if available
+        if (state := cast(torch.Tensor | None, transition.get("state"))) is not None:
+            assert self.mirror_state is not None
+            mirrored_state, transition["augmented_state"] = self._build_augmented_tensor(state, self.mirror_state)
+            _, transition["augmented_next_state"] = self._build_augmented_tensor(
+                cast(torch.Tensor, transition["next_state"]), self.mirror_state
+            )
+        else:
+            mirrored_state = mirrored_observation
+
+        # Augments action
+        _, transition["augmented_action"] = self._build_augmented_tensor(
+            cast(Tensor, transition["action"]), self.mirror_action
+        )
+
+        # Augments memory for actor
+        actor, critic = self.agent.actor, self.agent.critic
+        done = cast(Tensor, transition["done"])
         with self.agent.autocast():
+            if self.mirrored_actor_memory is not None:
+                transition["augmented_actor_memory"] = self._concat_memory(
+                    cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["actor_memory"])),
+                    self.mirrored_actor_memory,
+                )
             self.mirrored_actor_memory = actor.step_memory(
-                mirrored_observation,
-                memory=self.mirrored_actor_memory,
+                mirrored_observation.unsqueeze(0), self.mirrored_actor_memory
             )
             actor.reset_memory(self.mirrored_actor_memory, done)
 
+        # Augments memory for critic if needed
         if self.augments_value:
-            critic = self.agent.critic
-            if (state := cast(torch.Tensor | None, transition.get("state"))) is not None:
-                mirrored_state = self.mirror_state(state)
-            else:
-                mirrored_state = mirrored_observation
-            transition["mirrored_critic_memory"] = self._unstack_memory(self.mirrored_critic_memory)
-            self.mirrored_critic_memory = critic.step_memory(mirrored_state, self.mirrored_critic_memory)
+            if self.mirrored_critic_memory is not None:
+                transition["augmented_critic_memory"] = self._concat_memory(
+                    cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["critic_memory"])),
+                    self.mirrored_critic_memory,
+                )
+            self.mirrored_critic_memory = critic.step_memory(mirrored_state.unsqueeze(0), self.mirrored_critic_memory)
             critic.reset_memory(self.mirrored_critic_memory, done)
 
     def objective(self, batch):
-        observation = cast(Tensor, batch["observation"])
-        next_observation = cast(Tensor, batch["next_observation"])
-        action = cast(Tensor, batch["action"])
-        batch["observation"] = torch.cat([observation, self.mirror_observation(observation)], dim=-2)
-        batch["next_observation"] = torch.cat([next_observation, self.mirror_observation(next_observation)], dim=-2)
-        batch["action"] = torch.cat([action, self.mirror_action(action)], dim=-2)
-        if (state := cast(torch.Tensor | None, batch.get("state"))) is not None:
-            batch["state"] = torch.cat([state, self.mirror_state(state)], dim=-2)
-        if (next_state := cast(torch.Tensor | None, batch.get("next_state"))) is not None:
-            batch["next_state"] = torch.cat([next_state, self.mirror_state(next_state)], dim=-2)
+        augmented_observation = cast(Tensor, batch["augmented_observation"])
+        batch["observation"] = augmented_observation
+        batch["next_observation"] = batch["augmented_next_observation"]
+        batch["action"] = batch["augmented_action"]
+        if self.agent.has_state:
+            batch["state"] = batch["augmented_state"]
+            batch["next_state"] = batch["augmented_next_state"]
 
-        repeat_ratio = self._get_repeat_ratio(observation, batch["observation"])
-        for key in ("action_logp", "advantage", "done"):
-            batch[key] = cast(Tensor, batch[key]).repeat(*repeat_ratio)
-        if (actor_memory := cast(Memory, batch.get("actor_memory"))) is not None:
-            mirrored_actor_memory = self._stack_memory(cast(Memory, batch["mirrored_actor_memory"]))
-            batch["actor_memory"] = concat_memory(actor_memory, mirrored_actor_memory)
+        for key in ("action_logp", "advantage"):
+            original = cast(Tensor, batch[key])
+            batch[key] = original.unsqueeze(-3).expand(*augmented_observation.shape[:-1], original.size(-1))
+        if (augmented_actor_memory := batch.get("augmented_actor_memory")) is not None:
+            batch["actor_memory"] = augmented_actor_memory
 
         if self.augments_value:
             for key in ("value", "return"):
-                batch[key] = cast(Tensor, batch[key]).repeat(*repeat_ratio)
+                original = cast(Tensor, batch[key])
+                batch[key] = original.unsqueeze(-3).expand(*augmented_observation.shape[:-1], original.size(-1))
+            if (augmented_critic_memory := batch.get("augmented_critic_memory")) is not None:
+                batch["critic_memory"] = augmented_critic_memory
 
-            if (critic_memory := cast(Memory, batch.get("critic_memory"))) is not None:
-                mirrored_critic_memory = self._stack_memory(cast(Memory, batch["mirrored_critic_memory"]))
-                batch["critic_memory"] = concat_memory(critic_memory, mirrored_critic_memory)
+    @staticmethod
+    def _build_augmented_tensor(original: Tensor, mirror: Callable[[Tensor], Tensor]) -> tuple[Tensor, Tensor]:
+        mirrored = mirror(original).reshape(-1, *original.shape)
+        return mirrored, torch.cat([original.unsqueeze(0), mirrored], dim=0)
 
-    def _unstack_memory(self, memory: Memory) -> Memory:
-        if memory is None:
+    def _concat_memory(self, memory1: Memory, memory2: Memory):
+        if memory1 is None:
             return None
-        if isinstance(memory, torch.Tensor):
-            return memory.unflatten(-2, (-1, self.agent.parallelism))
-        return tuple(self._unstack_memory(mem) for mem in memory)
-
-    def _stack_memory(self, memory: Memory) -> Memory:
-        if memory is None:
-            return None
-        if isinstance(memory, torch.Tensor):
-            return memory.flatten(-3, -2)
-        return tuple(self._stack_memory(mem) for mem in memory)
-
-    def _get_repeat_ratio(self, original: Tensor, augmented: Tensor) -> tuple[int, ...]:
-        repeat_ratio = []
-        for original_size, augmented_size in zip(original.shape, augmented.shape):
-            if augmented_size % original_size != 0:
-                raise ValueError(
-                    f"The augmented size ({augmented_size}) is not a multiple of the original size ({original_size})."
-                )
-            repeat_ratio.append(augmented_size // original_size)
-        return tuple(repeat_ratio)
+        if isinstance(memory1, torch.Tensor):
+            return torch.cat([memory1, memory2], dim=-3)
+        return tuple(self._concat_memory(m1, m2) for m1, m2 in zip(memory1, memory2))
 
 
 class SymmetricArchitecture(SymmetryHook):

@@ -50,16 +50,16 @@ class MiniBatchSampler(Sampler):
         """Returns the total number of samples in the buffer."""
         return buffer.capacity * buffer.get_parallelism()
 
-    def _sample(self, name: str, field_info: Buffer.FieldSpec, data, indices):
+    def _sample(self, name: str, field_info: Buffer.FieldSpec, data: torch.Tensor, indices):
         """Samples data from the buffer based on the provided indices."""
-        return data.flatten(0, -2)[indices]
+        return data.unsqueeze(-3).transpose(0, -3).squeeze(0).flatten(-3, -2)[..., indices, :]
 
 
 class TemporalMiniBatchSampler(MiniBatchSampler):
     def _get_num_samples(self, buffer: Buffer) -> int:
         return buffer.get_parallelism()
 
-    def _sample(self, name: str, field_info: Buffer.FieldSpec, data, indices):
+    def _sample(self, name: str, field_info: Buffer.FieldSpec, data: torch.Tensor, indices):
         result = data[..., indices, :]
         if name.split(".")[0].endswith("memory") and field_info.temporal:
             result = result[0, ...]

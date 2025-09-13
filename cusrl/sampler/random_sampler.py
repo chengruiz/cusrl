@@ -28,16 +28,16 @@ class RandomSampler(Sampler):
         """Returns the total number of samples in the buffer."""
         return (buffer.capacity if buffer.full else buffer.cursor) * buffer.get_parallelism()
 
-    def _sample(self, name: str, field_info: Buffer.FieldSpec, data, indices):
+    def _sample(self, name: str, field_info: Buffer.FieldSpec, data: torch.Tensor, indices):
         """Samples data from the buffer based on the provided indices."""
-        return data.flatten(0, -2)[indices]
+        return data.unsqueeze(1).transpose(1, -2).squeeze(-2).flatten(0, 1)[indices]
 
 
 class TemporalRandomSampler(RandomSampler):
     def _get_num_samples(self, buffer: Buffer) -> int:
         return buffer.capacity if buffer.full else buffer.cursor
 
-    def _sample(self, name: str, field_info: Buffer.FieldSpec, data, indices):
+    def _sample(self, name: str, field_info: Buffer.FieldSpec, data: torch.Tensor, indices):
         result = data[..., indices, :]
         if name.split(".")[0].endswith("memory") and field_info.temporal:
             result = result[0, ...]
