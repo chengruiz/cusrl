@@ -6,6 +6,8 @@ import cusrl
 from cusrl.preset import ppo
 from cusrl.utils.typing import Array, Slice
 
+__all__ = ["AgentFactory"]
+
 
 class AgentFactory(ppo.AgentFactory):
     def __init__(

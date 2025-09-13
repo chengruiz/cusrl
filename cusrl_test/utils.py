@@ -81,22 +81,26 @@ def create_random_symmetry_def(dim: int) -> cusrl.hook.symmetry.SymmetryDef:
 
 def create_dummy_env(
     *,
+    num_instances: int = 8,
+    observation_dim: int = 16,
+    action_dim: int = 8,
+    state_dim: int = 24,
     with_state: bool = False,
     reward_dim: int = 1,
     numpy: bool = False,
     symmetric: bool = False,
 ):
     env = (DummyNumpyEnvironment if numpy else DummyEnvironment)(
-        num_instances=8,
-        observation_dim=16,
-        action_dim=8,
-        state_dim=24 if with_state else None,
+        num_instances=num_instances,
+        observation_dim=observation_dim,
+        action_dim=action_dim,
+        state_dim=state_dim if with_state else None,
         reward_dim=reward_dim,
     )
     if symmetric:
         env.spec.mirror_observation = create_random_symmetry_def(env.observation_dim)
         env.spec.mirror_action = create_random_symmetry_def(env.action_dim)
-        if with_state:
+        if env.state_dim:
             env.spec.mirror_state = create_random_symmetry_def(env.state_dim)
     return env
 
