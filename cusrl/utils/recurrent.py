@@ -19,20 +19,21 @@ def apply_sequence_batch_mask(tensor: Tensor, mask: Tensor) -> Tensor:
     # fmt: off
     return (
         tensor             # [ N, ..., B, C]
-        .unsqueeze(1)      # [ N, 1, ..., B, C]
-        .transpose(1, -2)  # [ N, B, ..., 1, C]
-        [mask]             # [ M, ..., 1, C]
-        .transpose(0, -2)  # [ 1, ..., M, C]
-        .squeeze(0)        # [ ..., M, C]
+        .movedim(-2, 1)    # [ N, B, ..., C]
+        [mask]             # [ M, ..., C]
+        .movedim(0, -2)    # [ ..., M, C]
     )
     # fmt: on
 
 
 def set_sequence_batch_masked_(tensor: Tensor, mask: Tensor, value) -> None:
+    # tensor: [ N, ..., B, C ]
     if isinstance(value, Tensor):
-        tensor.unsqueeze(1).transpose(1, -2)[mask] = value.unsqueeze(0).transpose(0, -2)
+        if value.dim() > 3:  # [ ..., M, C ]
+            value = value.movedim(-2, 0)  # [ M, ..., C ]
+        tensor.movedim(-2, 1)[mask] = value
     else:
-        tensor.unsqueeze(1).transpose(1, -2).masked_fill_(mask, value)
+        tensor.movedim(-2, 1).masked_fill_(mask, value)
 
 
 @torch.jit.script
@@ -151,18 +152,17 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
         num_sequences,
         max_sequence_len,
         *compact_sequences.shape[1:-2],
-        1,
         compact_sequences.size(-1),
     )
 
-    mask = sequence_lens.unsqueeze_(1) > torch.arange(0, max_sequence_len, device=sequence_lens.device)
-    padded_sequences[mask] = compact_sequences.unsqueeze(0).transpose(0, -2).flatten(0, 1)
-    return padded_sequences.transpose(0, -2).squeeze(0), mask.transpose(0, 1)
+    mask = sequence_lens.unsqueeze(1) > torch.arange(0, max_sequence_len, device=sequence_lens.device)
+    padded_sequences[mask] = compact_sequences.movedim(-2, 0).flatten(0, 1)
+    return padded_sequences.movedim(0, -2), mask.transpose(0, 1)
 
 
 def unpad_and_merge_sequences(
     padded_sequences: Tensor,
-    masks: Tensor,
+    mask: Tensor,
     original_sequence_len: int | None = None,
 ) -> Tensor:
     """Does the inverse operation of `split_and_pad_sequences`"""
@@ -172,12 +172,10 @@ def unpad_and_merge_sequences(
     # fmt: off
     return (
         padded_sequences                            # (T, ..., E, C)
-        .unsqueeze(0)                               # (1, T, ..., E, C)
-        .transpose(0, -2)                           # (E, T, ..., 1, C)
-        [masks.transpose(0, 1)]                     # (N * T, ..., 1, C)
-        .unflatten(0, (-1, original_sequence_len))  # (N, T, ..., 1, C)
-        .transpose(0, -2)                           # (1, T, ..., N, C)
-        .squeeze(0)                                 # (T, ..., N, C)
+        .movedim(-2, 0)                             # (E, T, ..., C)
+        [mask.transpose(0, 1)]                      # (N * T, ..., C)
+        .unflatten(0, (-1, original_sequence_len))  # (N, T, ..., C)
+        .movedim(0, -2)                             # (T, ..., N, C)
     )
     # fmt: on
 

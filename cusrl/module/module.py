@@ -160,8 +160,8 @@ class Module(nn.Module):
 
         Args:
             memory (MemoryType):
-                The memory to be reset. Can be a single tensor or a tuple of
-                tensors. If None, the method does nothing.
+                The memory to be reset. Can be a single tensor or a nested
+                structure of tensors. If None, the method does nothing.
             done (SliceType | torch.Tensor | None, optional):
                 A mask or slice indicating which parts of the memory to reset.
                 If it's a boolean tensor, it should correspond to the

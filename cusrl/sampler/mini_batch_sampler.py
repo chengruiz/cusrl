@@ -52,7 +52,7 @@ class MiniBatchSampler(Sampler):
 
     def _sample(self, name: str, field_info: Buffer.FieldSpec, data: torch.Tensor, indices):
         """Samples data from the buffer based on the provided indices."""
-        return data.unsqueeze(-3).transpose(0, -3).squeeze(0).flatten(-3, -2)[..., indices, :]
+        return data.movedim(0, -3).flatten(-3, -2)[..., indices, :]
 
 
 class TemporalMiniBatchSampler(MiniBatchSampler):

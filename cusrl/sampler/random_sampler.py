@@ -30,7 +30,7 @@ class RandomSampler(Sampler):
 
     def _sample(self, name: str, field_info: Buffer.FieldSpec, data: torch.Tensor, indices):
         """Samples data from the buffer based on the provided indices."""
-        return data.unsqueeze(1).transpose(1, -2).squeeze(-2).flatten(0, 1)[indices]
+        return data.movedim(0, -3).flatten(-3, -2)[indices]
 
 
 class TemporalRandomSampler(RandomSampler):
