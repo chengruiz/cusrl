@@ -12,21 +12,30 @@ from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
-from cusrl.utils.nest import map_nested
 from cusrl.utils.typing import ArrayType, Nested, NestedArray, NestedTensor, Observation, State
 
 __all__ = ["ActorCritic"]
 
 
 class HookList(list[Hook]):
+    """A specialized list for managing a collection of Hook objects.
+
+    This class extends the built-in `list` to provide additional functionality
+    for handling `Hook` instances. It allows for converting the list to and from
+    a dictionary representation and enables accessing individual hooks by their
+    name as if they were attributes of the list."""
+
     def to_dict(self):
+        """Converts the list of hooks into a dictionary, keyed by hook names."""
         return {hook.name: hook for hook in self}
 
     @classmethod
     def from_dict(cls, data: dict[str, Hook]) -> "HookList":
+        """Creates a HookList instance from a dictionary."""
         return cls(hook.name_(name) for name, hook in data.items())
 
     def __getattr__(self, name: str) -> Any:
+        """Enables attribute-style access to hooks by name."""
         for hook in self:
             if hook.name == name:
                 return hook
@@ -61,6 +70,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         self.hooks = HookList(hooks)
 
     def __call__(self, environment_spec: EnvironmentSpec):
+        """Instantiate an Actor-Critic agent with the given environment spec."""
         return ActorCritic(
             environment_spec=environment_spec,
             actor_factory=self.actor_factory,
@@ -82,6 +92,28 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         before: str | None = None,
         after: str | None = None,
     ) -> Self:
+        """Registers a hook to be called during the agent's lifecycle.
+
+        The hook can be inserted at a specific position in the execution order.
+        The position can be specified by an index, or relative to another hook
+        by its name. If no position is specified, the hook is appended to the
+        end of the list.
+
+        Note:
+            Only one of `index`, `before`, or `after` can be specified at a time.
+
+        Args:
+            hook (Hook):
+                The hook instance to register.
+            index (int | None, optional):
+                The index at which to insert the hook. Defaults to None.
+            before (str | None, optional):
+                The name of an existing hook to insert this hook before.
+                Defaults to None.
+            after (str | None, optional):
+                The name of an existing hook to insert this hook after. Defaults
+                to None.
+        """
         if (index is not None) + (before is not None) + (after is not None) > 1:
             raise ValueError("Only one of index, before, or after can be specified.")
 
@@ -107,6 +139,23 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
 
 
 class ActorCritic(Agent):
+    """An agent that implements the Actor-Critic algorithm.
+
+    This class combines an actor and a critic to learn a policy and a value
+    function. The actor determines the agent's actions, while the critic
+    evaluates them. The agent interacts with the environment, stores its
+    experiences in a buffer, and periodically updates its networks based on
+    sampled data.
+
+    The agent's behavior can be customized and extended through a system of
+    hooks, which can be inserted at various points in the agent's lifecycle
+    (e.g., before and after initialization, acting, or updating).
+
+    The agent supports both recurrent and non-recurrent models, and can be
+    configured for mixed-precision training and just-in-time (JIT) compilation
+    for performance optimization.
+    """
+
     Factory = ActorCriticFactory
     MODULES = ["actor", "critic", "hook"]
     OPTIMIZERS = ["optimizer"]
