@@ -16,12 +16,11 @@ from cusrl.utils.recurrent import (
 from cusrl.utils.typing import Slice
 
 try:
-    import flash_attn
     from flash_attn import flash_attn_varlen_kvpacked_func
     from flash_attn.layers.rotary import apply_rotary_emb, apply_rotary_emb_kv_
     from flash_attn.modules.mha import get_alibi_slopes
 except ImportError:
-    flash_attn = flash_attn_varlen_kvpacked_func = None
+    flash_attn_varlen_kvpacked_func = None
     apply_rotary_emb = apply_rotary_emb_kv_ = get_alibi_slopes = None
 
 

@@ -76,8 +76,8 @@ class Rnn(Module):
     def forward(
         self,
         input: Tensor,
-        *,
         memory: Memory = None,
+        *,
         done: Tensor | None = None,
         pack_sequence: bool = False,
         **kwargs,
@@ -165,14 +165,32 @@ class LstmFactory(ModuleFactory["Lstm"]):
             setattr(self, name, value)
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Lstm(input_size=input_dim, output_dim=output_dim, **self.__dict__)
+        return Lstm(input_dim=input_dim, output_dim=output_dim, **self.__dict__)
 
 
 class Lstm(Rnn):
     Factory = LstmFactory
 
-    def __init__(self, *, output_dim: int | None = None, **kwargs):
-        super().__init__(nn.LSTM, output_dim=output_dim, **kwargs)
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_size: int,
+        num_layers: int = 1,
+        bias: bool = True,
+        dropout: float = 0.0,
+        output_dim: int | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            nn.LSTM,
+            input_size=input_dim,
+            output_dim=output_dim,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            bias=bias,
+            dropout=dropout,
+            **kwargs,
+        )
 
 
 class GruFactory(ModuleFactory["Gru"]):
@@ -185,14 +203,32 @@ class GruFactory(ModuleFactory["Gru"]):
             setattr(self, name, value)
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
-        return Gru(input_size=input_dim, output_dim=output_dim, **self.__dict__)
+        return Gru(input_dim=input_dim, output_dim=output_dim, **self.__dict__)
 
 
 class Gru(Rnn):
     Factory = GruFactory
 
-    def __init__(self, *, output_dim: int | None = None, **kwargs):
-        super().__init__(nn.GRU, output_dim=output_dim, **kwargs)
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_size: int,
+        num_layers: int = 1,
+        bias: bool = True,
+        dropout: float = 0.0,
+        output_dim: int | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            nn.GRU,
+            input_size=input_dim,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            bias=bias,
+            dropout=dropout,
+            output_dim=output_dim,
+            **kwargs,
+        )
 
 
 def concat_memory(memory1: Memory, memory2: Memory) -> Memory:

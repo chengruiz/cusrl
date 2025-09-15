@@ -13,7 +13,7 @@ def test_rnn_multi_batch():
     repeat = 3
 
     input = torch.randn(seq_len, repeat * num_seqs, observation_dim)
-    rnn = cusrl.Lstm(input_size=observation_dim, num_layers=2, hidden_size=hidden_size)
+    rnn = cusrl.Lstm(observation_dim, num_layers=2, hidden_size=hidden_size)
     output1, memory1 = rnn(input)
 
     input_reshaped = input.view(seq_len, repeat, num_seqs, observation_dim)
@@ -34,7 +34,7 @@ def test_rnn_consistency():
     num_seqs = 8
     seq_len = 16
 
-    rnn = cusrl.Lstm(num_layers=2, hidden_size=hidden_size, input_size=input_dim)
+    rnn = cusrl.Lstm(input_dim, num_layers=2, hidden_size=hidden_size)
     input = torch.randn(seq_len, num_seqs, input_dim)
     done = torch.rand(seq_len, num_seqs, 1) > 0.8
     _, memory = rnn(input)
