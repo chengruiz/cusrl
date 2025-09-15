@@ -106,7 +106,10 @@ class MultiheadSelfAttention(Module, FlashAttention):
         self,
         input: Tensor,
         memory: tuple[Tensor, Tensor, Tensor] | None = None,
+        *,
         done: Tensor | None = None,
+        sequenced: bool = True,
+        **kwargs,
     ) -> tuple[Tensor, tuple[Tensor, Tensor, Tensor]]:
         """Computes multi-head self-attention with KV caching.
 
@@ -136,7 +139,7 @@ class MultiheadSelfAttention(Module, FlashAttention):
             - memory (tuple[Tensor, Tensor, Tensor]):
                 The updated memory tuple `(input_cache, kv_cache, cache_mask)`.
         """
-        if seq_missing := (input.dim() == 2):
+        if seq_missing := (input.dim() == 2 or not sequenced):
             input = input.unsqueeze(0)
         batch_dims = input.shape[1:-1]
         input = input.flatten(1, -2)
@@ -584,26 +587,29 @@ class TransformerEncoderLayer(Module):
         self,
         input: Tensor,
         memory: tuple[Tensor, Tensor, Tensor] | None = None,
+        *,
         done: Tensor | None = None,
+        sequenced: bool = True,
+        **kwargs,
     ) -> tuple[Tensor, tuple[Tensor, Tensor, Tensor]]:
         input = self.in_proj(input)
         if self.layer_norm == "pre":
             # pre-norm: norm → attn → add → norm → ff → add
-            attn_out, memory = self.self_attn(self.norm1(input), memory=memory, done=done)
+            attn_out, memory = self.self_attn(self.norm1(input), memory, done=done, sequenced=sequenced)
             input = self.gate1(input, self.dropout1(attn_out))
 
             ff_out = self.feedforward(self.norm2(input))
             input = self.gate2(input, self.dropout2(ff_out))
         elif self.layer_norm == "post":
             # post-norm: attn → add → norm → ff → add → norm
-            attn_out, memory = self.self_attn(input, memory=memory, done=done)
+            attn_out, memory = self.self_attn(input, memory, done=done, sequenced=sequenced)
             input = self.norm1(self.gate1(input, self.dropout1(attn_out)))
 
             ff_out = self.feedforward(input)
             input = self.norm2(self.gate2(input, self.dropout2(ff_out)))
         else:
             # no norm: attn → add → ff → add
-            attn_out, memory = self.self_attn(input, memory=memory, done=done)
+            attn_out, memory = self.self_attn(input, memory, done=done, sequenced=sequenced)
             input = self.gate1(input, self.dropout1(attn_out))
 
             ff_out = self.feedforward(input)

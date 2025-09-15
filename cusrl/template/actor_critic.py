@@ -181,14 +181,11 @@ class ActorCritic(Agent):
 
         with self.autocast():
             action_dist, (action, action_logp), next_actor_memory = self.actor.explore(
-                self.transition["observation"].unsqueeze(0),
+                self.transition["observation"],
                 memory=self.actor_memory,
                 deterministic=self.deterministic,
+                backbone_kwargs={"sequenced": False},
             )
-
-            action_dist = map_nested(lambda x: x.squeeze(0), action_dist)
-            action = action.squeeze(0)
-            action_logp = action_logp.squeeze(0)
 
         self._save_transition(
             actor_memory=self.actor_memory,
