@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -136,9 +137,10 @@ class MultiheadSelfAttention(Module, FlashAttention):
             - memory (tuple[Tensor, Tensor, Tensor]):
                 The updated memory tuple `(input_cache, kv_cache, cache_mask)`.
         """
-        seq_missing = input.dim() == 2
-        if seq_missing:
+        if seq_missing := (input.dim() == 2):
             input = input.unsqueeze(0)
+        batch_dims = input.shape[1:-1]
+        input = input.flatten(1, -2)
 
         # Convert inputs to batch first
         input = input.transpose(0, 1)
@@ -150,27 +152,27 @@ class MultiheadSelfAttention(Module, FlashAttention):
 
         if memory is None:
             # Initialize KV and mask if no memory is provided
-            kv = q.new_zeros(batch_size, full_seq_len, 2, self.num_heads, self.head_dim)
+            kv_cache = input.new_zeros(batch_size, self.window_size, 2 * self.embed_dim)
+            kv = torch.cat([kv_cache, self.kv_proj(input)], dim=1)
+            kv = kv.unflatten(-1, (2, self.num_heads, self.head_dim))
             kv_mask = q.new_zeros(batch_size, full_seq_len, dtype=torch.bool)
             full_input = input.new_zeros(batch_size, full_seq_len, self.input_dim)
-            kv[:, -seq_len:] = self.kv_proj(input).unflatten(-1, (2, self.num_heads, self.head_dim))
             kv_mask[:, -seq_len:] = True
             full_input[:, -seq_len:] = input
             seq_lens_mask = input.new_zeros(batch_size, dtype=torch.int32)
         else:
             # Concatenate past states and generate mask
             input_cache, kv_cache, cache_mask = memory
-            input_cache = input_cache.transpose(0, 1)
-            kv_cache = kv_cache.transpose(0, 1)
-            cache_mask = cache_mask.transpose(0, 1).squeeze(-1)
+            input_cache = input_cache.flatten(1, -2).transpose(0, 1)
+            kv_cache = kv_cache.flatten(1, -2).transpose(0, 1)
+            cache_mask = cache_mask.flatten(1, -2).transpose(0, 1).squeeze(-1)
             full_input = torch.cat([input_cache, input], dim=1)
             self._inference = 0 if torch.is_grad_enabled() else self._inference + 1
 
+            # Discard KV cache for the first inference step
             if self._inference <= 1:
-                # Discard KV cache for the first inference step
-                with torch.no_grad():
-                    # Stop gradients for KV cache
-                    kv_cache = self.kv_proj(input_cache)
+                # Stop gradients for KV cache
+                kv_cache = self.kv_proj(input_cache).detach()
             kv = torch.cat([kv_cache, self.kv_proj(input)], dim=1)
             kv = kv.unflatten(-1, (2, self.num_heads, self.head_dim))
             kv_mask = cache_mask.new_ones(batch_size, full_seq_len)
@@ -182,6 +184,8 @@ class MultiheadSelfAttention(Module, FlashAttention):
             seq_lens_q = seq_lens_mask.new_full((batch_size,), seq_len)
             seq_lens_k = seq_lens_mask + seq_len
         else:
+            if len(batch_dims) > 1:
+                done = done.repeat(1, math.prod(batch_dims[:-1]), 1)
             seq_lens_q = compute_sequence_lengths(done)
             seq_indices = compute_sequence_indices(done)
             seq_lens_k = seq_lens_q.clone()
@@ -226,8 +230,6 @@ class MultiheadSelfAttention(Module, FlashAttention):
         new_input_cache = new_input_cache.transpose(0, 1)
         new_kv_cache = new_kv_cache.transpose(0, 1)
         new_cache_mask = new_cache_mask.transpose(0, 1)
-        if seq_missing:
-            output = output.squeeze(0)
 
         # Update cache mask based on done tensor
         if done is not None:
@@ -241,6 +243,13 @@ class MultiheadSelfAttention(Module, FlashAttention):
             cum_timesteps = compute_reverse_cumulative_timesteps(done).squeeze(-1)
             consecutive_timesteps = torch.arange(self.window_size - 1, -1, -1, device=done.device)
             new_cache_mask = new_cache_mask.logical_and(cum_timesteps == consecutive_timesteps.unsqueeze(-1))
+
+        output = output.unflatten(1, batch_dims)
+        new_input_cache = new_input_cache.unflatten(1, batch_dims)
+        new_kv_cache = new_kv_cache.unflatten(1, batch_dims)
+        new_cache_mask = new_cache_mask.unflatten(1, batch_dims)
+        if seq_missing:
+            output = output.squeeze(0)
         return output, (new_input_cache, new_kv_cache, new_cache_mask.unsqueeze(-1))
 
     def reset_memory(
@@ -292,13 +301,15 @@ class MultiheadSelfAttention(Module, FlashAttention):
 @dataclass(slots=True)
 class FeedForwardFactory(ModuleFactory["FeedForward"]):
     feedforward_dim: int | None = None
+    activation_fn: type[nn.Module] = nn.GELU
     dropout: float = 0.0
 
     def __call__(self, input_dim: int, output_dim: int | None = None):
         return FeedForward(
-            feedforward_dim=self.feedforward_dim,
-            dropout=self.dropout,
             input_dim=input_dim,
+            feedforward_dim=self.feedforward_dim,
+            activation_fn=self.activation_fn,
+            dropout=self.dropout,
             output_dim=output_dim,
         )
 
@@ -310,9 +321,9 @@ class FeedForward(Module):
         self,
         input_dim: int,
         feedforward_dim: int | None = None,
+        activation_fn: type[nn.Module] = nn.GELU,
         dropout: float = 0.0,
         output_dim: int | None = None,
-        activation_fn: type[nn.Module] = nn.GELU,
     ):
         super().__init__(input_dim, output_dim or input_dim)
         self.feedforward_dim = feedforward_dim or input_dim * 4
@@ -478,6 +489,7 @@ class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
     num_heads: int
     window_size: int
     feedforward_dim: int | None = None
+    activation_fn: type[nn.Module] = nn.GELU
     dropout: float = 0.0
     dtype: torch.dtype = torch.float16
     gate_type: GateType = "residual"
@@ -491,6 +503,7 @@ class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
             num_heads=self.num_heads,
             window_size=self.window_size,
             feedforward_dim=self.feedforward_dim,
+            activation_fn=self.activation_fn,
             dropout=self.dropout,
             dtype=self.dtype,
             gate_type=self.gate_type,
@@ -511,6 +524,7 @@ class TransformerEncoderLayer(Module):
         num_heads: int,
         window_size: int,
         feedforward_dim: int | None = None,
+        activation_fn: type[nn.Module] = nn.GELU,
         dropout: float = 0.0,
         dtype: torch.dtype = torch.float16,
         gate_type: GateType = "residual",
@@ -557,6 +571,7 @@ class TransformerEncoderLayer(Module):
             feedforward_dim=feedforward_dim,
             dropout=dropout,
             output_dim=self.embed_dim,
+            activation_fn=activation_fn,
         )
         self.dropout2 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
         self.gate2 = gate_cls(self.embed_dim)
