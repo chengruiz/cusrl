@@ -54,6 +54,7 @@ from cusrl.template import (
     Trial,
     make_logger_factory,
 )
+from cusrl.utils import CONFIG as config
 from cusrl.utils import (
     device,
     set_global_seed,
@@ -116,6 +117,7 @@ __all__ = [
     "TransformerEncoderLayer",
     "Trial",
     "Value",
+    "config",
     "device",
     "make_gym_env",
     "make_gym_vec",

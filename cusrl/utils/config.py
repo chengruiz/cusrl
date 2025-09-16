@@ -46,6 +46,7 @@ class Configurations:
 
         if self._cuda:
             torch.cuda.set_device(self._device)
+        self._flash_attention_enabled = True
         torch.set_float32_matmul_precision("high")
 
     @property
@@ -83,6 +84,13 @@ class Configurations:
     @seed.setter
     def seed(self, value: int | None):
         self._seed = value
+
+    @property
+    def flash_attention_enabled(self) -> bool:
+        return self._flash_attention_enabled
+
+    def enable_flash_attention(self, enabled: bool = True):
+        self._flash_attention_enabled = enabled
 
 
 def device(device: str | torch.device | None = None) -> torch.device:

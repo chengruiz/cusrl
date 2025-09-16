@@ -7,6 +7,7 @@ try:
 except ImportError:
     flash_attn = flash_attn_func = flash_attn_kvpacked_func = flash_attn_qkvpacked_func = None
 
+from cusrl.utils import CONFIG
 
 __all__ = [
     "FlashAttention",
@@ -17,12 +18,7 @@ __all__ = [
 
 
 class FlashAttention(nn.Module):
-    enabled: bool = True
     SUPPORTED_DTYPES = {torch.float16, torch.bfloat16}
-
-    @classmethod
-    def enable_flash_attn(cls, enabled: bool = True) -> None:
-        cls.enabled = enabled
 
     @classmethod
     def is_available(cls, dtype: torch.dtype | None = None) -> bool:
@@ -127,7 +123,7 @@ class MultiheadAttention(nn.Module):
         k = self.k_proj(k).unflatten(-1, (self.num_heads, self.head_dim))
         v = self.v_proj(v).unflatten(-1, (self.num_heads, self.head_dim))
 
-        if self._flash and FlashAttention.enabled and q.device.type != "cpu":
+        if self._flash and CONFIG.flash_attention_enabled and q.device.type != "cpu":
             assert flash_attn_func is not None
             attn_out = flash_attn_func(
                 q.to(self.dtype),
@@ -241,7 +237,7 @@ class MultiheadCrossAttention(nn.Module):
         q = self.q_proj(q).unflatten(-1, (self.num_heads, self.head_dim))
         kv = self.kv_proj(kv).unflatten(-1, (2, self.num_heads, self.head_dim))
 
-        if self._flash and FlashAttention.enabled and q.device.type != "cpu":
+        if self._flash and CONFIG.flash_attention_enabled and q.device.type != "cpu":
             # Compute cross-attention via FlashAttention with KV packed
             assert flash_attn_kvpacked_func is not None
             attn_out = flash_attn_kvpacked_func(
@@ -346,7 +342,7 @@ class MultiheadSelfAttention(nn.Module):
         # Projections
         qkv = self.qkv_proj(input).unflatten(-1, (3, self.num_heads, self.head_dim))
 
-        if self._flash and FlashAttention.enabled and input.device.type != "cpu":
+        if self._flash and CONFIG.flash_attention_enabled and input.device.type != "cpu":
             # Compute cross-attention via FlashAttention with KV packed
             assert flash_attn_qkvpacked_func is not None
             attn_out = flash_attn_qkvpacked_func(
