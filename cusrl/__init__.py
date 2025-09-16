@@ -3,6 +3,8 @@ from cusrl.environment import make_gym_env, make_gym_vec, make_isaaclab_env
 from cusrl.module import (
     Actor,
     AdaptiveNormalDist,
+    CausalMultiheadSelfAttention,
+    CausalTransformerEncoderLayer,
     Cnn,
     Denormalization,
     DetachGradient,
@@ -32,7 +34,6 @@ from cusrl.module import (
     Simba,
     StubModule,
     SwiGlu,
-    TransformerEncoderLayer,
     Value,
 )
 from cusrl.sampler import (
@@ -82,6 +83,8 @@ __all__ = [
     "AutoMiniBatchSampler",
     "AutoRandomSampler",
     "Buffer",
+    "CausalMultiheadSelfAttention",
+    "CausalTransformerEncoderLayer",
     "Cnn",
     "Denormalization",
     "DetachGradient",
@@ -125,7 +128,6 @@ __all__ = [
     "TemporalMiniBatchSampler",
     "TemporalRandomSampler",
     "Trainer",
-    "TransformerEncoderLayer",
     "Trial",
     "Value",
     "device",

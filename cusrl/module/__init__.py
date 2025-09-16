@@ -1,5 +1,6 @@
 from .activation import GeGlu, SwiGlu
 from .actor import Actor
+from .causal_attn import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer, FeedForward
 from .cnn import Cnn, SeparableConv2d
 from .critic import Value
 from .detach_grad import DetachGradient
@@ -12,7 +13,7 @@ from .distribution import (
 )
 from .export import GraphBuilder
 from .inference import InferenceModule
-from .mha import MultiheadAttention, MultiheadCrossAttention
+from .mha import MultiheadAttention, MultiheadCrossAttention, MultiheadSelfAttention
 from .mlp import Mlp
 from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
 from .normal_nll_loss import NormalNllLoss
@@ -23,10 +24,11 @@ from .rnn import Gru, Lstm, Rnn
 from .sequential import Sequential
 from .simba import Simba
 from .stub import StubModule
-from .transformer import FeedForward, MultiheadSelfAttention, TransformerEncoderLayer
 
 __all__ = [
     # Simple modules
+    "CausalMultiheadSelfAttention",
+    "CausalTransformerEncoderLayer",
     "Cnn",
     "Denormalization",
     "DetachGradient",
@@ -55,7 +57,6 @@ __all__ = [
     "Simba",
     "StubModule",
     "SwiGlu",
-    "TransformerEncoderLayer",
     # RL modules
     "Actor",
     "AdaptiveNormalDist",

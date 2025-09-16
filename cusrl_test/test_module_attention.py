@@ -2,15 +2,21 @@ import pytest
 import torch
 
 import cusrl
-from cusrl.module.mha import FlashAttention, MultiheadAttention, MultiheadCrossAttention
-from cusrl.module.transformer import MultiheadSelfAttention, TransformerEncoderLayer
+from cusrl.module import (
+    CausalMultiheadSelfAttention,
+    CausalTransformerEncoderLayer,
+    MultiheadAttention,
+    MultiheadCrossAttention,
+    MultiheadSelfAttention,
+)
+from cusrl.module.mha import FlashAttention
 from cusrl_test import test_module_consistency
 
 
 @pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
-def test_self_mha_step_by_step_consistency():
+def test_causal_self_mha_consistency():
     batch, seq, embed_dim, num_heads, window = 1, 7, 8, 2, 3
-    attn = MultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
+    attn = CausalMultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
     x = torch.randn(seq, batch, embed_dim, device="cuda", dtype=torch.bfloat16)
 
     # full sequence computation
@@ -30,9 +36,9 @@ def test_self_mha_step_by_step_consistency():
 
 
 @pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
-def test_self_mha():
+def test_causal_self_mha():
     batch, seq, embed_dim, num_heads, window = 1, 8, 2, 1, 3
-    attn = MultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
+    attn = CausalMultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
     x = torch.randn(seq, batch, embed_dim, device="cuda", dtype=torch.bfloat16)
 
     # full sequence computation
@@ -46,10 +52,10 @@ def test_self_mha():
 
 
 @pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
-def test_transformer_encoder_layer():
+def test_causal_transformer_encoder_layer():
     batch, seq, embed_dim, num_heads, window = 1, 16, 32, 4, 6
     input_dim, output_dim = 24, 12
-    attn = TransformerEncoderLayer(
+    attn = CausalTransformerEncoderLayer(
         embed_dim,
         num_heads,
         window,
@@ -75,7 +81,7 @@ def test_transformer_encoder_layer():
 @pytest.mark.parametrize("rope_base", [None, 100.0])
 def test_transformer_alibi_consistency(gate_type, layer_norm, use_alibi, rope_base):
     test_module_consistency(
-        TransformerEncoderLayer.Factory(
+        CausalTransformerEncoderLayer.Factory(
             embed_dim=32,
             num_heads=2,
             window_size=4,
@@ -106,6 +112,15 @@ def test_mha_consistency_with_torch(dtype, is_causal):
     ).to(device)
     mha_flash.eval()
 
+    mhsa_flash = MultiheadSelfAttention(
+        embed_dim,
+        num_heads,
+        dropout=0.0,
+        batch_first=True,
+        dtype=dtype,
+    ).to(device)
+    mhsa_flash.eval()
+
     mha_torch = torch.nn.MultiheadAttention(
         embed_dim=embed_dim,
         num_heads=num_heads,
@@ -116,30 +131,25 @@ def test_mha_consistency_with_torch(dtype, is_causal):
     mha_torch.eval()
 
     # Align weights: in-proj (Q,K,V) and out-proj
-    if mha_torch.in_proj_weight is not None:
-        mha_torch.in_proj_weight.copy_(
-            torch.cat([mha_flash.q_proj.weight, mha_flash.k_proj.weight, mha_flash.v_proj.weight], dim=0)
-        )
-    if mha_torch.in_proj_bias is not None:
-        mha_torch.in_proj_bias.copy_(
-            torch.cat([mha_flash.q_proj.bias, mha_flash.k_proj.bias, mha_flash.v_proj.bias], dim=0)
-        )
+    qkv_proj_weight = torch.cat([mha_flash.q_proj.weight, mha_flash.k_proj.weight, mha_flash.v_proj.weight], dim=0)
+    mhsa_flash.qkv_proj.weight.copy_(qkv_proj_weight)
+    mha_torch.in_proj_weight.copy_(qkv_proj_weight)
 
-    if (mha_torch.q_proj_weight) is not None:
-        mha_torch.q_proj_weight.copy_(mha_flash.q_proj.weight)
-    if (mha_torch.k_proj_weight) is not None:
-        mha_torch.k_proj_weight.copy_(mha_flash.k_proj.weight)
-    if (mha_torch.v_proj_weight) is not None:
-        mha_torch.v_proj_weight.copy_(mha_flash.v_proj.weight)
+    qkv_proj_bias = torch.cat([mha_flash.q_proj.bias, mha_flash.k_proj.bias, mha_flash.v_proj.bias], dim=0)
+    mhsa_flash.qkv_proj.bias.copy_(qkv_proj_bias)
+    mha_torch.in_proj_bias.copy_(qkv_proj_bias)
+
+    mhsa_flash.out_proj.weight.copy_(mha_flash.out_proj.weight)
     mha_torch.out_proj.weight.copy_(mha_flash.out_proj.weight)
-    if mha_torch.out_proj.bias is not None and mha_flash.out_proj.bias is not None:
-        mha_torch.out_proj.bias.copy_(mha_flash.out_proj.bias)
+    mhsa_flash.out_proj.bias.copy_(mha_flash.out_proj.bias)
+    mha_torch.out_proj.bias.copy_(mha_flash.out_proj.bias)
 
     x = torch.randn(batch, seq, embed_dim, device=device, dtype=dtype)
 
     # forward
     with torch.autocast(device.type, dtype=dtype):
-        out_flash, _ = mha_flash(x, x, x, is_causal=is_causal)
+        out_flash = mha_flash(x, x, x, is_causal=is_causal)
+        out_flash2 = mhsa_flash(x, is_causal=is_causal)
         # Build causal mask for PyTorch MHA to avoid relying on is_causal arg
         attn_mask = None
         if is_causal:
@@ -147,7 +157,8 @@ def test_mha_consistency_with_torch(dtype, is_causal):
             attn_mask = torch.triu(torch.ones(L, S, dtype=torch.bool, device=device), diagonal=1)
         out_torch, _ = mha_torch(x, x, x, need_weights=False, average_attn_weights=False, attn_mask=attn_mask)
 
-    assert out_flash.shape == out_torch.shape
+    assert out_flash.shape == out_torch.shape == out_flash2.shape
+    assert torch.allclose(out_flash, out_flash2, atol=1e-6, rtol=1e-6)
     assert torch.allclose(out_flash, out_torch, atol=1e-6, rtol=1e-6)
 
 
@@ -197,7 +208,7 @@ def test_cross_mha_consistency_with_torch(dtype):
     q = torch.randn(batch, q_len, embed_dim, device=device, dtype=dtype)
     kv = torch.randn(batch, kv_len, kv_dim, device=device, dtype=dtype)
     with torch.autocast(device.type, dtype=dtype):
-        out_flash, _ = mha_flash(q, kv)
+        out_flash = mha_flash(q, kv)
         out_torch, _ = mha_torch(q, kv, kv, need_weights=False, average_attn_weights=False)
 
     assert out_flash.shape == out_torch.shape

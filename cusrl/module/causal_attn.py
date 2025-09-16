@@ -24,11 +24,11 @@ except ImportError:
     apply_rotary_emb = apply_rotary_emb_kv_ = get_alibi_slopes = None
 
 
-__all__ = ["FeedForward", "MultiheadSelfAttention", "TransformerEncoderLayer"]
+__all__ = ["CausalMultiheadSelfAttention", "CausalTransformerEncoderLayer", "FeedForward"]
 
 
 @dataclass(slots=True)
-class MultiheadSelfAttentionFactory(ModuleFactory["MultiheadSelfAttention"]):
+class CausalMultiheadSelfAttentionFactory(ModuleFactory["CausalMultiheadSelfAttention"]):
     embed_dim: int
     num_heads: int
     window_size: int
@@ -38,7 +38,7 @@ class MultiheadSelfAttentionFactory(ModuleFactory["MultiheadSelfAttention"]):
     rope_base: float | None = None
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        return MultiheadSelfAttention(
+        return CausalMultiheadSelfAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
             window_size=self.window_size,
@@ -51,8 +51,8 @@ class MultiheadSelfAttentionFactory(ModuleFactory["MultiheadSelfAttention"]):
         )
 
 
-class MultiheadSelfAttention(Module, FlashAttention):
-    Factory = MultiheadSelfAttentionFactory
+class CausalMultiheadSelfAttention(Module, FlashAttention):
+    Factory = CausalMultiheadSelfAttentionFactory
 
     def __init__(
         self,
@@ -486,7 +486,7 @@ gate_map = {
 
 
 @dataclass(slots=True)
-class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
+class CausalTransformerEncoderLayerFactory(ModuleFactory["CausalTransformerEncoderLayer"]):
     embed_dim: int
     num_heads: int
     window_size: int
@@ -500,7 +500,7 @@ class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
     rope_base: float | None = None
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        return TransformerEncoderLayer(
+        return CausalTransformerEncoderLayer(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
             window_size=self.window_size,
@@ -517,8 +517,8 @@ class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
         )
 
 
-class TransformerEncoderLayer(Module):
-    Factory = TransformerEncoderLayerFactory
+class CausalTransformerEncoderLayer(Module):
+    Factory = CausalTransformerEncoderLayerFactory
 
     def __init__(
         self,
@@ -553,7 +553,7 @@ class TransformerEncoderLayer(Module):
             self.in_proj = nn.Identity()
 
         self.norm1 = nn.LayerNorm(self.embed_dim)
-        self.self_attn = MultiheadSelfAttention(
+        self.self_attn = CausalMultiheadSelfAttention(
             embed_dim=embed_dim,
             num_heads=num_heads,
             window_size=window_size,
