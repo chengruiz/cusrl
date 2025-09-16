@@ -1,5 +1,6 @@
 import torch
 from torch import Tensor
+from torch.types import Number
 
 __all__ = [
     "apply_sequence_batch_mask",
@@ -16,17 +17,48 @@ __all__ = [
 
 
 def apply_sequence_batch_mask(tensor: Tensor, mask: Tensor) -> Tensor:
+    """Applies a boolean mask to a tensor on sequence and batch dimensions.
+
+    Args:
+        tensor (Tensor):
+            The input tensor of shape [N, ..., B, C], where N is the sequence
+            length and B is the batch size.
+        mask (Tensor):
+            A boolean tensor of shape [N, B] used to select elements from the
+            input tensor.
+
+    Returns:
+        Tensor:
+            The resulting tensor of shape [..., M, C] containing only the masked
+            elements, where M is the total number of True elements in the mask.
+    """
     # fmt: off
     return (
-        tensor             # [ N, ..., B, C]
-        .movedim(-2, 1)    # [ N, B, ..., C]
-        [mask]             # [ M, ..., C]
-        .movedim(0, -2)    # [ ..., M, C]
+        tensor             # [ N, ..., B, C ]
+        .movedim(-2, 1)    # [ N, B, ..., C ]
+        [mask]             # [ M, ..., C ]
+        .movedim(0, -2)    # [ ..., M, C ]
     )
     # fmt: on
 
 
-def set_sequence_batch_masked_(tensor: Tensor, mask: Tensor, value) -> None:
+def set_sequence_batch_masked_(tensor: Tensor, mask: Tensor, value: Tensor | Number) -> None:
+    """In-place sets elements of a tensor based on a mask.
+
+    This function assumes the tensor has a shape like [N, ..., B, C],
+    where N is the sequence length, B is the batch size, and C is the feature dimension.
+    It temporarily rearranges the tensor to [N, B, ..., C] to apply the mask.
+
+    Args:
+        tensor (Tensor):
+            The tensor to be modified of shape [N, ..., B, C].
+        mask (Tensor):
+            A boolean tensor of shape [N, B] used to select elements from the
+            input tensor.
+        value (Tensor | Number):
+            The value to set, which should be broadcastable to the shape of the
+            selected elements in the tensor.
+    """
     # tensor: [ N, ..., B, C ]
     if isinstance(value, Tensor):
         if value.dim() > 3:  # [ ..., M, C ]
