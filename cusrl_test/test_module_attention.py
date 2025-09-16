@@ -75,7 +75,7 @@ def test_causal_transformer_encoder_layer():
 
 
 @pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
-@pytest.mark.parametrize("gate_type", [None, "residual", "highway", "output", "input", "sig_tanh", "gru"])
+@pytest.mark.parametrize("gate_type", [None, "residual", "highway", "output", "input", "sigmoid_tanh", "gru"])
 @pytest.mark.parametrize("layer_norm", [None, "pre", "post"])
 @pytest.mark.parametrize("use_alibi", [False, True])
 @pytest.mark.parametrize("rope_base", [None, 100.0])

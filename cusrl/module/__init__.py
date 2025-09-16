@@ -1,6 +1,6 @@
 from .activation import GeGlu, SwiGlu
 from .actor import Actor
-from .causal_attn import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer, FeedForward
+from .causal_attn import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer
 from .cnn import Cnn, SeparableConv2d
 from .critic import Value
 from .detach_grad import DetachGradient
@@ -12,6 +12,17 @@ from .distribution import (
     OneHotCategoricalDist,
 )
 from .export import GraphBuilder
+from .gate import (
+    Gate,
+    GruGate,
+    HighwayGate,
+    InputGate,
+    OutputGate,
+    PassthroughGate,
+    ResidualGate,
+    SigmoidTanhGate,
+    get_gate_cls,
+)
 from .inference import InferenceModule
 from .mha import MultiheadAttention, MultiheadCrossAttention, MultiheadSelfAttention
 from .mlp import Mlp
@@ -24,6 +35,7 @@ from .rnn import Gru, Lstm, Rnn
 from .sequential import Sequential
 from .simba import Simba
 from .stub import StubModule
+from .transformer import FeedForward, TransformerEncoderLayer
 
 __all__ = [
     # Simple modules
@@ -34,10 +46,14 @@ __all__ = [
     "DetachGradient",
     "ExponentialMovingNormalizer",
     "FeedForward",
+    "Gate",
     "GeGlu",
     "GraphBuilder",
     "Gru",
+    "GruGate",
+    "HighwayGate",
     "InferenceModule",
+    "InputGate",
     "LayerFactoryLike",
     "Lstm",
     "Mlp",
@@ -49,14 +65,20 @@ __all__ = [
     "MultiheadSelfAttention",
     "NormalNllLoss",
     "Normalization",
+    "OutputGate",
     "ParameterWrapper",
+    "PassthroughGate",
+    "ResidualGate",
     "Rnn",
     "RunningMeanStd",
     "SeparableConv2d",
     "Sequential",
+    "SigmoidTanhGate",
     "Simba",
     "StubModule",
     "SwiGlu",
+    "TransformerEncoderLayer",
+    "get_gate_cls",
     # RL modules
     "Actor",
     "AdaptiveNormalDist",

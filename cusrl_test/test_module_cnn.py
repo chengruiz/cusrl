@@ -42,7 +42,7 @@ def test_cnn_output_shape():
 def test_separable_conv2d():
     print("─" * 25, "SeparableConv2d", "─" * 25)
     in_ch, out_ch = 4, 8
-    m = cusrl.SeparableConv2d(in_ch, out_ch, kernel_size=3, padding=1)
+    m = cusrl.module.SeparableConv2d(in_ch, out_ch, kernel_size=3, padding=1)
     x = torch.randn(2, in_ch, 16, 12)
     y = m(x)
     print("output shape:", y.shape)

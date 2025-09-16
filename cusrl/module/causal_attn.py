@@ -5,8 +5,10 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
+from cusrl.module.gate import get_gate_cls
 from cusrl.module.mha import FlashAttention
 from cusrl.module.module import Module, ModuleFactory
+from cusrl.module.transformer import FeedForward
 from cusrl.utils.recurrent import (
     compute_reverse_cumulative_timesteps,
     compute_sequence_indices,
@@ -301,191 +303,6 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
 
 
 @dataclass(slots=True)
-class FeedForwardFactory(ModuleFactory["FeedForward"]):
-    feedforward_dim: int | None = None
-    activation_fn: type[nn.Module] = nn.GELU
-    dropout: float = 0.0
-
-    def __call__(self, input_dim: int, output_dim: int | None = None):
-        return FeedForward(
-            input_dim=input_dim,
-            feedforward_dim=self.feedforward_dim,
-            activation_fn=self.activation_fn,
-            dropout=self.dropout,
-            output_dim=output_dim,
-        )
-
-
-class FeedForward(Module):
-    Factory = FeedForwardFactory
-
-    def __init__(
-        self,
-        input_dim: int,
-        feedforward_dim: int | None = None,
-        activation_fn: type[nn.Module] = nn.GELU,
-        dropout: float = 0.0,
-        output_dim: int | None = None,
-    ):
-        super().__init__(input_dim, output_dim or input_dim)
-        self.feedforward_dim = feedforward_dim or input_dim * 4
-
-        self.layers = nn.Sequential(
-            nn.Linear(self.input_dim, self.feedforward_dim),
-            activation_fn(),
-        )
-        if dropout > 0.0:
-            self.layers.append(nn.Dropout(dropout))
-        hidden_dim = self.layers(torch.zeros(1, self.input_dim)).size(-1)
-        self.layers.append(nn.Linear(hidden_dim, self.output_dim))
-
-    def forward(self, input: Tensor) -> Tensor:
-        return self.layers(input)
-
-
-class Gate(nn.Module):
-    def __init__(self, embed_dim: int):
-        super().__init__()
-        self.embed_dim = embed_dim
-
-    def forward(self, x: Tensor, y: Tensor) -> Tensor:
-        raise NotImplementedError
-
-
-class PassthroughGate(Gate):
-    def forward(self, x: Tensor, y: Tensor) -> Tensor:
-        return y
-
-
-class ResidualGate(Gate):
-    def forward(self, x: Tensor, y: Tensor) -> Tensor:
-        return x + y
-
-
-class InputGate(Gate):
-    r"""
-    .. math::
-        g(x, y) = \sigma(W_g x) \odot x + y
-    """
-
-    def __init__(self, embed_dim: int):
-        super().__init__(embed_dim)
-        self.gate_linear = nn.Linear(embed_dim, embed_dim, bias=False)
-
-    def forward(self, x: Tensor, y: Tensor) -> Tensor:
-        gate = torch.sigmoid(self.gate_linear(x))
-        return gate * x + y
-
-
-class OutputGate(Gate):
-    r"""
-    .. math::
-        g(x, y) = x + \sigma(W_g x - b_g) \odot y
-    """
-
-    def __init__(self, embed_dim: int):
-        super().__init__(embed_dim)
-        self.gate_linear = nn.Linear(embed_dim, embed_dim)
-        self.gate_linear.bias.data.fill_(-1.0)
-
-    def forward(self, x: Tensor, y: Tensor) -> Tensor:
-        gate = torch.sigmoid(self.gate_linear(x))
-        return x + gate * y
-
-
-class HighwayGate(Gate):
-    r"""
-    .. math::
-        g(x, y) = \sigma(W_g x + b_g) \odot x + (1 - \sigma(W_g x + b_g)) \odot y
-    """
-
-    def __init__(self, embed_dim: int):
-        super().__init__(embed_dim)
-        self.gate_linear = nn.Linear(embed_dim, embed_dim)
-        self.gate_linear.bias.data.fill_(1.0)
-
-    def forward(self, x: Tensor, y: Tensor) -> Tensor:
-        gate = torch.sigmoid(self.gate_linear(x))
-        return gate * x + (1 - gate) * y
-
-
-class SigTanhGate(Gate):
-    r"""
-    .. math::
-        g(x, y) = x + \sigma(W_g y - b_g) \odot \tanh(U_g y)$
-    """
-
-    def __init__(self, embed_dim: int):
-        super().__init__(embed_dim)
-        self.sigmoid_linear = nn.Linear(embed_dim, embed_dim)
-        self.sigmoid_linear.bias.data.fill_(-1.0)
-        self.tanh_linear = nn.Linear(embed_dim, embed_dim, bias=False)
-
-    def forward(self, x: Tensor, y: Tensor) -> Tensor:
-        sigmoid_gate = torch.sigmoid(self.sigmoid_linear(y))
-        tanh_activation = torch.tanh(self.tanh_linear(y))
-        return x + sigmoid_gate * tanh_activation
-
-
-class GruGate(Gate):
-    r"""A Gated Recurrent Unit (GRU)-inspired gate.
-
-    Described in:
-    "Stabilizing Transformers for Reinforcement Learning",
-    https://proceedings.mlr.press/v119/parisotto20a
-
-    .. math::
-        r = \sigma(W_r y + U_r x)                    \\
-        z = \sigma(W_z y + U_z x - b_g               \\
-        \hat{h} = \tanh(W_g y + U_g (r \odot x))     \\
-        g(x, y) = (1 - z) \odot x + z \odot \hat{h}
-    """
-
-    def __init__(self, embed_dim: int):
-        super().__init__(embed_dim)
-        self.r_y = nn.Linear(embed_dim, embed_dim, bias=False)
-        self.r_x = nn.Linear(embed_dim, embed_dim, bias=False)
-
-        self.z_y = nn.Linear(embed_dim, embed_dim, bias=False)
-        self.z_x = nn.Linear(embed_dim, embed_dim)
-        self.z_x.bias.data.fill_(-2.0)
-
-        self.h_y = nn.Linear(embed_dim, embed_dim, bias=False)
-        self.h_rx = nn.Linear(embed_dim, embed_dim, bias=False)
-
-    def forward(self, x: Tensor, y: Tensor) -> Tensor:
-        # Reset gate r
-        r = torch.sigmoid(self.r_y(y) + self.r_x(x))
-        # Update gate z
-        z = torch.sigmoid(self.z_y(y) + self.z_x(x))
-        # Candidate state ĥ
-        h_hat = torch.tanh(self.h_y(y) + self.h_rx(r * x))
-        # Final output
-        return (1 - z) * x + z * h_hat
-
-
-GateType = Literal[
-    None,
-    "gru",
-    "highway",
-    "input",
-    "output",
-    "residual",
-    "sig_tanh",
-]
-
-gate_map = {
-    None: PassthroughGate,
-    "gru": GruGate,
-    "highway": HighwayGate,
-    "input": InputGate,
-    "output": OutputGate,
-    "residual": ResidualGate,
-    "sig_tanh": SigTanhGate,
-}
-
-
-@dataclass(slots=True)
 class CausalTransformerEncoderLayerFactory(ModuleFactory["CausalTransformerEncoderLayer"]):
     embed_dim: int
     num_heads: int
@@ -494,7 +311,7 @@ class CausalTransformerEncoderLayerFactory(ModuleFactory["CausalTransformerEncod
     activation_fn: type[nn.Module] = nn.GELU
     dropout: float = 0.0
     dtype: torch.dtype = torch.float16
-    gate_type: GateType = "residual"
+    gate_type: str | None = "residual"
     layer_norm: Literal[None, "pre", "post"] = "post"
     use_alibi: bool = False
     rope_base: float | None = None
@@ -529,7 +346,7 @@ class CausalTransformerEncoderLayer(Module):
         activation_fn: type[nn.Module] = nn.GELU,
         dropout: float = 0.0,
         dtype: torch.dtype = torch.float16,
-        gate_type: GateType = "residual",
+        gate_type: str | None = "residual",
         layer_norm: Literal[None, "pre", "post"] = "post",
         use_alibi: bool = False,
         rope_base: float | None = None,
@@ -538,8 +355,7 @@ class CausalTransformerEncoderLayer(Module):
     ):
         self.embed_dim = embed_dim
         self.layer_norm = layer_norm
-        if (gate_cls := gate_map.get(gate_type)) is None:
-            raise ValueError(f"Invalid gate_type '{gate_type}'. Available: {list(gate_map.keys())}")
+        gate_cls = get_gate_cls(gate_type)
         super().__init__(
             input_dim=input_dim or embed_dim,
             output_dim=output_dim or embed_dim,
@@ -594,21 +410,21 @@ class CausalTransformerEncoderLayer(Module):
     ) -> tuple[Tensor, tuple[Tensor, Tensor, Tensor]]:
         input = self.in_proj(input)
         if self.layer_norm == "pre":
-            # pre-norm: norm → attn → add → norm → ff → add
+            # pre-norm: norm -> attn -> add -> norm -> ff -> add
             attn_out, memory = self.self_attn(self.norm1(input), memory, done=done, sequenced=sequenced)
             input = self.gate1(input, self.dropout1(attn_out))
 
             ff_out = self.feedforward(self.norm2(input))
             input = self.gate2(input, self.dropout2(ff_out))
         elif self.layer_norm == "post":
-            # post-norm: attn → add → norm → ff → add → norm
+            # post-norm: attn -> add -> norm -> ff -> add -> norm
             attn_out, memory = self.self_attn(input, memory, done=done, sequenced=sequenced)
             input = self.norm1(self.gate1(input, self.dropout1(attn_out)))
 
             ff_out = self.feedforward(input)
             input = self.norm2(self.gate2(input, self.dropout2(ff_out)))
         else:
-            # no norm: attn → add → ff → add
+            # no norm: attn -> add -> ff -> add
             attn_out, memory = self.self_attn(input, memory, done=done, sequenced=sequenced)
             input = self.gate1(input, self.dropout1(attn_out))
 
