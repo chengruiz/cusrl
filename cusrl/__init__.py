@@ -60,10 +60,13 @@ from cusrl.utils import (
     set_global_seed,
 )
 
+nn = module
+
 __all__ = [
     "hook",
     "logger",
     "module",
+    "nn",
     "preset",
     "sampler",
     "template",
