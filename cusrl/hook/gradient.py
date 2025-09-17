@@ -39,7 +39,8 @@ class GradientClipping(Hook):
         # Clip gradients for each group
         for prefix, params in prefixed_parameters.items():
             if params and (max_grad_norm := self.groups[prefix]) is not None:
-                nn.utils.clip_grad_norm_(params, max_grad_norm)
+                grad_norm = nn.utils.clip_grad_norm_(params, max_grad_norm)
+                self.agent.record(**{f"grad_norm/{prefix or 'default'}": grad_norm})
 
     def _match_prefix(self, name):
         # Find the longest matching prefix (most specific)
