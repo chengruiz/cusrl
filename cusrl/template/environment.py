@@ -301,27 +301,31 @@ class Environment(ABC, Generic[ArrayType]):
 
         Args:
             action (ArrayType):
-                Actions of all instances with shape `[N, Da]`, where `N` is
-                the number of instances and `Da` is the action dimension.
+                Actions of all instances of shape :math:`(N, Da)`, where
+                :math:`N` is the number of instances and :math:`Da` is the
+                action dimension.
 
-        Returns:
-            - next_observation (ArrayType):
-                Next observations of all instances with shape `[N, Do]`, where
-                `Do` is the observation dimension.
-            - next_state (ArrayType | None):
-                Next states of all instances with shape `[N, Ds]`, where `Ds` is
-                the state dimension; or None if equal to the observations.
-            - reward (ArrayType):
-                Rewards of all instances with shape `[N, Dr]`, where `Dr` is the
-                reward dimension.
-            - terminated (ArrayType):
-                Boolean array indicating terminal states, with shape `[N, 1]`.
-            - truncated (ArrayType):
-                Boolean array indicating truncated states, with shape `[N, 1]`.
-            - info (dict[str, Nested[ArrayType]]):
-                Additional information dict for the step as named arrays, with
-                shape `[N, Dk]`, where `Dk` is the dimension of the a specific
-                information array.
+        Outputs:
+            - **next_observation** (ArrayType):
+                Next observations of all instances of shape :math:`(N, Do)`,
+                where :math:`Do` is the observation dimension.
+            - **next_state** (ArrayType | None):
+                Next states of all instances of shape :math:`(N, Ds)`, where
+                :math:`Ds` is the state dimension; or None if equal to the
+                observations.
+            - **reward** (ArrayType):
+                Rewards of all instances of shape :math:`(N, Dr)`, where
+                :math:`Dr` is the reward dimension.
+            - **terminated** (ArrayType):
+                Boolean array indicating terminal states of shape
+                :math:`(N, 1)`.
+            - **truncated** (ArrayType):
+                Boolean array indicating truncated states of shape
+                :math:`(N, 1)`.
+            - **info** (dict[str, Nested[ArrayType]]):
+                Additional information dict for the step as named arrays of
+                shape :math:`(N, Dk)`, where :math:`Dk` is the dimension of a
+                specific information array.
         """
         raise NotImplementedError
 

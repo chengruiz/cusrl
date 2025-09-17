@@ -27,7 +27,7 @@ def mean_var_count(input: ArrayType, *, uncentered: bool = False) -> tuple[Array
 
     Args:
         input (np.ndarray | Tensor):
-            Input array with shape (N, D).
+            Input array of shape :math:`(N, C)`.
         uncentered (bool, optional):
             Whether to calculate uncentered variance. Defaults to False.
 

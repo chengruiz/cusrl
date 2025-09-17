@@ -114,7 +114,7 @@ class MultiheadAttention(nn.Module):
             nn.init.constant_(self.out_proj.bias, 0.0)
 
     def forward(self, q: Tensor, k: Tensor, v: Tensor, is_causal: bool = False) -> Tensor:
-        # Transpose inputs to (B, L, E)
+        # Transpose inputs to (N, L, E)
         if not self.batch_first:
             q, k, v = q.transpose(0, 1), k.transpose(0, 1), v.transpose(0, 1)
 
@@ -146,7 +146,7 @@ class MultiheadAttention(nn.Module):
 
         attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(q))
 
-        # Project back to (L, B, E) if batch_first=False
+        # Project back to (L, N, E) if batch_first=False
         if not self.batch_first:
             attn_out = attn_out.transpose(0, 1)
 
@@ -228,7 +228,7 @@ class MultiheadCrossAttention(nn.Module):
             nn.init.constant_(self.out_proj.bias, 0.0)
 
     def forward(self, q: Tensor, kv: Tensor) -> Tensor:
-        # Transpose inputs to (B, L, E)
+        # Transpose inputs to (N, L, E)
         if not self.batch_first:
             q = q.transpose(0, 1)
             kv = kv.transpose(0, 1)
@@ -263,7 +263,7 @@ class MultiheadCrossAttention(nn.Module):
 
         attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(q))
 
-        # Project back to (L, B, E) if batch_first=False
+        # Project back to (L, N, E) if batch_first=False
         if not self.batch_first:
             attn_out = attn_out.transpose(0, 1)
 
@@ -335,7 +335,7 @@ class MultiheadSelfAttention(nn.Module):
             nn.init.constant_(self.out_proj.bias, 0.0)
 
     def forward(self, input: Tensor, is_causal: bool = False) -> Tensor:
-        # Transpose inputs to (B, L, E)
+        # Transpose inputs to (N, L, E)
         if not self.batch_first:
             input = input.transpose(0, 1)
 
@@ -366,7 +366,7 @@ class MultiheadSelfAttention(nn.Module):
 
         attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(qkv))
 
-        # Project back to (L, B, E) if batch_first=False
+        # Project back to (L, N, E) if batch_first=False
         if not self.batch_first:
             attn_out = attn_out.transpose(0, 1)
 

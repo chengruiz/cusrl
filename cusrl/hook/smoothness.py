@@ -64,25 +64,37 @@ class ActionSmoothnessLoss(Hook):
             raise ValueError(f"Expected sequences to have at least 3 time steps, but got {seq_len}.")
 
         padded_action, mask = split_and_pad_sequences(action_mean, batch["done"])
-        action_sequence = padded_action.permute(1, 2, 0).flatten(0, 1).unsqueeze(1)  # [N * C, 1, T]
+        # fmt: off
+        action_sequence = (
+            padded_action      # ( L, N, C )
+            .permute(1, 2, 0)  # ( N, C, L )
+            .flatten(0, 1)     # ( N * C, L )
+            .unsqueeze(1)      # ( N * C, 1, L )
+        )
+        # fmt: on
+
         smoothness_loss = None
         if self._weight1_tensor is not None:
+            # fmt: off
             smoothness_1st_order = (
                 # Convolve at time dimension
-                nn.functional.conv1d(action_sequence, self.conv_1st_order)  # [N * C, 1, T-1]
-                .reshape(*padded_action.shape[1:], -1)  # [N, C, T-1]
-                .permute(2, 0, 1)  # [T-1, N, C]
+                nn.functional.conv1d(action_sequence, self.conv_1st_order)  # ( N * C, 1, L - 1 )
+                .reshape(*padded_action.shape[1:], -1)                      # ( N, C, L - 1 )
+                .permute(2, 0, 1)                                           # ( L - 1, N, C )
             )
+            # fmt: on
             smoothness_1st_order_loss = (self._weight1_tensor * smoothness_1st_order[mask[1:]].abs()).mean()
             smoothness_loss = smoothness_1st_order_loss
             self.agent.record(smoothness_1st_order_loss=smoothness_1st_order_loss)
 
         if self._weight2_tensor is not None:
+            # fmt: off
             smoothness_2nd_order = (
-                nn.functional.conv1d(action_sequence, self.conv_2nd_order)  # [ N * C, 1, T-2 ]
-                .reshape(*padded_action.shape[1:], -1)  # [N, C, T-2]
-                .permute(2, 0, 1)  # [T-2, N, C]
+                nn.functional.conv1d(action_sequence, self.conv_2nd_order)  # ( N * C, 1, L - 2 )
+                .reshape(*padded_action.shape[1:], -1)                      # ( N, C, L - 2 )
+                .permute(2, 0, 1)                                           # ( L - 2, N, C )
             )
+            # fmt: on
             smoothness_loss_2nd_order = (self._weight2_tensor * smoothness_2nd_order[mask[2:]].abs()).mean()
             smoothness_loss = (
                 smoothness_loss_2nd_order if smoothness_loss is None else smoothness_loss + smoothness_loss_2nd_order

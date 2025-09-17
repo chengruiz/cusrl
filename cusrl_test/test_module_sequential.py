@@ -40,7 +40,7 @@ def test_sequential_rnn_mlp():
     assert sequential_module.input_dim == input_dim
     assert sequential_module.output_dim == output_dim
 
-    # Test with sequence input (T, N, C)
+    # Test with sequence input (L, N, C)
     dummy_input_seq = torch.randn(seq_len, batch_size, input_dim)
     output_seq, memory_seq = sequential_module(dummy_input_seq)
     assert output_seq.shape == (seq_len, batch_size, output_dim)
@@ -82,7 +82,7 @@ def test_sequential_rnn_rnn():
     assert sequential_module.input_dim == input_dim
     assert sequential_module.output_dim == output_dim
 
-    # Test with sequence input (T, N, C)
+    # Test with sequence input (L, N, C)
     dummy_input_seq = torch.randn(seq_len, batch_size, input_dim)
     output_seq, memory_seq = sequential_module(dummy_input_seq)
 

@@ -117,28 +117,31 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
 
         Args:
             input (Tensor):
-                Input tensor of shape `(T, N, C)`, where `T` is the sequence
-                length, `N` is the batch size, and `C` is the input dimension.
+                Input tensor of shape :math:`(L, N, C)`, where :math:`L` is the
+                sequence length, :math:`N` is the batch size, and :math:`C` is
+                the input dimension.
             memory (tuple[Tensor, Tensor, Tensor] | None):
                 A tuple containing the input cache, KV cache, and cache mask.
                   - input_cache (Tensor):
-                      Tensor of shape `(W, N, C)` storing past inputs, where `W`
-                      is the window size.
+                      Tensor of shape :math:`(W, N, C)` storing past inputs,
+                      where :math:`W` is the window size.
                   - kv_cache (Tensor):
-                      Tensor of shape `(W, N, 2 * E)` storing past keys and
-                      values, where `E` is the embedding dimension.
+                      Tensor of shape :math:`(W, N, 2 * E)` storing past keys
+                      and values, where :math:`E` is the embedding dimension.
                   - cache_mask (Tensor):
-                      Boolean tensor of shape `(W, N, 1)` indicating valid cache
-                      entries.
+                      Boolean tensor of shape :math:`(W, N, 1)` indicating valid
+                      cache entries.
             done (Tensor | None):
-                A boolean tensor of shape `(T, N, 1)` indicating sequence
-                terminations. A value of `True` at `done[t, n]` signifies that
-                the state at `[t+1, n]` is the start of a new sequence.
+                A boolean tensor of shape :math:`(L, N, 1)` indicating sequence
+                terminations.
+            sequenced (bool):
+                If True, the input is treated as a sequences. Otherwise, it's
+                treated as a single batch of data. Defaults to True.
 
-        Returns:
-            - output (Tensor):
+        Outputs:
+            - **output** (Tensor):
                 The attention output tensor of the same shape as `input`.
-            - memory (tuple[Tensor, Tensor, Tensor]):
+            - **memory** (tuple[Tensor, Tensor, Tensor]):
                 The updated memory tuple `(input_cache, kv_cache, cache_mask)`.
         """
         if seq_missing := (input.dim() == 2 or not sequenced):
@@ -229,7 +232,7 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         new_kv_cache = original_kv.flatten(-3)[:, -self.window_size :]
         new_cache_mask = kv_mask[:, -self.window_size :]
 
-        # Restore outputs to sequence first [ T, N, * ]
+        # Restore outputs to sequence first ( L, N, * )
         output = output.transpose(0, 1)
         new_input_cache = new_input_cache.transpose(0, 1)
         new_kv_cache = new_kv_cache.transpose(0, 1)

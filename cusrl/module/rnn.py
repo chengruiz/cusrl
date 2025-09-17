@@ -95,27 +95,32 @@ class Rnn(Module):
 
         Args:
             input (Tensor):
-                Input tensor of shape (T, ..., N, C) if sequenced else
-                (..., N, C).
+                Input tensor of shape :math:`(L, ..., N, Ci)` if sequenced else
+                :math:`(..., N, Ci)`, where :math:`L` is the sequence length,
+                :math:`N` is the batch size, and :math:`Ci` is the input channel
+                dimension.
             memory (Memory, optional):
                 The recurrent state from the previous step. Defaults to None,
                 which initializes a zero state.
             done (Tensor | None, optional):
-                A boolean tensor of shape (T, N) indicating the end of an
-                episode. If provided, the memory is reset for the corresponding
-                batch entries where `done` is True. Requires `sequenced` to be
-                True. Defaults to None.
+                A boolean tensor of shape :math:`(L, N)` indicating
+                terminations. If provided, the memory is reset for the
+                corresponding batch entries where `done` is True. Requires
+                ``sequenced`` to be True. Defaults to None.
             sequenced (bool):
-                If True, the input is treated as a sequence of timesteps if
-                possible. If False, it's treated as a single batch of data.
-                Defaults to True.
+                If True, the input is treated as a sequences. Otherwise, it's
+                treated as a single batch of data. Defaults to True.
             pack_sequence (bool):
-                If True and `done` is provided, the input sequence is packed to
+                If True and ``done`` is provided, the input sequence is packed to
                 preserve the final recurrent state. Defaults to False.
-        Returns:
-            tuple[Tensor, Memory]: A tuple containing:
-                - The output tensor.
-                - The updated recurrent state (memory).
+
+        Outputs:
+            - **output** (Tensor):
+                The output tensor of shape :math:`(L, ..., N, Co)` if sequenced
+                else :math:`(..., N, Co)`, where :math:`Co` is the output
+                channel dimension.
+            - **memory** (Memory):
+                The updated recurrent state.
         """
         if done is not None:
             if not sequenced:
@@ -173,12 +178,12 @@ class Rnn(Module):
         sequenced: bool = True,
     ) -> tuple[Tensor, Memory]:
         if input.dim() < 3:
-            # [ C ]    -> [ 1, 1, C ]
-            # [ B, C ] -> [ 1, B, C ]
+            # ( C )    -> ( 1, 1, C )
+            # ( N, C ) -> ( 1, N, C )
             input = input.reshape(1, -1, input.size(-1))
         if input.dim() >= 3:
-            # [ T, B, C ]    -> [ T, B, C ]     if sequenced else [ 1, T * B, C ]
-            # [ T, R, B, C ] -> [ T, R * B, C ] if sequenced else [ 1, T * R * B, C ]
+            # ( L, N, C )    -> ( L, N, C )     if sequenced else ( 1, L * N, C )
+            # ( L, R, N, C ) -> ( L, R * N, C ) if sequenced else ( 1, L * R * N, C )
             input = input.reshape(input.size(0) if sequenced else 1, -1, input.size(-1))
             if memory is not None:
                 memory = map_nested(lambda m: m.flatten(1, -2), memory)
@@ -299,25 +304,24 @@ def scatter_memory(memory: Memory, done: Tensor) -> Memory:
     """Restructures memory tensors from a batch of sequences into a batch of
     episodes.
 
-    This function takes RNN hidden states (`memory`) collected from a batch of
+    This function takes RNN hidden states (``memory``) collected from a batch of
     parallel environments and a `done` tensor that marks episode boundaries. It
     reorganizes the memory so that each element in the new batch dimension
     corresponds to a single, complete or partial episode.
 
     Args:
         memory (Memory):
-            The memory tensor(s) to be scattered. The tensor shape is expected
-            to be `(..., N, C)`, where `N` is the number of environments, and
-            `C` is the channel dimension.
+            The memory tensor(s) to be scattered of shape :math:`(..., N, C)`,
+            where :math:`N` is the batch size and :math:`C` is the channel
+            dimension.
         done (Tensor):
-            A boolean tensor of shape `(T, C, 1)` indicating episode
+            A boolean tensor of shape :math:`(L, C, 1)` indicating episode
             terminations.
 
     Returns:
         memory (Memory):
-            The scattered memory tensor(s) with shape `(..., M, C)`, where `M`
-            is the total number of episodes across all environments in the
-            batch.
+            The scattered memory tensor(s) with shape :math:`(..., Ns, C)`,
+            where `Ns` is the number of contiguous sequences in the batch.
     """
     if memory is None:
         return None

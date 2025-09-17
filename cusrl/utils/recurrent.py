@@ -21,23 +21,24 @@ def apply_sequence_batch_mask(tensor: Tensor, mask: Tensor) -> Tensor:
 
     Args:
         tensor (Tensor):
-            The input tensor of shape [N, ..., B, C], where N is the sequence
-            length and B is the batch size.
+            The input tensor of shape :math:`(L, ..., N, C)`, where :math:`L`
+            is the sequence length, :math:`N` is the batch size and :math:`C` is
+            the channel dimension.
         mask (Tensor):
-            A boolean tensor of shape [N, B] used to select elements from the
-            input tensor.
+            A boolean tensor of shape :math:`(L, N)` used to select elements
+            from the input tensor.
 
     Returns:
-        Tensor:
-            The resulting tensor of shape [..., M, C] containing only the masked
-            elements, where M is the total number of True elements in the mask.
+        masked_tensor (Tensor):
+            The resulting tensor of shape :math:`(..., M, C)` containing the
+            masked elements, where M is the number of True values in the mask.
     """
     # fmt: off
     return (
-        tensor             # [ N, ..., B, C ]
-        .movedim(-2, 1)    # [ N, B, ..., C ]
-        [mask]             # [ M, ..., C ]
-        .movedim(0, -2)    # [ ..., M, C ]
+        tensor             # ( L, ..., N, C )
+        .movedim(-2, 1)    # ( L, N, ..., C )
+        [mask]             # ( M, ..., C )
+        .movedim(0, -2)    # ( ..., M, C )
     )
     # fmt: on
 
@@ -45,24 +46,21 @@ def apply_sequence_batch_mask(tensor: Tensor, mask: Tensor) -> Tensor:
 def set_sequence_batch_masked_(tensor: Tensor, mask: Tensor, value: Tensor | Number) -> None:
     """In-place sets elements of a tensor based on a mask.
 
-    This function assumes the tensor has a shape like [N, ..., B, C],
-    where N is the sequence length, B is the batch size, and C is the feature dimension.
-    It temporarily rearranges the tensor to [N, B, ..., C] to apply the mask.
-
     Args:
         tensor (Tensor):
-            The tensor to be modified of shape [N, ..., B, C].
+            The input tensor of shape :math:`(L, ..., N, C)`, where :math:`L`
+            is the sequence length, :math:`N` is the batch size and :math:`C` is
+            the channel dimension.
         mask (Tensor):
-            A boolean tensor of shape [N, B] used to select elements from the
-            input tensor.
+            A boolean tensor of shape :math:`(L, N)` used to select elements
+            from the input tensor.
         value (Tensor | Number):
             The value to set, which should be broadcastable to the shape of the
             selected elements in the tensor.
     """
-    # tensor: [ N, ..., B, C ]
     if isinstance(value, Tensor):
-        if value.dim() > 3:  # [ ..., M, C ]
-            value = value.movedim(-2, 0)  # [ M, ..., C ]
+        if value.dim() > 3:
+            value = value.movedim(-2, 0)  # ( ..., M, C ) -> ( M, ..., C )
         tensor.movedim(-2, 1)[mask] = value
     else:
         tensor.movedim(-2, 1).masked_fill_(mask, value)
@@ -79,16 +77,15 @@ def compute_sequence_indices(done: Tensor) -> Tensor:
 
     Args:
         done (Tensor):
-            A boolean tensor of shape `(T, N, 1)` indicating sequence
-            terminations, where `T` is the number of time steps and `N` is the
-            number of parallel environments. If `done[t, n, 0] == 1`,
-            it signifies the end of sequence `n` at time `t`.
+            A boolean tensor of shape :math:`(L, N, 1)` indicating sequence
+            terminations, where :math:`L` is the sequence length and :math:`N`
+            is the batch size.
 
     Returns:
         indices (Tensor):
-            A 1D int64 tensor of shape `(N + 1,)`. The first element is always
-            zero. `indices[i]` represents the total number of completed
-            sequences in environments `0` through `i-1`.
+            A 1D int64 tensor of shape :math:`(N + 1,)`. The first element is
+            always zero. ``indices[i]`` represents the total number of completed
+            sequences in environments ``0`` through ``i-1``.
     """
     done = done.clone()
     done[-1] = 1
@@ -108,10 +105,9 @@ def compute_sequence_lengths(done: Tensor) -> Tensor:
 
     Args:
         done (Tensor):
-            A boolean tensor of shape `(T, N, 1)` indicating sequence
-            terminations. `T` is the number of time steps, and `N` is the number
-            of parallel environments. A value of `1` at `done[t, n, 0]`
-            signifies the end of sequence `n` at time `t`.
+            A boolean tensor of shape :math:`(L, N, 1)` indicating sequence
+            terminations, where :math:`L` is the sequence length, and :math:`N`
+            is the batch size.
 
     Returns:
         sequence_lens (Tensor):
@@ -119,7 +115,7 @@ def compute_sequence_lengths(done: Tensor) -> Tensor:
     """
     done = done.clone()
     done[-1] = 1
-    # Permute the done flag to have order (N, T, 1)
+    # (L, N, 1) -> (N, L, 1) -> (N * L,)
     flat_done = done.transpose(1, 0).flatten()
 
     # Get length of trajectory by counting the number of successive not done elements
@@ -141,7 +137,7 @@ def cumulate_sequence_lengths(sequence_lens: Tensor) -> Tensor:
 
 @torch.jit.script
 def compute_cumulative_sequence_lengths(done: Tensor) -> Tensor:
-    """Computes cumulative sequence lengths based on a 'done' tensor."""
+    """Computes cumulative sequence lengths based on a ``done`` tensor."""
     return cumulate_sequence_lengths(compute_sequence_lengths(done))
 
 
@@ -150,27 +146,26 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
 
     This function processes a batch of trajectory data from multiple parallel
     environments. It extracts individual sequences based on termination flags
-    and pads them to a uniform length, which is the number of timesteps in
-    the input `compact_sequences`.
+    and pads them to a uniform length, which is the sequence length of the input
+    ``compact_sequences``.
 
     Args:
         compact_sequences (Tensor):
-            A tensor of compact sequence data of shape `(T, ..., N, C)`, where
-            `T` is the number of timesteps, `N` is the number of environments,
-            and `C` is the channel dimension.
+            A tensor of compact sequence data of shape :math:`(L, ..., N, C)`,
+            where :math:`L` is the sequence length, :math:`N` is the batch size,
+            and :math:`C` is the channel dimension.
         done (Tensor):
-            A boolean tensor of shape `(T, N, 1)` that indicates sequence
-            terminations. If `done[t, n, 0] == 1`, it signifies the end of a
-            sequence at time `t` in environment `n`.
+            A boolean tensor of shape :math:`(L, N, 1)` that indicates sequence
+            terminations.
 
-    Returns:
-        - padded_sequences (Tensor):
-            A tensor of shape `(T, ..., E, C)`, where `E >= N` is the total
-            number of episodes extracted from all environments. Each episode is
-            padded with zeros to length `T`.
-        - mask (Tensor):
-            A boolean tensor of shape `(T, E)`. `mask[t, i]` is `True` if
-            timestep `t` is a valid part of episode `i` (i.e., not padding).
+    Outputs:
+        - **padded_sequences** (Tensor):
+            A tensor of shape :math:`(L, ..., Ns, C)`, where :math:`Ns >= N` is
+            the number of extracted contiguous sequences. Each sequence is
+            padded with zeros to length :math:`L`.
+        - **mask** (Tensor):
+            A boolean tensor of shape :math:`(L, Ns)`, indicating valid
+            elements of ``padded_sequences``.
     """
     if compact_sequences.dim() < 3:
         raise ValueError(f"'compact_sequences' must be at least 3D, but got shape {compact_sequences.shape}.")
@@ -197,17 +192,17 @@ def unpad_and_merge_sequences(
     mask: Tensor,
     original_sequence_len: int | None = None,
 ) -> Tensor:
-    """Does the inverse operation of `split_and_pad_sequences`"""
+    """Does the inverse operation of ``split_and_pad_sequences``"""
     if original_sequence_len is None:
         original_sequence_len = padded_sequences.size(0)
 
     # fmt: off
     return (
-        padded_sequences                            # (T, ..., E, C)
-        .movedim(-2, 0)                             # (E, T, ..., C)
-        [mask.transpose(0, 1)]                      # (N * T, ..., C)
-        .unflatten(0, (-1, original_sequence_len))  # (N, T, ..., C)
-        .movedim(0, -2)                             # (T, ..., N, C)
+        padded_sequences                            # (L, ..., Ns, C)
+        .movedim(-2, 0)                             # (Ns, L, ..., C)
+        [mask.transpose(0, 1)]                      # (N * L, ..., C)
+        .unflatten(0, (-1, original_sequence_len))  # (N, L, ..., C)
+        .movedim(0, -2)                             # (L, ..., N, C)
     )
     # fmt: on
 
