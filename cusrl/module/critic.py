@@ -37,11 +37,11 @@ class Value(Module):
         backbone (Module):
             The network used to extract features from the input.
         value_dim (int, optional):
-            The dimension of the output value. Defaults to 1.
+            The dimension of the output value. Defaults to ``1``.
         action_aware (bool, optional):
-            If True, the module becomes an action-value function (Q-function) by
-            concatenating the state and action before passing them to the
-            backbone. Defaults to False.
+            If ``True``, the module becomes an action-value function
+            (Q-function) by concatenating the state and action before passing
+            them to the backbone. Defaults to ``False``.
     """
 
     Factory = ValueFactory

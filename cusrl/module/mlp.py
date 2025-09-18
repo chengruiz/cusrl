@@ -41,18 +41,18 @@ class Mlp(Module):
         hidden_dims (Iterable[int]):
             An iterable of integers specifying the size of each hidden layer.
         output_dim (int | None, optional):
-            The dimension of the output. If `None`, the last element of
-            `hidden_dims` is used as the output dimension, and the preceding
-            elements define the hidden layers. Defaults to `None`.
+            The dimension of the output. If ``None``, the last element of
+            ``hidden_dims`` is used as the output dimension, and the preceding
+            elements define the hidden layers. Defaults to ``None``.
         activation_fn (type[nn.Module], optional):
             The activation function class to be used after each hidden layer.
-            Defaults to `nn.ReLU`.
+            Defaults to :class:`nn.ReLU`.
         ends_with_activation (bool, optional):
-            If `True`, an activation function and a dropout are applied to the
-            final output layer. Defaults to `False`.
+            If ``True``, an activation function and a dropout are applied to the
+            final output layer. Defaults to ``False``.
         dropout (float, optional):
             The dropout rate to be applied after each activation function in the
-            hidden layers. A value of 0.0 means no dropout. Defaults to `0.0`.
+            hidden layers. Defaults to ``0.0`` (no dropout).
     """
 
     Factory = MlpFactory

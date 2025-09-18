@@ -40,9 +40,9 @@ class FeedForward(Module):
         feedforward_dim (int | None, optional):
             The dimension of the hidden layer. Defaults to ``input_dim * 4``.
         activation_fn (type[nn.Module], optional):
-            The activation function to use. Defaults to ``nn.GELU``.
+            The activation function to use. Defaults to :class:`nn.GELU`.
         dropout (float, optional):
-            The dropout rate. Defaults to 0.0.
+            The dropout rate. Defaults to ``0.0``.
         output_dim (int, optional):
             The dimension of the output tensor. Defaults to ``input_dim``.
     """

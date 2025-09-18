@@ -69,7 +69,7 @@ LayerFactoryLike: TypeAlias = Callable[[int, int], nn.Module] | ModuleFactoryLik
 
 
 class Module(nn.Module):
-    """A base class for all `cusrl` modules, extending `torch.nn.Module`.
+    """A base class for all cusrl modules, extending :class:`torch.nn.Module`.
 
     This class provides a standardized interface and additional functionalities
     for all neural network modules within the framework. It includes features
@@ -78,19 +78,20 @@ class Module(nn.Module):
 
     Args:
         input_dim (int | None, optional):
-            The dimensionality of the input. Required if `like` is not provided.
-            Defaults to None.
+            The dimensionality of the input. Required if ``like`` is not
+            provided. Defaults to ``None``.
         output_dim (int | None, optional):
-            The dimensionality of the output. Required if `like` is not
-            provided. Defaults to None.
+            The dimensionality of the output. Required if ``like`` is not
+            provided. Defaults to ``None``.
         is_recurrent (bool, optional):
-            Whether the module is recurrent. Defaults to False.
-        like (Optional["Module"], optional):
-            Another module instance from which to copy `input_dim`,
-            `output_dim`, and `is_recurrent` attributes. Defaults to None.
+            Whether the module is recurrent. Defaults to ``False``.
+        like (Optional[Module optional):
+            Another module instance from which to copy ``input_dim``,
+            ``output_dim``, and ``is_recurrent`` attributes. Defaults to
+            ``None``.
         intermediate_repr (dict[str, Any] | None, optional):
             An initial dictionary for intermediate representations. Defaults to
-            None.
+            ``None``.
     """
 
     Factory = ModuleFactory
@@ -165,7 +166,7 @@ class Module(nn.Module):
             done (SliceType | torch.Tensor | None, optional):
                 A mask or slice indicating which parts of the memory to reset.
                 If it's a boolean tensor, it should correspond to the
-                environments that are finished. Defaults to None.
+                environments that are finished. Defaults to ``None``.
         """
         if memory is None:
             return

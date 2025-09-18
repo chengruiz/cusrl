@@ -135,12 +135,12 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
                 A boolean tensor of shape :math:`(L, N, 1)` indicating sequence
                 terminations.
             sequenced (bool):
-                If True, the input is treated as a sequences. Otherwise, it's
-                treated as a single batch of data. Defaults to True.
+                If ``True``, the input is treated as a sequences. Otherwise,
+                it's treated as a single batch of data. Defaults to ``True``.
 
         Outputs:
             - **output** (Tensor):
-                The attention output tensor of the same shape as `input`.
+                The attention output tensor of the same shape as ``input``.
             - **memory** (tuple[Tensor, Tensor, Tensor]):
                 The updated memory tuple `(input_cache, kv_cache, cache_mask)`.
         """
@@ -267,18 +267,18 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         """Resets the memory cache for specific environments.
 
         This method selectively resets the memory components (input cache,
-        key-value cache, and cache mask). If `done` is not provided, the entire
+        key-value cache, and cache mask). If ``done`` is not provided, the entire
         memory is cleared. Otherwise, only the memory states corresponding to
-        the `done` indices (e.g., for environments that are done) are reset.
+        the ``done`` indices (e.g., for environments that are done) are reset.
 
         Args:
             memory (tuple[Tensor, Tensor, Tensor] | None):
                 A tuple containing the input cache, KV cache, and cache mask. If
-                None, the function does nothing.
+                ``None``, the function does nothing.
             done (SliceType | Tensor | None, optional):
                 A mask or slice indicating which parts of the memory to reset.
-                If it's a tensor, it should be of shape `(N, 1)`. If None, the
-                entire memory is reset. Defaults to None.
+                If it's a tensor, it should be of shape :math:`(N, 1)`. If
+                ``None``, the entire memory is reset. Defaults to ``None``.
         """
         if memory is None:
             return

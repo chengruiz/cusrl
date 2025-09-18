@@ -34,30 +34,32 @@ class Cnn(Module):
     """A generic Convolutional Neural Network (CNN) module.
 
     This module wraps a sequence of PyTorch layers to form a CNN. It handles
-    input reshaping based on `input_shape` and `input_flattened`. It can also
-    flatten the output of the convolutional layers and optionally add a final
-    linear layer to project the features to a specific dimension.
+    input reshaping based on ``input_shape`` and ``input_flattened``. It can
+    also flatten the output of the convolutional layers and optionally add a
+    final linear layer to project the features to a specific dimension.
 
     The module supports inputs with multiple batch dimensions.
 
     Args:
         layers (Iterable[nn.Module | Module]):
-            A sequence of modules (e.g., `nn.Conv2d`, `nn.ReLU`, `nn.MaxPool2d`)
-            that constitute the convolutional part of the network.
+            A sequence of modules (e.g., :class:`nn.Conv2d`, :class:`nn.ReLU`,
+            :class:`nn.MaxPool2d`) that constitute the convolutional part of the
+            network.
         input_shape (tuple[int, int] | tuple[int, int, int]):
-            The shape of the input data, either `(height, width)` or `(channel,
-            height, width)`.
+            The shape of the input data, either :math:`(H, W)` or
+            :math:`(C, H, W)`, where `C` is the number of channels, `H` is the
+            height, and `W` is the width.
         input_flattened (bool, optional):
-            If `True`, the input tensor is expected to be a flat vector and will
-            be unflattened to `input_shape` before being passed through the
-            layers. Defaults to True.
+            If ``True``, the input tensor is expected to be flat and will be
+            unflattened to ``input_shape`` before being passed through the
+            layers. Defaults to ``True``.
         flatten_output (bool, optional):
-            If `True`, the output of the final convolutional layer is flattened
-            into a 1D tensor. Defaults to True.
+            If ``True``, the output of the final convolutional layer is
+            flattened into a 1D tensor. Defaults to ``True``.
         output_dim (int | None, optional):
-            If specified, a `nn.Linear` layer is appended to map the flattened
-            features to this output dimension. `flatten_output` is implicitly
-            True if this is set. Defaults to None.
+            If specified, a :class:`nn.Linear` layer is appended to map the
+            flattened features to this output dimension. ``flatten_output``
+            must be ``True`` if this is set. Defaults to ``None``.
     """
 
     Factory = CnnFactory
@@ -84,6 +86,8 @@ class Cnn(Module):
         self.layers: nn.Sequential = layers
         self.input_flattened = input_flattened
         if output_dim is not None:
+            if not flatten_output:
+                raise ValueError("'flatten_output' must be True if 'output_dim' is set.")
             self.layers.append(nn.Flatten(-3))  # flatten [channel, y, x]
             self.layers.append(nn.Linear(self.output_dim, output_dim))
             self.output_dim = output_dim

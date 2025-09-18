@@ -25,9 +25,9 @@ class Bijector(nn.Module):
 
     Methods:
         forward(input):
-            Computes the forward transformation, f(x).
+            Computes the forward transformation, :math:`f(x)`.
         inverse(input):
-            Computes the inverse transformation, f^-1(y).
+            Computes the inverse transformation, :math:`f^{-1}(y)`.
     """
 
     def forward(self, input: FloatOrTensor) -> FloatOrTensor:

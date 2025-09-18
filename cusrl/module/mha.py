@@ -45,7 +45,7 @@ class MultiheadAttention(nn.Module):
         num_heads (int):
             The number of parallel attention heads.
         dropout (float, optional):
-            Dropout probability on attention weights. Defaults to 0.0.
+            Dropout probability on attention weights. Defaults to ``0.0``.
         bias (bool, optional):
             If ``True``, add bias to the input and output projection layers.
             Defaults to ``True``.
@@ -57,7 +57,7 @@ class MultiheadAttention(nn.Module):
             ``embed_dim``. Defaults to None.
         batch_first (bool, optional):
             If ``True``, then the input and output tensors are provided as
-            (batch, sequence, channel). Defaults to True.
+            (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
             The data type for the FlashAttention computation. Only
             ``torch.float16`` and ``torch.bfloat16`` are supported for
@@ -168,7 +168,7 @@ class MultiheadCrossAttention(nn.Module):
         num_heads (int):
             The number of parallel attention heads.
         dropout (float, optional):
-            Dropout probability on attention weights. Defaults to 0.0.
+            Dropout probability on attention weights. Defaults to ``0.0``.
         bias (bool, optional):
             If ``True``, add bias to the input and output projection layers.
             Defaults to ``True``.
@@ -176,7 +176,7 @@ class MultiheadCrossAttention(nn.Module):
             If ``None``, defaults to ``embed_dim``. Defaults to None.
         batch_first (bool, optional):
             If ``True``, then the input and output tensors are provided as
-            (batch, sequence, channel). Defaults to True.
+            (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
             The data type for the FlashAttention computation. Only
             ``torch.float16`` and ``torch.bfloat16`` are supported for
@@ -284,13 +284,13 @@ class MultiheadSelfAttention(nn.Module):
         num_heads (int):
             The number of parallel attention heads.
         dropout (float, optional):
-            Dropout probability on attention weights. Defaults to 0.0.
+            Dropout probability on attention weights. Defaults to ``0.0``.
         bias (bool, optional):
             If ``True``, add bias to the input and output projection layers.
             Defaults to ``True``.
         batch_first (bool, optional):
             If ``True``, then the input and output tensors are provided as
-            (batch, sequence, channel). Defaults to True.
+            (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
             The data type for the FlashAttention computation. Only
             ``torch.float16`` and ``torch.bfloat16`` are supported for

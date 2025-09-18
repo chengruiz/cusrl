@@ -75,12 +75,12 @@ class Distribution(Module, Generic[ParamType]):
             dist_params (ParamType):
                 The parameters of the distribution as produced by forward().
 
-        Returns:
-            action (Tensor):
-                A sample from the distribution with shape [..., output_dim].
-            logp (Tensor):
-                The log-probability of the sample under the distribution, with
-                shape [..., 1].
+        Outputs:
+            - **action** (Tensor):
+                A sample from the distribution.
+            - **logp** (Tensor):
+                The log-probability of the sample under the distribution, a
+                tensor of shape :math:`(..., 1)`.
         """
         raise NotImplementedError
 
@@ -96,7 +96,8 @@ class Distribution(Module, Generic[ParamType]):
 
         Returns:
             log_probability (Tensor):
-                The log probability of the sample, a tensor of shape [..., 1].
+                The log probability of the sample  under the distribution, a
+                tensor of shape :math:`(..., 1)`.
         """
         raise NotImplementedError
 
@@ -113,7 +114,8 @@ class Distribution(Module, Generic[ParamType]):
 
         Returns:
             entropy (Tensor):
-                The entropy of the distribution, a tensor of shape [..., 1].
+                The entropy of the distribution, a tensor of shape
+                :math:`(..., 1)`.
         """
         _, logp = self.sample_from_dist(dist_params)
         return -logp
@@ -134,7 +136,7 @@ class Distribution(Module, Generic[ParamType]):
         Returns:
             kl_divergence (Tensor):
                 The KL divergence between the two distributions, a tensor of
-                shape [..., 1].
+                shape :math:`(..., 1)`.
         """
         sample, logp = self.sample_from_dist(dist_params1)
         logq = self.compute_logp(dist_params2, sample)

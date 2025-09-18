@@ -163,9 +163,9 @@ class RunningMeanStd(nn.Module):
             input (Tensor):
                 Input tensor.
             uncentered (bool, optional):
-                Whether to calculate uncentered variance. Defaults to False.
+                Whether to calculate uncentered variance. Defaults to ``False``.
             synchronize (bool, optional):
-                Whether to synchronize across devices. Defaults to True.
+                Whether to synchronize across devices. Defaults to ``True``.
         """
         self.update_from_stats(
             *mean_var_count(input, uncentered=uncentered),

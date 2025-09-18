@@ -25,9 +25,9 @@ class NormalNllLoss(nn.Module):
     Args:
         full (bool, optional):
             Includes the constant term in the loss computation. Defaults to
-            `False`.
+            ``False``.
         eps (float, optional):
-            Value used to clamp variance for stability. Defaults to 1e-6.
+            Value used to clamp variance for stability. Defaults to ``1e-6``.
         reduction ({"none", "mean", "sum"}, optional):
             Specifies the reduction to apply to the output.
     """

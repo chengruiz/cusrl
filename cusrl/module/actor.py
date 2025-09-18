@@ -26,12 +26,13 @@ class Actor(Module):
     """An actor model for reinforcement learning.
 
     The Actor class encapsulates a policy network, which maps observations to
-    actions. It is composed of a `backbone` module that processes observations
-    to produce a latent representation, and a `distribution` module that defines
-    the action distribution based on this latent representation.
+    actions. It is composed of a :attr:`backbone` module that processes
+    observations to produce a latent representation, and a :attr:`distribution`
+    module that defines the action distribution based on this latent
+    representation.
 
-    The class provides different forward methods for training (`forward`),
-    exploration (`explore`), and deployment (`act`).
+    The class provides different forward methods for training (:func:`forward`),
+    exploration (:func:`explore`), and deployment (:func:`act`).
 
     Args:
         backbone (Module):
@@ -42,11 +43,7 @@ class Actor(Module):
 
     Factory = ActorFactory
 
-    def __init__(
-        self,
-        backbone: Module,
-        distribution: Distribution,
-    ):
+    def __init__(self, backbone: Module, distribution: Distribution):
         super().__init__(
             backbone.input_dim,
             distribution.output_dim,
@@ -78,7 +75,7 @@ class Actor(Module):
         implementations.
 
         This method acts as a router to different functionalities based on the
-        `forward_type` argument.
+        ``forward_type`` argument.
         """
         if forward_type == "forward":
             return self._forward_impl(*args, **kwargs)
@@ -108,23 +105,23 @@ class Actor(Module):
             observation (Tensor):
                 The input observation from the environment.
             memory (Memory, optional):
-                The recurrent state for the backbone. Defaults to None.
+                The recurrent state for the backbone. Defaults to ``None``.
             deterministic (bool, optional):
-                If True, returns the mean of the distribution as the action
-                instead of sampling. Defaults to False.
+                If ``True``, returns the mean of the distribution as the action
+                instead of sampling. Defaults to ``False``.
             backbone_kwargs (dict | None, optional):
                 Additional keyword arguments for the backbone's forward pass.
-                Defaults to None.
+                Defaults to ``None``.
             distribution_kwargs (dict | None, optional):
                 Additional keyword arguments for the distribution's forward
-                pass. Defaults to None.
+                pass. Defaults to ``None``.
 
-        Returns:
-            - action_dist (NestedTensor):
+        Outputs:
+            - **action_dist** (NestedTensor):
                 Distribution parameters.
-            - action (tuple[Tensor, Tensor]):
+            - **action** (tuple[Tensor, Tensor]):
                 A tuple of (sampled_action, log_probability).
-            - memory (Memory):
+            - **memory** (Memory):
                 The updated recurrent state.
         """
         return self(
@@ -146,8 +143,8 @@ class Actor(Module):
     ) -> tuple[Tensor, Memory]:
         """Generates an action for interacting with the environment.
 
-        This is a simplified version of `explore` intended for deployment or
-        evaluation, returning only the action and the updated memory state.
+        This is a simplified version of :func:`explore` intended for deployment
+        or evaluation, returning only the action and the updated memory state.
 
         Args:
             observation (Tensor):
@@ -164,10 +161,10 @@ class Actor(Module):
                 Additional keyword arguments for the distribution's forward
                 pass. Defaults to None.
 
-        Returns:
-            - action (Tensor):
+        Outputs:
+            - **action** (Tensor):
                 A tuple of (sampled_action, log_probability).
-            - memory (Memory):
+            - **memory** (Memory):
                 The updated recurrent state.
         """
         return self(
