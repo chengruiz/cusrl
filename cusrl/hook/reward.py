@@ -16,15 +16,15 @@ class RewardShaping(Hook):
 
     Args:
         scale (float, optional):
-            The factor to scale the reward by. Defaults to 1.0.
+            The factor to scale the reward by. Defaults to ``1.0``.
         shift (float, optional):
-            The constant to add to the reward. Defaults to 0.0.
+            The constant to add to the reward. Defaults to ``0.0``.
         lower_bound (float | None):
             The minimum value to clamp the reward to. If None, no lower bound
-            is applied. Defaults to None.
+            is applied. Defaults to ``None``.
         upper_bound (float | None):
             The maximum value to clamp the reward to. If None, no upper bound
-            is applied. Defaults to None.
+            is applied. Defaults to ``None``.
     """
 
     def __init__(

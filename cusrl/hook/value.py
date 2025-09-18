@@ -18,10 +18,10 @@ class ValueComputation(Hook[ActorCritic]):
     This hook handles the value computation for terminal and truncated states.
 
     Args:
-        termination_value (float):
-            The value to assign to terminal states.
+        termination_value (float, optional):
+            The value to assign to terminal states. Defaults to ``0.0``.
         bootstrap_truncated_states (bool):
-            If `True`, bootstraps the value of truncated states using the
+            If ``True``, bootstraps the value of truncated states using the
             critic.
     """
 
@@ -106,10 +106,10 @@ class ValueLoss(Hook[ActorCritic]):
 
     Args:
         weight (float, optional):
-            The weight applied to the value loss. Defaults to 0.5.
+            The weight applied to the value loss. Defaults to ``0.5``.
         loss_clip (float | None, optional):
             If specified, uses a clipped value loss instead of standard MSE.
-            Defaults to None, which means standard MSE is used.
+            Defaults to ``None``, which means standard MSE is used.
     """
 
     def __init__(self, weight: float = 0.5, loss_clip: float | None = None):

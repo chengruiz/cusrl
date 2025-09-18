@@ -18,11 +18,11 @@ class AdvantageReduction(Hook):
 
     Args:
         reduction (Literal["sum", "mean"], optional):
-            The reduction method to apply, either "sum" or "mean".
-            Defaults to "sum".
+            The reduction method to apply, either ``"sum"`` or ``"mean"``.
+            Defaults to ``"sum"``.
         weight (Sequence[float] | None, optional):
             An optional sequence of weights to apply element-wise to the
-            advantage tensor before reduction. Defaults to None.
+            advantage tensor before reduction. Defaults to ``None``.
 
     Raises:
         ValueError: If an invalid reduction method is provided.
@@ -85,11 +85,11 @@ class AdvantageNormalization(Hook[ActorCritic]):
 
     Args:
         mini_batch_wise (bool, optional):
-            If `True`, normalization is applied to each mini-batch. Defaults to
-            `False`,
+            If ``True``, normalization is applied to each mini-batch. Defaults
+            to ``False``.
         synchronize (bool, optional):
-            If `True`, the mean and variance are synchronized across all
-            processes in distributed training. Defaults to `True`.
+            If ``True``, the mean and variance are synchronized across all
+            processes in distributed training. Defaults to ``True``.
     """
 
     def __init__(self, mini_batch_wise: bool = False, synchronize: bool = True):

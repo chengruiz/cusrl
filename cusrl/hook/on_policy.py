@@ -44,9 +44,9 @@ class OnPolicyPreparation(Hook[ActorCritic]):
     probability ratio. Optionally computes KL divergence if enabled.
 
     Args:
-        calculate_kl_divergence (bool):
-            If True, computes the KL divergence between the old and current
-            policy distributions.
+        calculate_kl_divergence (bool, optional):
+            If ``True``, computes the KL divergence between the old and current
+            policy distributions. Defaults to ``False``.
     """
 
     def __init__(self, calculate_kl_divergence: bool = False):
@@ -76,15 +76,15 @@ class OnPolicyStatistics(Hook[ActorCritic]):
     """Calculates and records on-policy statistics after update phase.
 
     Specifically, it records:
-    - `kl_divergence`: The Kullback-Leibler divergence between the policy
+    - ``"kl_divergence"``: The Kullback-Leibler divergence between the policy
         before and after the update.
-    - `action_std`: The standard deviation of the action distribution from the
+    - ``"action_std"``: The standard deviation of the action distribution from the
         updated policy.
 
     Args:
         sampler (Sampler | None, optional):
-            The sampler used to sample batches from the agent's buffer. If None,
-            a default `Sampler()` is used. Defaults to None.
+            The sampler used to sample batches from the agent's buffer. If
+            ``None``, a default `Sampler()` is used. Defaults to ``None``.
     """
 
     def __init__(self, sampler: Sampler | None = None):

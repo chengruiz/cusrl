@@ -10,16 +10,16 @@ __all__ = ["EnvironmentSpecOverride", "DynamicEnvironmentSpecOverride"]
 class EnvironmentSpecOverride(Hook):
     """Overrides attributes of the agent's environment specification.
 
-    This hook allows for modifying the `environment_spec` of an agent before
-    its initialization. The desired overrides are provided as keyword arguments
-    during the hook's instantiation. These overrides are applied during the
-    `pre_init` phase of the agent's lifecycle.
+    This hook allows for modifying the :attr:`environment_spec` of an agent
+    before its initialization. The desired overrides are provided as keyword
+    arguments during the hook's instantiation. These overrides are applied
+    during the :func:`pre_init` phase of the agent's lifecycle.
 
     Args:
         **kwargs:
-            Arbitrary keyword arguments where each key is the name of the
-            attribute to override in the `environment_spec` and the value is the
-            new value for that attribute.
+            Keyword arguments used to override attributes in the
+            :attr:`environment_spec`. Each key represents the attribute's name,
+            and the corresponding value is the new value to be set.
     """
 
     def __init__(self, **kwargs):
@@ -36,9 +36,9 @@ class DynamicEnvironmentSpecOverride(Hook):
     """Dynamically overrides attributes of the agent's environment specification
     with the environment instance.
 
-    This hook allows for modifying the `environment_spec` of an agent before
-    its initialization. The desired overrides are generated dynamically based
-    on the environment instance.
+    This hook allows for modifying the :attr:`environment_spec` of an agent
+    before its initialization. The desired overrides are generated dynamically
+    based on the environment instance.
 
     Args:
         overrides_factory (Callable[[Environment], dict[str, Any]]):

@@ -19,12 +19,13 @@ class ObservationNormalization(Hook[ActorCritic]):
 
     This hook maintains a running estimate of the mean and standard deviation
     for observations and, if available, states. It intercepts transitions during
-    data collection to normalize the `observation`, `state`, `next_observation`,
-    and `next_state` fields. The original, unnormalized values are preserved
-    under keys with an "original_" prefix.
+    data collection to normalize the ``"observation"``, ``"state"``,
+    ``"next_observation"``, and ``"next_state"`` fields. The original,
+    unnormalized values are preserved under keys with an ``"original_"`` prefix.
 
     The running statistics are updated with new data from each step, unless the
-    agent is in inference mode or the `frozen` attribute is set to `True`.
+    agent is in inference mode or the :attr:`frozen` attribute is set to
+    ``True``.
 
     The hook also handles scenarios where the observation is a subset of the
     state or where there is symmetry in the observations or states. It correctly
@@ -37,15 +38,15 @@ class ObservationNormalization(Hook[ActorCritic]):
             The maximum count for the running statistics to prevent numerical
             overflow. Defaults to None.
         defer_synchronization (bool, optional):
-            If True, synchronization of running statistics in a distributed
+            If ``True``, synchronization of running statistics in a distributed
             setting is deferred until the end of a rollout. This can improve
             performance by reducing the frequency of synchronization. Defaults
-            to False.
+            to ``False``.
         renormalize (bool, optional):
-            If True, re-normalize batch data in objective phase using the latest
-            running stats and the saved `original_*` tensors. This ensures that
-            training uses up-to-date normalization even when stats have been
-            updated after data collection. Defaults to False.
+            If ``True``, re-normalize batch data in objective phase using the
+            latest running stats and the saved ``original_*`` tensors. This
+            ensures that training uses up-to-date normalization even when stats
+            have been updated after data collection. Defaults to ``False``.
     """
 
     def __init__(

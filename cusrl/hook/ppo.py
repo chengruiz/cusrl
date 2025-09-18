@@ -30,8 +30,8 @@ class PpoSurrogateLoss(Hook):
     Args:
         clip_ratio (float, optional):
             The clipping parameter for the PPO surrogate loss. It determines
-            the range `[1 - clip_ratio, 1 + clip_ratio]` within which the
-            probability ratio is clipped. Defaults to 0.2.
+            the range ``[1 - clip_ratio, 1 + clip_ratio]`` within which the
+            probability ratio is clipped. Defaults to ``0.2``.
     """
 
     def __init__(self, clip_ratio: float = 0.2):
@@ -65,7 +65,7 @@ class EntropyLoss(Hook):
     Args:
         weight (float, optional):
             The coefficient for the entropy loss term. A larger value results in
-            a stronger incentive for exploration. Defaults to 0.01.
+            a stronger incentive for exploration. Defaults to ``0.01``.
     """
 
     def __init__(self, weight: float = 0.01):

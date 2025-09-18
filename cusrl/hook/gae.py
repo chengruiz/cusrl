@@ -43,20 +43,21 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
 
     Args:
         gamma (float, optional):
-            Discount factor for future rewards, in [0, 1). Defaults to 0.99.
+            Discount factor for future rewards, in :math:`[0, 1)`. Defaults to
+            ``0.99``.
         lamda (float, optional):
-            Smoothing factor for advantage estimation, in [0, 1]. Defaults to
-            0.95.
+            Smoothing factor for advantage estimation, in :math:`[0, 1]`.
+            Defaults to ``0.95``.
         lamda_value (float | None, optional):
-            Smoothing factor for value function calculation, in [0, 1].
-            If None, the same value as `lamda` is used. Defaults to None.
+            Smoothing factor for value function calculation, in :math:`[0, 1]`.
+            If ``None``, the same value as ``lamda`` is used. Defaults to
+            ``None``.
         recompute (bool, optional):
-            If True, recompute advantages and returns after each update.
-            Defaults to False.
+            If ``True``, recompute advantages and returns after each update.
+            Defaults to ``False``.
         popart_alpha (float | None, optional):
-            If not None, applies PopArt normalization to the value function with
-            the specified alpha. Defaults to None, which means no normalization
-            is applied.
+            If not ``None``, applies PopArt normalization to the value function
+            with the specified alpha. Defaults to ``None`` (no normalization).
     """
 
     def __init__(

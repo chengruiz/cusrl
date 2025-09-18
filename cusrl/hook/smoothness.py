@@ -19,16 +19,16 @@ class ActionSmoothnessLoss(Hook):
     accelerations.
 
     The loss is computed using 1D convolution with fixed kernels:
-    - 1st order (velocity): `[-1, 1]`
-    - 2nd order (acceleration): `[-1, 2, -1]`
+    - 1st order (velocity): ``[-1, 1]``
+    - 2nd order (acceleration): ``[-1, 2, -1]``
 
     Args:
         weight_1st_order (float | Sequence[float] | None, optional):
             Weight for the 1st order smoothness loss. Could be a scalar or a
-            tensor matching the action dimension. Defaults to None.
+            tensor matching the action dimension. Defaults to ``None``.
         weight_2nd_order (float | Sequence[float] | None, optional):
             Weight for the 2nd order smoothness loss. Could be a scalar or a
-            tensor matching the action dimension. Defaults to None.
+            tensor matching the action dimension. Defaults to ``None``.
     """
 
     def __init__(

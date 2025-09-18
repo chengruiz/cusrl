@@ -20,7 +20,7 @@ class PolicyDistillationLoss(Hook[ActorCritic]):
             The file path to the exported TorchScript expert policy.
         observation_name (str, optional):
             The key in the transition dictionary that corresponds to the
-            observation tensor. Defaults to "observation".
+            observation tensor. Defaults to `"observation"`.
         weight (float, optional):
             Weight for the distillation loss. Defaults to 1.0.
     """

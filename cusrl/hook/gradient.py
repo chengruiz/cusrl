@@ -12,8 +12,8 @@ class GradientClipping(Hook):
 
     Args:
         max_grad_norm (float | None, optional):
-            Default max norm for gradient clipping. If None, no clipping is
-            applied for the default group. Defaults to 1.0.
+            Default max norm for gradient clipping. If ``None``, no clipping is
+            applied for the default group. Defaults to ``1.0``.
         **groups (dict[str, float | None]):
             Keyword arguments mapping parameter name prefixes to specific max
             gradient norms.

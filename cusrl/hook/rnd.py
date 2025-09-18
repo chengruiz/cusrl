@@ -26,7 +26,8 @@ class RandomNetworkDistillation(Hook):
         reward_scale (float):
             The scale of the intrinsic reward.
         state_indices (Slice | None, optional):
-            Indices of states used for quantifying novelty. Defaults to None.
+            Indices of states used for quantifying novelty. Defaults to
+            ``None``.
     """
 
     def __init__(

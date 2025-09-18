@@ -33,24 +33,25 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             may not be recurrent.
         dataset_source (str | Array | Callable[[], Array] | None, optional):
             The source of the expert motion dataset. Can be a file path to a
-            `.npy` or `.pt` file, a `numpy.ndarray` / `Tensor`, or a callable
-            that returns a `numpy.ndarray` / `Tensor`. If `None`, the
-            `environment_spec.demonstration_sampler` should be provided to
+            ``.npy`` or ``.pt`` file, a ``numpy.ndarray`` / ``Tensor``, or a
+            callable that returns a ``numpy.ndarray`` / ``Tensor``. If ``None``,
+            the ``environment_spec.demonstration_sampler`` should be provided to
             sample expert transitions.
         state_indices (Slice | None, optional):
             A slice object to extract the relevant parts of the state for AMP.
-            If `None`, it's assumed that the environment provides an "amp_obs"
-            key in the transition dictionary. Defaults to ``None``.
+            If ``None``, it's assumed that the environment provides an
+            ``"amp_obs"`` key in the transition dictionary. Defaults to
+            ``None``.
         batch_size (int, optional):
-            The batch size for training the discriminator. Defaults to 512.
+            The batch size for training the discriminator. Defaults to ``512``.
         reward_scale (float, optional):
-            A scaling factor for the calculated style reward. Defaults to 1.0.
+            A scaling factor for the style reward. Defaults to ``1.0``.
         loss_weight (float, optional):
             A weight for the total discriminator loss in the optimization
-            objective. Defaults to 1.0.
+            objective. Defaults to ``1.0``.
         grad_penalty_weight (float, optional):
             The weight for the gradient penalty term in the discriminator loss.
-            Defaults to 5.0.
+            Defaults to ``5.0``.
     """
 
     def __init__(

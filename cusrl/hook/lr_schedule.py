@@ -59,14 +59,15 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
 
     Args:
         desired_kl_divergence (float, optional):
-            Target KL divergence to maintain. Defaults to 0.01.
+            Target KL divergence to maintain. Defaults to ``0.01``.
         threshold (float, optional):
-            Ratio threshold (>1) for deciding when to adjust. Defaults to 1.2.
+            Ratio threshold (>1) for deciding when to adjust. Defaults to
+            ``1.2``.
         scale_factor (float, optional):
-            Multiplicative factor (>1) for scaling the LR. Defaults to 1.1.
+            Multiplicative factor (>1) for scaling the LR. Defaults to ``1.1``.
         scale_all_params (bool, optional):
-            If True, scales all optimizer parameter groups; otherwise only
-            scales actor parameter groups. Defaults to False.
+            If ``True``, scales all optimizer parameter groups; otherwise only
+            scales actor parameter groups. Defaults to ``False``.
     """
 
     def __init__(
@@ -99,16 +100,16 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
 
     Args:
         desired_kl_divergence (float, optional):
-            Target KL divergence to maintain. Defaults to 0.01.
+            Target KL divergence to maintain. Defaults to ``0.01``.
         threshold (float, optional):
             Positive threshold for accumulated log-error before scaling.
-            Defaults to 1.0.
+            Defaults to ``1.0``.
         scale_factor (float, optional):
             Positive coefficient controlling adjustment magnitude. Defaults to
-            0.2.
+            ``0.2``.
         scale_all_params (bool, optional):
-            If True, scales all optimizer parameter groups; otherwise only
-            scales the parameter group of the actor. Defaults to False.
+            If ``True``, scales all optimizer parameter groups; otherwise only
+            scales the parameter group of the actor. Defaults to ``False``.
     """
 
     def __init__(
@@ -147,11 +148,11 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
 
     Args:
         desired_kl_divergence (float, optional):
-            Target KL divergence per mini-batch. Defaults to 0.01.
+            Target KL divergence per mini-batch. Defaults to ``0.01``.
         threshold (float, optional):
-            Ratio threshold for deciding scaling per batch. Defaults to 2.0.
+            Ratio threshold for deciding scaling per batch. Defaults to ``2.0``.
         scale_factor (float, optional):
-            Multiplicative factor for scaling the LR. Defaults to 1.5.
+            Multiplicative factor for scaling the LR. Defaults to ``1.5``.
     """
 
     def __init__(
