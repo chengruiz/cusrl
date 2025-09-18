@@ -204,11 +204,11 @@ class Rnn(Module):
             )
         return output, memory
 
-    def step_memory(self, input: Tensor, memory: Memory = None, **kwargs):
+    def step_memory(self, input: Tensor, memory: Memory = None, sequenced: bool = True, **kwargs):
         original_input_shape = input.shape
-        input, memory = self._reshape_input(input, memory)
+        input, memory = self._reshape_input(input, memory, sequenced=sequenced)
         latent, memory = self.rnn(input, memory)
-        _, memory = self._reshape_output(latent, memory, original_input_shape)
+        _, memory = self._reshape_output(latent, memory, original_input_shape, sequenced=sequenced)
         return memory
 
 

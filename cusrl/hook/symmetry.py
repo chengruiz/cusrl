@@ -225,7 +225,7 @@ class SymmetricDataAugmentation(SymmetryHook):
                     self.mirrored_actor_memory,
                 )
             self.mirrored_actor_memory = actor.step_memory(
-                mirrored_observation.unsqueeze(0), self.mirrored_actor_memory
+                mirrored_observation, self.mirrored_actor_memory, sequenced=False
             )
             actor.reset_memory(self.mirrored_actor_memory, done)
 
@@ -236,7 +236,9 @@ class SymmetricDataAugmentation(SymmetryHook):
                     cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["critic_memory"])),
                     self.mirrored_critic_memory,
                 )
-            self.mirrored_critic_memory = critic.step_memory(mirrored_state.unsqueeze(0), self.mirrored_critic_memory)
+            self.mirrored_critic_memory = critic.step_memory(
+                mirrored_state, self.mirrored_critic_memory, sequenced=False
+            )
             critic.reset_memory(self.mirrored_critic_memory, done)
 
     def objective(self, batch):
