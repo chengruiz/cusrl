@@ -19,9 +19,10 @@ export = [
     "onnxscript",
     "onnxslim!=v0.1.62",    # or "onnxoptimizer"
 ]
+swanlab = ["swanlab"]
 tensorboard = ["tensorboard"]
 wandb = ["wandb"]
-all = ["cusrl[export,tensorboard,wandb]"]
+all = ["cusrl[export,swanlab,tensorboard,wandb]"]
 
 [tool.black]
 line-length = 120

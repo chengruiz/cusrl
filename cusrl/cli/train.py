@@ -12,7 +12,8 @@ def configure_parser(parser):
                         help="Name of the environment for training")
     parser.add_argument("-alg", "--algorithm", type=str, required=True, metavar="NAME",
                         help="Name of the algorithm to use")
-    parser.add_argument("--logger", type=str, default="tensorboard", choices=["none", "wandb", "tensorboard"],
+    parser.add_argument("--logger", type=str, default="tensorboard",
+                        choices=["none", "swanlab", "wandb", "tensorboard"],
                         help="Logger for statistics tracking (default: tensorboard)")
     parser.add_argument("--log-dir", type=str, default="logs", metavar="DIR",
                         help="Directory to save logs to (default: logs)")
