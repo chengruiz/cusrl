@@ -71,19 +71,19 @@ class Swanlab(Logger):
         add_datetime_prefix: bool = True,
         **kwargs,
     ):
+        try:
+            import swanlab
+        except ImportError:
+            raise ImportError("Please run 'pip install swanlab' to use swanlab logger.")
+        self.run = swanlab.init(experiment_name=name, **kwargs)
+        self.provider = swanlab
+
         super().__init__(
             log_dir=log_dir,
             name=name,
             interval=interval,
             add_datetime_prefix=add_datetime_prefix,
         )
-        try:
-            import swanlab
-        except ImportError:
-            raise ImportError("Please run 'pip install swanlab' to use swanlab logger.")
-
-        self.run = swanlab.init(experiment_name=name, **kwargs)
-        self.provider = swanlab
 
     def _log_impl(self, data: dict[str, float], iteration: int):
         self.provider.log(data, step=iteration)

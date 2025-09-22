@@ -65,19 +65,19 @@ class Wandb(Logger):
         add_datetime_prefix: bool = True,
         **kwargs,
     ):
+        try:
+            import wandb
+        except ImportError:
+            raise ImportError("Please run 'pip install wandb' to use wandb logger.")
+        self.run = wandb.init(name=name, **kwargs)
+        self.provider = wandb
+
         super().__init__(
             log_dir=log_dir,
             name=name,
             interval=interval,
             add_datetime_prefix=add_datetime_prefix,
         )
-        try:
-            import wandb
-        except ImportError:
-            raise ImportError("Please run 'pip install wandb' to use wandb logger.")
-
-        self.run = wandb.init(name=name, **kwargs)
-        self.provider = wandb
 
     def _log_impl(self, data: dict[str, float], iteration: int):
         self.provider.log(data, step=iteration)

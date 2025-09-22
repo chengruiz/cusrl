@@ -6,10 +6,10 @@ from torch import Tensor, nn
 
 __all__ = [
     "Bijector",
-    "DummyBijector",
     "ExponentialBijector",
-    "SoftplusBijector",
+    "IdentityBijector",
     "SigmoidBijector",
+    "SoftplusBijector",
     "make_bijector",
 ]
 
@@ -37,14 +37,6 @@ class Bijector(nn.Module):
         raise NotImplementedError
 
 
-class DummyBijector(Bijector):
-    def forward(self, input: FloatOrTensor) -> FloatOrTensor:
-        return input
-
-    def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
-        return input
-
-
 class ExponentialBijector(Bijector):
     def __init__(self, min_value: float = 0.01, max_value: float = 1.0):
         super().__init__()
@@ -64,6 +56,14 @@ class ExponentialBijector(Bijector):
 
     def extra_repr(self):
         return f"min={self.min_value}, max={self.max_value}"
+
+
+class IdentityBijector(Bijector):
+    def forward(self, input: FloatOrTensor) -> FloatOrTensor:
+        return input
+
+    def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
+        return input
 
 
 class SigmoidBijector(Bijector):
@@ -120,12 +120,12 @@ def make_bijector(bijector: str | Bijector | None) -> Bijector:
     if isinstance(bijector, Bijector):
         return bijector
     if bijector is None:
-        return DummyBijector()
+        return IdentityBijector()
     bijector_type, *params = bijector.split("_")
     bijector_type = bijector_type.lower()
     params = [float(param) for param in params]
-    if not bijector_type or bijector_type == "none":
-        return DummyBijector(*params)
+    if not bijector_type or bijector_type == "identity":
+        return IdentityBijector(*params)
     if bijector_type == "exp" or bijector_type == "exponential":
         return ExponentialBijector(*params)
     if bijector_type == "sigmoid":

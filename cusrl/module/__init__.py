@@ -1,5 +1,12 @@
 from .activation import GeGlu, SwiGlu
 from .actor import Actor
+from .bijector import (
+    ExponentialBijector,
+    IdentityBijector,
+    SigmoidBijector,
+    SoftplusBijector,
+    make_bijector,
+)
 from .causal_attn import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer
 from .cnn import Cnn, SeparableConv2d
 from .critic import Value
@@ -44,6 +51,7 @@ __all__ = [
     "Cnn",
     "Denormalization",
     "DetachGradient",
+    "ExponentialBijector",
     "ExponentialMovingNormalizer",
     "FeedForward",
     "Gate",
@@ -52,6 +60,7 @@ __all__ = [
     "Gru",
     "GruGate",
     "HighwayGate",
+    "IdentityBijector",
     "InferenceModule",
     "InputGate",
     "LayerFactoryLike",
@@ -73,12 +82,15 @@ __all__ = [
     "RunningMeanStd",
     "SeparableConv2d",
     "Sequential",
+    "SigmoidBijector",
     "SigmoidTanhGate",
     "Simba",
+    "SoftplusBijector",
     "StubModule",
     "SwiGlu",
     "TransformerEncoderLayer",
     "get_gate_cls",
+    "make_bijector",
     # RL modules
     "Actor",
     "AdaptiveNormalDist",
