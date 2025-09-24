@@ -6,7 +6,7 @@ from torch import nn
 
 from cusrl.module.distribution import MeanStdDict
 from cusrl.template import Hook
-from cusrl.utils.recurrent import split_and_pad_sequences
+from cusrl.utils.recurrent import apply_sequence_batch_mask, split_and_pad_sequences
 
 __all__ = ["ActionSmoothnessLoss"]
 
@@ -58,7 +58,7 @@ class ActionSmoothnessLoss(Hook):
 
     def objective(self, batch):
         action_mean = cast(MeanStdDict, batch["curr_action_dist"])["mean"]
-        if action_mean.ndim != 3:
+        if action_mean.ndim == 2:
             raise ValueError("Expected batch to be temporal.")
         if (seq_len := action_mean.size(0)) < 3:
             raise ValueError(f"Expected sequences to have at least 3 time steps, but got {seq_len}.")
@@ -66,10 +66,10 @@ class ActionSmoothnessLoss(Hook):
         padded_action, mask = split_and_pad_sequences(action_mean, batch["done"])
         # fmt: off
         action_sequence = (
-            padded_action      # ( L, N, C )
-            .permute(1, 2, 0)  # ( N, C, L )
-            .flatten(0, 1)     # ( N * C, L )
-            .unsqueeze(1)      # ( N * C, 1, L )
+            padded_action      # ( L, ..., N, C )
+            .movedim(0, -1)    # ( ..., N, C, L )
+            .flatten(0, -2)    # ( ... * N * C, L )
+            .unsqueeze(1)      # ( ... * N * C, 1, L )
         )
         # fmt: on
 
@@ -78,28 +78,36 @@ class ActionSmoothnessLoss(Hook):
             # fmt: off
             smoothness_1st_order = (
                 # Convolve at time dimension
-                nn.functional.conv1d(action_sequence, self.conv_1st_order)  # ( N * C, 1, L - 1 )
-                .reshape(*padded_action.shape[1:], -1)                      # ( N, C, L - 1 )
-                .permute(2, 0, 1)                                           # ( L - 1, N, C )
+                nn.functional.conv1d(action_sequence, self.conv_1st_order)  # ( ... * N * C, 1, L - 1 )
+                .unflatten(0, padded_action.shape[1:])                      # ( ..., N, C, 1, L - 1 )
+                .squeeze(-2)                                                # ( ..., N, C, L - 1 )
+                .movedim(-1, 0)                                             # ( L - 1, ..., N, C )
             )
             # fmt: on
-            smoothness_1st_order_loss = (self._weight1_tensor * smoothness_1st_order[mask[1:]].abs()).mean()
-            smoothness_loss = smoothness_1st_order_loss
+
+            smoothness_1st_order_loss = (
+                self._weight1_tensor * apply_sequence_batch_mask(smoothness_1st_order, mask[1:]).abs()
+            ).mean()
             self.agent.record(smoothness_1st_order_loss=smoothness_1st_order_loss)
+            smoothness_loss = smoothness_1st_order_loss
 
         if self._weight2_tensor is not None:
             # fmt: off
             smoothness_2nd_order = (
-                nn.functional.conv1d(action_sequence, self.conv_2nd_order)  # ( N * C, 1, L - 2 )
-                .reshape(*padded_action.shape[1:], -1)                      # ( N, C, L - 2 )
-                .permute(2, 0, 1)                                           # ( L - 2, N, C )
+                nn.functional.conv1d(action_sequence, self.conv_2nd_order)  # ( ... * N * C, 1, L - 2 )
+                .unflatten(0, padded_action.shape[1:])                      # ( ..., N, C, 1, L - 2 )
+                .squeeze(-2)                                                # ( ..., N, C, L - 2 )
+                .movedim(-1, 0)                                             # ( L - 2, ..., N, C )
             )
             # fmt: on
-            smoothness_loss_2nd_order = (self._weight2_tensor * smoothness_2nd_order[mask[2:]].abs()).mean()
-            smoothness_loss = (
-                smoothness_loss_2nd_order if smoothness_loss is None else smoothness_loss + smoothness_loss_2nd_order
-            )
+            smoothness_loss_2nd_order = (
+                self._weight2_tensor * apply_sequence_batch_mask(smoothness_2nd_order, mask[2:]).abs()
+            ).mean()
             self.agent.record(smoothness_2nd_order_loss=smoothness_loss_2nd_order)
+            if smoothness_loss is None:
+                smoothness_loss = smoothness_loss_2nd_order
+            else:
+                smoothness_loss += smoothness_loss_2nd_order
 
         return smoothness_loss
 

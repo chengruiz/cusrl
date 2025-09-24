@@ -31,7 +31,8 @@ def apply_sequence_batch_mask(tensor: Tensor, mask: Tensor) -> Tensor:
     Returns:
         masked_tensor (Tensor):
             The resulting tensor of shape :math:`(..., M, C)` containing the
-            masked elements, where M is the number of True values in the mask.
+            masked elements, where :math:`M` is the number of ``True`` values in
+            the mask.
     """
     # fmt: off
     return (
