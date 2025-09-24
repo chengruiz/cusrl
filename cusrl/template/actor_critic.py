@@ -233,7 +233,7 @@ class ActorCritic(Agent):
                 self.transition["observation"],
                 memory=self.actor_memory,
                 deterministic=self.deterministic,
-                backbone_kwargs={"sequenced": False},
+                backbone_kwargs={"sequential": False},
             )
 
         self._save_transition(

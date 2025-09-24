@@ -225,7 +225,7 @@ class SymmetricDataAugmentation(SymmetryHook):
                     self.mirrored_actor_memory,
                 )
             self.mirrored_actor_memory = actor.step_memory(
-                mirrored_observation, self.mirrored_actor_memory, sequenced=False
+                mirrored_observation, self.mirrored_actor_memory, sequential=False
             )
             actor.reset_memory(self.mirrored_actor_memory, done)
 
@@ -237,7 +237,7 @@ class SymmetricDataAugmentation(SymmetryHook):
                     self.mirrored_critic_memory,
                 )
             self.mirrored_critic_memory = critic.step_memory(
-                mirrored_state, self.mirrored_critic_memory, sequenced=False
+                mirrored_state, self.mirrored_critic_memory, sequential=False
             )
             critic.reset_memory(self.mirrored_critic_memory, done)
 

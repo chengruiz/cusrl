@@ -147,7 +147,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
                 raise ValueError(f"Capacity mismatch: expected {self.capacity}, got {value.size(0)}.")
             if (storage := self.storage.get(key)) is None:
                 # If the field is not custom, it should be temporal
-                storage = self._create_storage(value, temporal=True, sequenced=True)
+                storage = self._create_storage(value, temporal=True, sequential=True)
                 self.storage[key] = storage
             storage.copy_(self._as_tensor(value))
 
@@ -226,7 +226,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
 
         for key, value in iterate_nested(data, name):
             if (storage := self.storage.get(key)) is None:
-                storage = self._create_storage(value, temporal=temporal, sequenced=True)
+                storage = self._create_storage(value, temporal=temporal, sequential=True)
                 self.storage[key] = storage
             storage.copy_(self._as_tensor(value))
 
@@ -255,7 +255,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
         self,
         data: np.ndarray | torch.Tensor,
         temporal: bool = True,
-        sequenced: bool = False,
+        sequential: bool = False,
     ) -> torch.Tensor:
         if isinstance(data, np.ndarray):
             data = self._as_tensor(data)
@@ -266,7 +266,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
             self.parallelism = data.size(-2)
         elif data.size(-2) != self.parallelism:
             raise ValueError("Shape of arrays must be [ [..., ] parallelism, num_channels ]")
-        if not sequenced:
+        if not sequential:
             # shape: [ capacity, [..., ] parallelism, num_channels ]
             return data.new_zeros(self.capacity, *data.shape)
         if temporal and data.size(0) != self.capacity:

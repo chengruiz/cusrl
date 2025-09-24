@@ -83,19 +83,19 @@ class Rnn(Module):
         memory: Memory = None,
         *,
         done: Tensor | None = None,
-        sequenced: bool = True,
+        sequential: bool = True,
         pack_sequence: bool = False,
         **kwargs,
     ) -> tuple[Tensor, Memory]:
         """Forward pass through the recurrent neural network.
 
-        This method handles both single-steped or sequenced data. It resets the
+        This method handles both single-steped or sequential data. It resets the
         recurrent state for finished episodes within a sequence when the `done`
         tensor is provided.
 
         Args:
             input (Tensor):
-                Input tensor of shape :math:`(L, ..., N, Ci)` if sequenced else
+                Input tensor of shape :math:`(L, ..., N, Ci)` if sequential else
                 :math:`(..., N, Ci)`, where :math:`L` is the sequence length,
                 :math:`N` is the batch size, and :math:`Ci` is the input channel
                 dimension.
@@ -106,8 +106,8 @@ class Rnn(Module):
                 A boolean tensor of shape :math:`(L, N)` indicating
                 terminations. If provided, the memory is reset for the
                 corresponding batch entries where `done` is True. Requires
-                ``sequenced`` to be True. Defaults to None.
-            sequenced (bool):
+                ``sequential`` to be True. Defaults to None.
+            sequential (bool):
                 If True, the input is treated as a sequences. Otherwise, it's
                 treated as a single batch of data. Defaults to True.
             pack_sequence (bool):
@@ -116,29 +116,29 @@ class Rnn(Module):
 
         Outputs:
             - **output** (Tensor):
-                The output tensor of shape :math:`(L, ..., N, Co)` if sequenced
+                The output tensor of shape :math:`(L, ..., N, Co)` if sequential
                 else :math:`(..., N, Co)`, where :math:`Co` is the output
                 channel dimension.
             - **memory** (Memory):
                 The updated recurrent state.
         """
         if done is not None:
-            if not sequenced:
-                raise ValueError("`done` can only be provided when `sequenced` is True.")
+            if not sequential:
+                raise ValueError("`done` can only be provided when `sequential` is True.")
             latent, memory = self._forward_rnn_sequence(input, memory, done, pack_sequence=pack_sequence)
         else:
-            latent, memory = self._forward_rnn_tensor(input, memory, sequenced=sequenced)
+            latent, memory = self._forward_rnn_tensor(input, memory, sequential=sequential)
         return self.output_proj(latent), memory
 
     def _forward_rnn_tensor(
         self,
         input: Tensor,
         memory: Memory = None,
-        sequenced: bool = True,
+        sequential: bool = True,
     ) -> tuple[Tensor, Memory]:
-        reshaped_input, reshaped_memory = self._reshape_input(input, memory, sequenced=sequenced)
+        reshaped_input, reshaped_memory = self._reshape_input(input, memory, sequential=sequential)
         reshaped_latent, reshaped_output_memory = self.rnn(reshaped_input, reshaped_memory)
-        return self._reshape_output(reshaped_latent, reshaped_output_memory, input.shape, sequenced=sequenced)
+        return self._reshape_output(reshaped_latent, reshaped_output_memory, input.shape, sequential=sequential)
 
     def _forward_rnn_sequence(
         self,
@@ -175,16 +175,16 @@ class Rnn(Module):
         self,
         input: Tensor,
         memory: Memory,
-        sequenced: bool = True,
+        sequential: bool = True,
     ) -> tuple[Tensor, Memory]:
         if input.dim() < 3:
             # ( C )    -> ( 1, 1, C )
             # ( N, C ) -> ( 1, N, C )
             input = input.reshape(1, -1, input.size(-1))
         if input.dim() >= 3:
-            # ( L, N, C )    -> ( L, N, C )     if sequenced else ( 1, L * N, C )
-            # ( L, R, N, C ) -> ( L, R * N, C ) if sequenced else ( 1, L * R * N, C )
-            input = input.reshape(input.size(0) if sequenced else 1, -1, input.size(-1))
+            # ( L, N, C )    -> ( L, N, C )     if sequential else ( 1, L * N, C )
+            # ( L, R, N, C ) -> ( L, R * N, C ) if sequential else ( 1, L * R * N, C )
+            input = input.reshape(input.size(0) if sequential else 1, -1, input.size(-1))
             if memory is not None:
                 memory = map_nested(lambda m: m.flatten(1, -2), memory)
         return input, memory
@@ -194,21 +194,21 @@ class Rnn(Module):
         output: Tensor,
         memory: Memory,
         original_input_shape: tuple[int, ...],
-        sequenced: bool = True,
+        sequential: bool = True,
     ) -> tuple[Tensor, Memory]:
         output = output.reshape(*original_input_shape[:-1], output.size(-1))
         if memory is not None and len(original_input_shape) >= 3:
             memory = map_nested(
-                lambda m: m.unflatten(-2, original_input_shape[1 if sequenced else 0 : -1]),
+                lambda m: m.unflatten(-2, original_input_shape[1 if sequential else 0 : -1]),
                 memory,
             )
         return output, memory
 
-    def step_memory(self, input: Tensor, memory: Memory = None, sequenced: bool = True, **kwargs):
+    def step_memory(self, input: Tensor, memory: Memory = None, sequential: bool = True, **kwargs):
         original_input_shape = input.shape
-        input, memory = self._reshape_input(input, memory, sequenced=sequenced)
+        input, memory = self._reshape_input(input, memory, sequential=sequential)
         latent, memory = self.rnn(input, memory)
-        _, memory = self._reshape_output(latent, memory, original_input_shape, sequenced=sequenced)
+        _, memory = self._reshape_output(latent, memory, original_input_shape, sequential=sequential)
         return memory
 
 

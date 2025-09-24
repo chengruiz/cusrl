@@ -44,7 +44,7 @@ class ValueComputation(Hook[ActorCritic]):
         critic = self.agent.critic
         state = cast(Tensor, get_first(transition, "state", "observation"))
         with self.agent.autocast():
-            value, next_critic_memory = critic(state, memory=self._critic_memory, sequenced=False)
+            value, next_critic_memory = critic(state, memory=self._critic_memory, sequential=False)
 
         transition["value"] = value
         transition["critic_memory"] = self._critic_memory
