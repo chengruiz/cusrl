@@ -250,11 +250,10 @@ class MultiheadCrossAttention(nn.Module):
             assert isinstance(attn_out, Tensor)
         else:
             # Fallback to PyTorch's scaled_dot_product_attention
-            q = q.to(self.dtype)
             k, v = kv.to(self.dtype).unbind(dim=-3)
 
             attn_out = torch.nn.functional.scaled_dot_product_attention(
-                q.transpose(-2, -3),
+                q.to(self.dtype).transpose(-2, -3),
                 k.transpose(-2, -3),
                 v.transpose(-2, -3),
                 dropout_p=self.dropout if self.training else 0.0,
