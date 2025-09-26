@@ -130,6 +130,8 @@ class GraphBuilder(nn.Module):
         dynamo: bool = False,
         optimize: bool = True,
         verbose: bool = True,
+        opset_version: int | None = None,
+        **kwargs: Any,
     ):
         self.eval()
 
@@ -148,13 +150,15 @@ class GraphBuilder(nn.Module):
             verbose=verbose,
             input_names=input_names,
             output_names=output_names,
-            external_data=False,
+            opset_version=opset_version,
             dynamic_axes=None,
             dynamo=dynamo,
+            external_data=False,
             report=verbose,
             optimize=False,
             verify=True,
             artifacts_dir=output_dir,
+            **kwargs,
         )
 
         # Save additional information

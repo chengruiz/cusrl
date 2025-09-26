@@ -24,6 +24,8 @@ def configure_parser(parser):
                         help="Whether to suppress output messages")
     parser.add_argument("--batch-size", type=int, default=1, metavar="N",
                         help="Batch size for the exported model")
+    parser.add_argument("--opset-version", type=int, default=None, metavar="N",
+                        help="ONNX opset version to use for export")
     parser.add_argument("--dynamo", action="store_true",
                         help="Whether to use PyTorch Dynamo for onnx export")
     parser.add_argument("--load-experiment-spec", action="store_true",
@@ -57,6 +59,7 @@ def main(args):
         target_format=args.format,
         optimize=args.optimize,
         batch_size=args.batch_size,
+        opset_version=args.opset_version,
         dynamo=args.dynamo,
         verbose=not args.silent,
     )

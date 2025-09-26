@@ -321,6 +321,7 @@ class ActorCritic(Agent):
         target_format: Literal["onnx", "jit"] = "onnx",
         optimize: bool = True,
         batch_size: int = 1,
+        opset_version: int | None = None,
         dynamo: bool = False,
         verbose: bool = True,
         **kwargs,
@@ -380,7 +381,14 @@ class ActorCritic(Agent):
             )
 
         if target_format == "onnx":
-            graph.export_onnx(inputs, output_dir, optimize=optimize, dynamo=dynamo, verbose=verbose)
+            graph.export_onnx(
+                inputs,
+                output_dir,
+                optimize=optimize,
+                dynamo=dynamo,
+                verbose=verbose,
+                opset_version=opset_version,
+            )
         elif target_format == "jit":
             graph.export_jit(inputs, output_dir, optimize=optimize)
         else:
