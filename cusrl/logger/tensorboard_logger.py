@@ -41,13 +41,13 @@ class Tensorboard(Logger):
     ):
         from torch.utils.tensorboard import SummaryWriter
 
-        self.provider = SummaryWriter(log_dir=self.log_dir, **kwargs)
         super().__init__(
             log_dir=log_dir,
             name=name,
             interval=interval,
             add_datetime_prefix=add_datetime_prefix,
         )
+        self.provider = SummaryWriter(log_dir=self.log_dir, **kwargs)
 
     def _log_impl(self, data: dict[str, float], iteration: int):
         for key, val in data.items():
