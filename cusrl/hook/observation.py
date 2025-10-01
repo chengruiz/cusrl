@@ -10,7 +10,36 @@ from cusrl.module.normalizer import mean_var_count
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.typing import Slice
 
-__all__ = ["ObservationNormalization"]
+__all__ = ["ObservationNanToZero", "ObservationNormalization"]
+
+
+class ObservationNanToZero(Hook[ActorCritic]):
+    """Replaces NaN values with zero in observations and states.
+
+    This hook sanitizes incoming tensors to prevent NaNs from propagating
+    through the pipeline. It operates in-place on the following fields when
+    present:
+
+    - ``"observation"`` and ``"state"`` during :func:`pre_act`;
+    - ``"next_observation"`` and ``"next_state"`` during :func:`post_step`.
+    """
+
+    @staticmethod
+    def nan_to_zero_(tensor: Tensor | None):
+        if tensor is not None:
+            tensor.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
+
+    def pre_act(self, transition):
+        observation = transition.get("observation")
+        state = transition.get("state")
+        self.nan_to_zero_(cast(Tensor | None, observation))
+        self.nan_to_zero_(cast(Tensor | None, state))
+
+    def post_step(self, transition):
+        next_observation = transition.get("next_observation")
+        next_state = transition.get("next_state")
+        self.nan_to_zero_(cast(Tensor | None, next_observation))
+        self.nan_to_zero_(cast(Tensor | None, next_state))
 
 
 class ObservationNormalization(Hook[ActorCritic]):
