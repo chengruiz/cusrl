@@ -10,6 +10,7 @@ from cusrl.module import GraphBuilder
 from cusrl.template.agent import AgentType
 from cusrl.template.buffer import Buffer
 from cusrl.utils import distributed
+from cusrl.utils.aliased_dict import AliasedDict
 from cusrl.utils.misc import MISSING
 from cusrl.utils.str_utils import camel_to_snake
 from cusrl.utils.typing import NestedTensor
@@ -197,29 +198,29 @@ class Hook(Generic[AgentType]):
         """Called after the agent's modules and optimizers are fully
         initialized."""
 
-    def pre_act(self, transition: dict[str, NestedTensor]):
+    def pre_act(self, transition: AliasedDict[str, NestedTensor]):
         """Called before the agent's actor takes an action.
 
         Args:
-            transition (dict[str, NestedTensor]):
+            transition (AliasedDict[str, NestedTensor]):
                 The transition dictionary, which contains the observation,
                 state and other information.
         """
 
-    def post_act(self, transition: dict[str, NestedTensor]):
+    def post_act(self, transition: AliasedDict[str, NestedTensor]):
         """Called after the agent's actor takes an action.
 
         Args:
-            transition (dict[str, NestedTensor]):
+            transition (AliasedDict[str, NestedTensor]):
                 The transition dictionary, which contains the observation,
                 state, action and other information.
         """
 
-    def post_step(self, transition: dict[str, NestedTensor]):
+    def post_step(self, transition: AliasedDict[str, NestedTensor]):
         """Called after the agent takes a step in the environment.
 
         Args:
-            transition:
+            transition (AliasedDict[str, NestedTensor]):
                 The transition dictionary, which contains the full transition
                 information.
         """

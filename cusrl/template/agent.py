@@ -11,6 +11,7 @@ from typing_extensions import Self
 import cusrl
 from cusrl.template.environment import Environment
 from cusrl.utils import Metrics, distributed
+from cusrl.utils.aliased_dict import AliasedDict
 from cusrl.utils.typing import Array, ArrayType, ListOrTuple, Nested, NestedArray, NestedTensor
 
 __all__ = ["Agent", "AgentType", "AgentFactory"]
@@ -129,7 +130,7 @@ class Agent(ABC):
         self.inference_mode = False
         self.deterministic = False
 
-        self.transition = {}
+        self.transition = AliasedDict()
         self.metrics = Metrics()
         self.iteration = 0
         self.step_index = 0

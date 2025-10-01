@@ -135,12 +135,12 @@ class ObservationNormalization(Hook[ActorCritic]):
         if self._last_done is None or not self.agent.environment_spec.final_state_is_missing:
             self._update_rms(observation, state, self._last_done)
 
-        transition["original_observation"] = observation
-        transition["observation"] = self.observation_rms.normalize(observation)
+        transition["normalized_observation"] = self.observation_rms.normalize(observation)
+        transition.register_alias("observation", "normalized_observation")
         if self.state_rms is not None:
             assert state is not None
-            transition["original_state"] = state
-            transition["state"] = self.state_rms.normalize(state)
+            transition["normalized_state"] = self.state_rms.normalize(state)
+            transition.register_alias("state", "normalized_state")
 
     def post_step(self, transition):
         next_observation = cast(Tensor, transition["next_observation"])
@@ -148,12 +148,12 @@ class ObservationNormalization(Hook[ActorCritic]):
         self._update_rms(next_observation, next_state)
         self._last_done = cast(Tensor, transition["done"]).squeeze(-1)
 
-        transition["original_next_observation"] = next_observation
-        transition["next_observation"] = self.observation_rms.normalize(next_observation)
+        transition["normalized_next_observation"] = self.observation_rms.normalize(next_observation)
+        transition.register_alias("next_observation", "normalized_next_observation")
         if self.state_rms is not None:
             assert next_state is not None
-            transition["original_next_state"] = next_state
-            transition["next_state"] = self.state_rms.normalize(next_state)
+            transition["normalized_next_state"] = self.state_rms.normalize(next_state)
+            transition.register_alias("next_state", "normalized_next_state")
 
     def _make_rms(
         self,
@@ -219,15 +219,25 @@ class ObservationNormalization(Hook[ActorCritic]):
 
     def objective(self, batch):
         if self.renormalize:
-            original_observation = cast(Tensor, batch["original_observation"])
-            original_next_observation = cast(Tensor, batch["original_next_observation"])
+            original_observation = cast(Tensor, batch["observation"])
+            original_next_observation = cast(Tensor, batch["next_observation"])
             batch["observation"] = self.observation_rms.normalize(original_observation)
             batch["next_observation"] = self.observation_rms.normalize(original_next_observation)
+            batch.pop("normalized_observation")
+            batch.pop("normalized_next_observation")
             if self.state_rms is not None:
                 original_state = cast(Tensor, batch["original_state"])
                 original_next_state = cast(Tensor, batch["original_next_state"])
                 batch["state"] = self.state_rms.normalize(original_state)
                 batch["next_state"] = self.state_rms.normalize(original_next_state)
+                batch.pop("normalized_state")
+                batch.pop("normalized_next_state")
+        else:
+            batch["observation"] = batch.pop("normalized_observation")
+            batch["next_observation"] = batch.pop("normalized_next_observation")
+            if self.state_rms is not None:
+                batch["state"] = batch.pop("normalized_state")
+                batch["next_state"] = batch.pop("normalized_next_state")
 
     def pre_export(self, graph: GraphBuilder):
         graph.add_node(

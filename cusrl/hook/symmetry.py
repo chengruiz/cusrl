@@ -174,10 +174,15 @@ class SymmetricDataAugmentation(SymmetryHook):
         augments_value (bool, optional):
             Whether to augment the value function with mirrored transitions.
             Defaults to ``True``.
+        recompute (bool, optional):
+            Whether to recompute the augmented observations and actions during
+            the objective computation. If ``False``, the augmented data from the
+            transition is used directly. Defaults to ``False``.
     """
 
-    def __init__(self, augments_value: bool = True):
+    def __init__(self, augments_value: bool = True, recompute: bool = False):
         self.augments_value = augments_value
+        self.recompute = recompute
         super().__init__()
 
         # Runtime attributes
@@ -193,12 +198,14 @@ class SymmetricDataAugmentation(SymmetryHook):
     def post_step(self, transition):
         # Augment observation and next_observation
         observation = cast(Tensor, transition["observation"])
-        mirrored_observation, transition["augmented_observation"] = self._build_augmented_tensor(
-            observation, self.mirror_observation
-        )
-        _, transition["augmented_next_observation"] = self._build_augmented_tensor(
-            cast(Tensor, transition["next_observation"]), self.mirror_observation
-        )
+        mirrored_observation, augmented_observation = self._build_augmented_tensor(observation, self.mirror_observation)
+        transition["augmented_observation"] = augmented_observation
+        transition.register_alias("observation", "augmented_observation")
+
+        next_observation = cast(Tensor, transition["next_observation"])
+        _, augmented_next_observation = self._build_augmented_tensor(next_observation, self.mirror_observation)
+        transition["augmented_next_observation"] = augmented_next_observation
+        transition.register_alias("next_observation", "augmented_next_observation")
 
         # Augment state and next_state if available
         if (state := cast(torch.Tensor | None, transition.get("state"))) is not None:
@@ -211,9 +218,9 @@ class SymmetricDataAugmentation(SymmetryHook):
             mirrored_state = mirrored_observation
 
         # Augment action
-        _, transition["augmented_action"] = self._build_augmented_tensor(
-            cast(Tensor, transition["action"]), self.mirror_action
-        )
+        action = cast(Tensor, transition["action"])
+        _, transition["augmented_action"] = self._build_augmented_tensor(action, self.mirror_action)
+        transition.register_alias("action", "augmented_action")
 
         # Augment memory for actor
         actor, critic = self.agent.actor, self.agent.critic
@@ -224,6 +231,7 @@ class SymmetricDataAugmentation(SymmetryHook):
                     cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["actor_memory"])),
                     self.mirrored_actor_memory,
                 )
+                transition.register_alias("actor_memory", "augmented_actor_memory")
             self.mirrored_actor_memory = actor.step_memory(
                 mirrored_observation, self.mirrored_actor_memory, sequential=False
             )
@@ -236,19 +244,34 @@ class SymmetricDataAugmentation(SymmetryHook):
                     cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["critic_memory"])),
                     self.mirrored_critic_memory,
                 )
+                transition.register_alias("critic_memory", "augmented_critic_memory")
             self.mirrored_critic_memory = critic.step_memory(
                 mirrored_state, self.mirrored_critic_memory, sequential=False
             )
             critic.reset_memory(self.mirrored_critic_memory, done)
 
     def objective(self, batch):
-        augmented_observation = cast(Tensor, batch["augmented_observation"])
-        batch["observation"] = augmented_observation
-        batch["next_observation"] = batch["augmented_next_observation"]
-        batch["action"] = batch["augmented_action"]
-        if self.agent.has_state:
-            batch["state"] = batch["augmented_state"]
-            batch["next_state"] = batch["augmented_next_state"]
+        if self.recompute:
+            observation = cast(Tensor, batch["observation"])
+            _, augmented_observation = self._build_augmented_tensor(observation, self.mirror_observation)
+            batch["observation"] = augmented_observation
+            _, batch["next_observation"] = self._build_augmented_tensor(
+                cast(Tensor, batch["next_observation"]), self.mirror_observation
+            )
+            if self.agent.has_state:
+                assert self.mirror_state is not None
+                _, batch["state"] = self._build_augmented_tensor(cast(Tensor, batch["state"]), self.mirror_state)
+                _, batch["next_state"] = self._build_augmented_tensor(
+                    cast(Tensor, batch["next_state"]), self.mirror_state
+                )
+        else:
+            augmented_observation = cast(Tensor, batch["augmented_observation"])
+            batch["observation"] = batch.pop("augmented_observation")
+            batch["next_observation"] = batch.pop("augmented_next_observation")
+            batch["action"] = batch.pop("augmented_action")
+            if self.agent.has_state:
+                batch["state"] = batch.pop("augmented_state")
+                batch["next_state"] = batch.pop("augmented_next_state")
 
         for key in ("action_logp", "advantage"):
             original = cast(Tensor, batch[key])
