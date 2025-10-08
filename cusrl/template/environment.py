@@ -86,12 +86,18 @@ class EnvironmentSpec:
             scale` prepended to the critic upon export. (not implemented yet)
 
         # Observation / state online normalization
+        observation_normalization_excluded_indices (Slice | None):
+            Indices of observation dimensions that are excluded from online
+            normalization.
         observation_is_subset_of_state (Array | Slice | None):
             Definition of the one-to-one correspondence relationship from state
             to observation.
         observation_stat_groups (Iterable[Slice]):
             Indices of observation dimensions that shares statistical properties
             during online normalization.
+        state_normalization_excluded_indices (Slice | None):
+            Indices of state dimensions that are excluded from online
+            normalization.
         state_stat_groups (Iterable[Slice]):
             Indices of state dimensions that shares statistical properties
             during online normalization.
@@ -124,11 +130,13 @@ class EnvironmentSpec:
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Iterable[Slice] = (),
         observation_normalization: tuple[Array, Array] | None = None,
+        observation_normalization_excluded_indices: Slice | None = None,
         observation_space: gym.spaces.Space | None = None,
         reward_dim: int = 1,
         state_dim: int | None = None,
         state_stat_groups: Iterable[Slice] = (),
         state_normalization: tuple[Array, Array] | None = None,
+        state_normalization_excluded_indices: Slice | None = None,
         timestep: float | None = None,
         **kwargs,
     ):
@@ -147,11 +155,13 @@ class EnvironmentSpec:
         self.observation_is_subset_of_state = observation_is_subset_of_state
         self.observation_stat_groups = tuple(observation_stat_groups)
         self.observation_normalization = observation_normalization
+        self.observation_normalization_excluded_indices = observation_normalization_excluded_indices
         self.observation_space = observation_space
         self.reward_dim = reward_dim
         self.state_dim = state_dim
         self.state_stat_groups = tuple(state_stat_groups)
         self.state_normalization = state_normalization
+        self.state_normalization_excluded_indices = state_normalization_excluded_indices
         self.timestep = timestep
         self.extras = kwargs
 

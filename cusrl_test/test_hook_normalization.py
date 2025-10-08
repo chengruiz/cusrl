@@ -80,10 +80,12 @@ def test_observation_normalization_with_observation_is_subset_of_state(env):
         assert torch.allclose(var, sliced_var)
 
 
-def test_observation_normalization_with_stat_group():
+def test_observation_normalization_with_groups_and_excluded_indices():
     env = create_dummy_env(with_state=True)
     env.spec.observation_stat_groups = (slice(8, 16),)
     env.spec.state_stat_groups = ((0, 3), slice(16, 24))
+    env.spec.observation_normalization_excluded_indices = slice(4, 8)
+    env.spec.state_normalization_excluded_indices = (4, 5, 6)
     agent = train_agent_with_observation_normalization(env)
     hook = agent.hook["observation_normalization"]
 
@@ -98,3 +100,14 @@ def test_observation_normalization_with_stat_group():
         var = hook.state_rms.var[indices,]
         assert torch.allclose(mean, mean)
         assert torch.allclose(var, var)
+
+    excluded_indices = env.spec.observation_normalization_excluded_indices
+    excluded_mean = hook.observation_rms.mean[excluded_indices,]
+    excluded_var = hook.observation_rms.var[excluded_indices,]
+    assert torch.allclose(excluded_mean, torch.zeros_like(excluded_mean))
+    assert torch.allclose(excluded_var, torch.ones_like(excluded_var))
+    excluded_indices = env.spec.state_normalization_excluded_indices
+    excluded_mean = hook.state_rms.mean[excluded_indices,]
+    excluded_var = hook.state_rms.var[excluded_indices,]
+    assert torch.allclose(excluded_mean, torch.zeros_like(excluded_mean))
+    assert torch.allclose(excluded_var, torch.ones_like(excluded_var))

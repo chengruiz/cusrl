@@ -120,6 +120,9 @@ class RunningMeanStd(nn.Module):
         groups (Iterable[Slice], optional):
             Indices of channel dimensions that share the same statistics.
             Defaults to ``()``.
+        excluded_indices (Slice | None, optional):
+            Indices of channel dimensions that are excluded from normalization.
+            Defaults to ``None``.
         clamp (float | None, optional):
             If not ``None``, the normalized output will be clamped to the range
             ``[-clamp, clamp]``. Defaults to ``10.0``.
@@ -150,6 +153,7 @@ class RunningMeanStd(nn.Module):
         num_channels: int,
         *,
         groups: Iterable[Slice] = (),
+        excluded_indices: Slice | None = None,
         clamp: float | None = 10.0,
         max_count: int | None = None,
         epsilon: float = 1e-8,
@@ -159,6 +163,7 @@ class RunningMeanStd(nn.Module):
         if max_count is not None and max_count <= 0:
             raise ValueError("'max_count' should be None or positive.")
         self.groups = tuple(groups)
+        self.excluded_indices = excluded_indices
         self.clamp = clamp
         self.max_count = max_count
         self.epsilon = epsilon
@@ -223,7 +228,7 @@ class RunningMeanStd(nn.Module):
             batch_mean, batch_var, batch_count = synchronize_mean_var_count(batch_mean, batch_var, batch_count)
         if batch_count == 0:
             return
-        self._average_intra_group(batch_mean, batch_var)
+        self._process_mean_var(batch_mean, batch_var)
         self._update_mean_var(batch_mean, batch_var, batch_count)
         self.std.copy_(torch.sqrt(self.var + self.epsilon))
         self.count += batch_count
@@ -282,17 +287,19 @@ class RunningMeanStd(nn.Module):
     def to_distributed(self):
         return self
 
-    def _update_mean_var(self, batch_mean: Tensor, batch_var: Tensor, batch_count: int):
-        merge_mean_var_(self.mean, self.var, self.count, batch_mean, batch_var, batch_count)
-
-    def _average_intra_group(self, batch_mean: Tensor, batch_var: Tensor):
-        """Collapse the statistics within dimensions in registered groups."""
+    def _process_mean_var(self, batch_mean: Tensor, batch_var: Tensor):
+        if self.excluded_indices is not None:
+            batch_mean[self.excluded_indices,] = 0.0
+            batch_var[self.excluded_indices,] = 1.0
         for indices in self.groups:
             group_mean = batch_mean[indices,].mean()
             group_squared_mean = batch_mean[indices,].square().mean()
             group_var = batch_var[indices,].mean() - group_mean.square() + group_squared_mean
             batch_mean[indices,] = group_mean
             batch_var[indices,] = group_var
+
+    def _update_mean_var(self, batch_mean: Tensor, batch_var: Tensor, batch_count: int):
+        merge_mean_var_(self.mean, self.var, self.count, batch_mean, batch_var, batch_count)
 
     def get_extra_state(self) -> Any:
         return torch.tensor(self.count, dtype=torch.int64)
@@ -311,13 +318,20 @@ class ExponentialMovingNormalizer(RunningMeanStd):
         alpha: float,
         *,
         groups: Iterable[Slice] = (),
+        excluded_indices: Slice | None = None,
         warmup: bool = False,
         clamp: float | None = 10.0,
         epsilon: float = 1e-8,
     ):
         if not (0 < alpha <= 1):
             raise ValueError("'alpha' must be in the range (0, 1].")
-        super().__init__(num_channels, groups=groups, clamp=clamp, epsilon=epsilon)
+        super().__init__(
+            num_channels,
+            groups=groups,
+            excluded_indices=excluded_indices,
+            clamp=clamp,
+            epsilon=epsilon,
+        )
         self.alpha = alpha
         self.warmup = warmup
 

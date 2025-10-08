@@ -123,6 +123,7 @@ class ObservationNormalization(Hook[ActorCritic]):
                 observation_dim,
                 max_count=self.max_count,
                 groups=spec.observation_stat_groups,
+                excluded_indices=spec.observation_normalization_excluded_indices,
             )
             self.register_module("observation_rms", observation_rms)
 
@@ -131,6 +132,7 @@ class ObservationNormalization(Hook[ActorCritic]):
                 self.agent.state_dim,
                 max_count=self.max_count,
                 groups=spec.state_stat_groups,
+                excluded_indices=spec.state_normalization_excluded_indices,
             )
             self.register_module("state_rms", state_rms)
         else:
