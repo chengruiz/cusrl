@@ -114,7 +114,7 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             old_mean, old_std = old_value_rms.mean, old_value_rms.std
             # Adjust value head weights and biases
             new_mean, new_std = self.value_rms.mean, self.value_rms.std
-            value_head = self.agent.critic.value_head
+            value_head = cast(torch.nn.Linear, self.agent.critic.value_head)
             value_head.weight.data.mul_(old_std / new_std)
             value_head.bias.data.mul_(old_std).add_(old_mean).sub_(new_mean).div_(new_std)
             old_value_rms.load_state_dict(self.value_rms.state_dict())
