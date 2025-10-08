@@ -105,29 +105,36 @@ class ObservationNormalization(Hook[ActorCritic]):
 
     def init(self):
         # Retrieve and normalize the subset index spec
-        env_spec = self.agent.environment_spec
-        observation_is_subset_of_state = env_spec.observation_is_subset_of_state
-        if observation_is_subset_of_state is not None:
+        spec = self.agent.environment_spec
+        observation_dim = self.agent.observation_dim
+        self._mirror_observation = spec.mirror_observation
+        self._mirror_state = spec.mirror_state
+
+        if (observation_is_subset_of_state := spec.observation_is_subset_of_state) is not None:
             if not self.agent.has_state:
                 raise ValueError("'observation_is_subset_of_state' is set but state is not defined.")
             # Convert numpy or list indices to a tensor for consistent indexing
             if isinstance(observation_is_subset_of_state, (np.ndarray, Sequence)):
                 observation_is_subset_of_state = self.agent.to_tensor(np.asarray(observation_is_subset_of_state))
-        self._observation_is_subset_of_state = observation_is_subset_of_state
-
-        observation_dim = self.agent.observation_dim
-        if self._observation_is_subset_of_state is not None:
-            self.register_module("observation_rms", self._make_rms(observation_dim))
+            self._observation_is_subset_of_state = observation_is_subset_of_state
+            self.register_module("observation_rms", RunningMeanStd(observation_dim))
         else:
-            observation_rms = self._make_rms(observation_dim, self.max_count, env_spec.observation_stat_groups)
+            observation_rms = RunningMeanStd(
+                observation_dim,
+                max_count=self.max_count,
+                groups=spec.observation_stat_groups,
+            )
             self.register_module("observation_rms", observation_rms)
+
         if self.agent.has_state:
-            state_rms = self._make_rms(self.agent.state_dim, self.max_count, env_spec.state_stat_groups)
+            state_rms = RunningMeanStd(
+                self.agent.state_dim,
+                max_count=self.max_count,
+                groups=spec.state_stat_groups,
+            )
             self.register_module("state_rms", state_rms)
         else:
             self.state_rms = None
-        self._mirror_observation = env_spec.mirror_observation
-        self._mirror_state = env_spec.mirror_state
 
     def pre_act(self, transition):
         observation = cast(Tensor, transition["observation"])
@@ -154,17 +161,6 @@ class ObservationNormalization(Hook[ActorCritic]):
             assert next_state is not None
             transition["original_next_state"] = next_state
             transition["next_state"] = self.state_rms.normalize(next_state)
-
-    def _make_rms(
-        self,
-        num_channels: int,
-        max_count: int | None = None,
-        stat_groups: tuple[tuple[int, int], ...] = (),
-    ):
-        normalizer = RunningMeanStd(num_channels, max_count=max_count).to(self.agent.device)
-        for group in stat_groups:
-            normalizer.register_stat_group(*group)
-        return normalizer
 
     def _update_rms(
         self,

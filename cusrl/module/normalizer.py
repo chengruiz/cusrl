@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any, overload
 
 import numpy as np
@@ -5,7 +6,7 @@ import torch
 from torch import Tensor, nn
 
 from cusrl.utils import distributed
-from cusrl.utils.typing import ArrayType
+from cusrl.utils.typing import ArrayType, Slice
 
 __all__ = [
     "ExponentialMovingNormalizer",
@@ -106,12 +107,49 @@ def merge_mean_var_(
 class RunningMeanStd(nn.Module):
     """Tracks the running mean and standard deviation of a datastream.
     See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm.
+
+    This module is used to normalize data based on statistics collected from
+    previously seen data. It supports distributed training by synchronizing
+    statistics across multiple processes. It also allows for grouping channels
+    to share the same running statistics, which can be useful for features that
+    should be normalized together.
+
+    Args:
+        num_channels (int):
+            The number of channels of the input data.
+        groups (Iterable[Slice], optional):
+            Indices of channel dimensions that share the same statistics.
+            Defaults to ``()``.
+        clamp (float | None, optional):
+            If not ``None``, the normalized output will be clamped to the range
+            ``[-clamp, clamp]``. Defaults to ``10.0``.
+        max_count (int | None, optional):
+            If not ``None``, the count will be capped to this value. Defaults to
+            ``None``.
+        epsilon (float, optional):
+            A small value added to the variance to avoid division by zero.
+            Defaults to ``1e-8``.
+
+    Attributes:
+        mean (Tensor):
+            The running mean, shape :math:`(C,)`, where :math:`C` is the number of channels.
+        var (Tensor):
+            The running variance, shape :math:`(C,)`.
+        std (Tensor):
+            The running standard deviation, shape :math:`(C,)`.
+        count (int):
+            The number of samples seen so far.
+
+    Raises:
+        ValueError: If `clamp` or `max_count` is non-positive.
+        ValueError: If `groups` contain overlapping indices.
     """
 
     def __init__(
         self,
         num_channels: int,
         *,
+        groups: Iterable[Slice] = (),
         clamp: float | None = 10.0,
         max_count: int | None = None,
         epsilon: float = 1e-8,
@@ -120,13 +158,18 @@ class RunningMeanStd(nn.Module):
             raise ValueError("'clamp' should be None or positive.")
         if max_count is not None and max_count <= 0:
             raise ValueError("'max_count' should be None or positive.")
+        self.groups = tuple(groups)
         self.clamp = clamp
         self.max_count = max_count
         self.epsilon = epsilon
-        self.groups = []
+
+        dummy_input = torch.zeros(num_channels, dtype=torch.int64)
+        for indices in self.groups:
+            dummy_input[indices,] += 1
+        if torch.any(dummy_input > 1):
+            raise ValueError("Overlapping indices in 'groups' are not allowed.")
 
         super().__init__()
-
         self.mean: Tensor
         self.var: Tensor
         self.std: Tensor
@@ -143,12 +186,6 @@ class RunningMeanStd(nn.Module):
         self.var.fill_(1.0)
         self.std.fill_(1.0)
         self.count = 0
-        self.groups.clear()
-
-    def register_stat_group(self, start_index: int, end_index: int):
-        """Registers a group of indices where statistics will be shared and
-        averaged during updates."""
-        self.groups.append((start_index, end_index))
 
     def update(
         self,
@@ -250,12 +287,12 @@ class RunningMeanStd(nn.Module):
 
     def _average_intra_group(self, batch_mean: Tensor, batch_var: Tensor):
         """Collapse the statistics within dimensions in registered groups."""
-        for start, end in self.groups:
-            group_mean = batch_mean[start:end].mean()
-            group_squared_mean = batch_mean[start:end].square().mean()
-            group_var = batch_var[start:end].mean() - group_mean.square() + group_squared_mean
-            batch_mean[start:end] = group_mean
-            batch_var[start:end] = group_var
+        for indices in self.groups:
+            group_mean = batch_mean[indices,].mean()
+            group_squared_mean = batch_mean[indices,].square().mean()
+            group_var = batch_var[indices,].mean() - group_mean.square() + group_squared_mean
+            batch_mean[indices,] = group_mean
+            batch_var[indices,] = group_var
 
     def get_extra_state(self) -> Any:
         return torch.tensor(self.count, dtype=torch.int64)
@@ -273,13 +310,14 @@ class ExponentialMovingNormalizer(RunningMeanStd):
         num_channels: int,
         alpha: float,
         *,
+        groups: Iterable[Slice] = (),
         warmup: bool = False,
         clamp: float | None = 10.0,
         epsilon: float = 1e-8,
     ):
         if not (0 < alpha <= 1):
             raise ValueError("'alpha' must be in the range (0, 1].")
-        super().__init__(num_channels, clamp=clamp, epsilon=epsilon)
+        super().__init__(num_channels, groups=groups, clamp=clamp, epsilon=epsilon)
         self.alpha = alpha
         self.warmup = warmup
 

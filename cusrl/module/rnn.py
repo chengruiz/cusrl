@@ -322,8 +322,8 @@ def scatter_memory(memory: Memory, done: Tensor) -> Memory:
 
     Returns:
         memory (Memory):
-            The scattered memory tensor(s) with shape :math:`(..., Ns, C)`,
-            where `Ns` is the number of contiguous sequences in the batch.
+            The scattered memory tensor(s) of shape :math:`(..., Ns, C)`, where
+            :math:`Ns` is the number of contiguous sequences in the batch.
     """
     if memory is None:
         return None

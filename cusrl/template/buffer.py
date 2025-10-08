@@ -180,7 +180,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
         Raises:
             ValueError:
                 If the passed data does not match the expected shape
-                ([ ..., parallelism, num_channels ]).
+                ( ..., parallelism, num_channels ).
 
         Notes:
             - If the buffer reaches its capacity, it wraps around and starts
@@ -205,7 +205,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
                         storage = self._create_storage(value)
                         self.storage[key] = storage
                     except ValueError as error:
-                        raise ValueError(f"Failed to push field '{key}' with shape '{value.shape}'.") from error
+                        raise ValueError(f"Failed to push field '{key}' of shape '{value.shape}'.") from error
                 storage[self.cursor] = self._as_tensor(value)
 
         self.cursor += 1

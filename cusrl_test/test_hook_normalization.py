@@ -82,21 +82,19 @@ def test_observation_normalization_with_observation_is_subset_of_state(env):
 
 def test_observation_normalization_with_stat_group():
     env = create_dummy_env(with_state=True)
-    env.spec.observation_stat_groups = ((20, 30),)
-    env.spec.state_stat_groups = ((0, 10), (30, 40))
+    env.spec.observation_stat_groups = (slice(8, 16),)
+    env.spec.state_stat_groups = ((0, 3), slice(16, 24))
     agent = train_agent_with_observation_normalization(env)
     hook = agent.hook["observation_normalization"]
 
-    for observation_stat_group in env.spec.observation_stat_groups:
-        subset = slice(*observation_stat_group)
-        mean = hook.observation_rms.mean[subset]
-        var = hook.observation_rms.var[subset]
+    for indices in env.spec.observation_stat_groups:
+        mean = hook.observation_rms.mean[indices,]
+        var = hook.observation_rms.var[indices,]
         assert torch.allclose(mean, mean)
         assert torch.allclose(var, var)
 
-    for state_stat_group in env.spec.state_stat_groups:
-        subset = slice(*state_stat_group)
-        mean = hook.state_rms.mean[subset]
-        var = hook.state_rms.var[subset]
+    for indices in env.spec.state_stat_groups:
+        mean = hook.state_rms.mean[indices,]
+        var = hook.state_rms.var[indices,]
         assert torch.allclose(mean, mean)
         assert torch.allclose(var, var)
