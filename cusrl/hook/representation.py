@@ -13,11 +13,13 @@ __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]
 class ReturnPrediction(Hook[ActorCritic]):
     def __init__(
         self,
+        latent_name: str = "backbone.output",
         weight: float = 0.01,
         predictor_factory: LayerFactoryLike = nn.Linear,
         predicts_value_instead_of_return: bool = False,
     ):
         super().__init__()
+        self.latent_name = latent_name
         self.predictor_factory = predictor_factory
         self.predicts_value_instead_of_return = predicts_value_instead_of_return
 
@@ -34,7 +36,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.criterion = nn.MSELoss()
 
     def objective(self, batch):
-        latent = self.agent.actor.intermediate_repr["backbone.output"]
+        latent = self.agent.actor.intermediate_repr[self.latent_name]
         target = batch["value"] if self.predicts_value_instead_of_return else batch["return"]
         with self.agent.autocast():
             prediction = self.predictor(latent)
@@ -46,7 +48,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         graph.add_node(
             self.predictor,
             module_name="return_predictor",
-            input_names={"input": "actor.backbone.output"},
+            input_names={"input": f"actor.{self.latent_name}"},
             output_names="return_prediction",
             expose_outputs=True,
         )
@@ -56,11 +58,13 @@ class StatePrediction(Hook[ActorCritic]):
     def __init__(
         self,
         target_indices: Slice,
+        latent_name: str = "backbone.output",
         weight: float = 0.01,
         predictor_factory: LayerFactoryLike = nn.Linear,
     ):
         super().__init__()
         self.target_indices = target_indices
+        self.latent_name = latent_name
         self.predictor_factory = predictor_factory
 
         # Mutable attributes
@@ -81,7 +85,7 @@ class StatePrediction(Hook[ActorCritic]):
     def objective(self, batch):
         state = cast(torch.Tensor, batch["state"])
         with self.agent.autocast():
-            latent = self.agent.actor.intermediate_repr["backbone.output"]
+            latent = self.agent.actor.intermediate_repr[self.latent_name]
             target = state[..., self.target_indices]
             state_prediction_loss = self.weight * self.criterion(self.predictor(latent), target)
         self.agent.record(state_prediction_loss=state_prediction_loss)
@@ -91,13 +95,13 @@ class StatePrediction(Hook[ActorCritic]):
         graph.add_node(
             self.predictor,
             module_name="state_predictor",
-            input_names={"input": "actor.backbone.output"},
+            input_names={"input": f"actor.{self.latent_name}"},
             output_names="state_prediction",
             expose_outputs=True,
         )
 
 
-class ActionAwarePredictor(nn.Module):
+class ActionAwarePredictorWrapper(nn.Module):
     def __init__(self, wrapped: nn.Module):
         super().__init__()
         self.wrapped = wrapped
@@ -112,11 +116,13 @@ class NextStatePrediction(Hook[ActorCritic]):
     def __init__(
         self,
         target_indices: Slice,
+        latent_name: str = "backbone.output",
         weight: float = 0.01,
         predictor_factory: LayerFactoryLike = nn.Linear,
     ):
         super().__init__()
         self.target_indices = target_indices
+        self.latent_name = latent_name
         self.predictor_factory = predictor_factory
 
         # Mutable attributes
@@ -132,13 +138,13 @@ class NextStatePrediction(Hook[ActorCritic]):
             raise ValueError("NextStatePrediction: State is not defined for the agent.")
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
         predictor = self.predictor_factory(self.agent.actor.latent_dim + self.agent.action_dim, target_dim)
-        self.register_module("predictor", ActionAwarePredictor(predictor))
+        self.register_module("predictor", ActionAwarePredictorWrapper(predictor))
         self.criterion = nn.MSELoss()
 
     def objective(self, batch):
         next_state = cast(torch.Tensor, batch["next_state"])
         with self.agent.autocast():
-            latent = self.agent.actor.intermediate_repr["backbone.output"]
+            latent = self.agent.actor.intermediate_repr[self.latent_name]
             target = next_state[..., self.target_indices]
             prediction = self.predictor(latent, batch["action"])
             next_state_prediction_loss = self.weight * self.criterion(prediction, target)
@@ -149,7 +155,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         graph.add_node(
             self.predictor,
             module_name="next_state_predictor",
-            input_names={"latent": "actor.backbone.output", "action": "action"},
+            input_names={"latent": f"actor.{self.latent_name}", "action": "action"},
             output_names="next_state_prediction",
             expose_outputs=True,
         )

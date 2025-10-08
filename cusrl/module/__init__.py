@@ -1,4 +1,7 @@
-from .activation import GeGlu, SwiGlu
+from .activation import (
+    GeGlu,
+    SwiGlu,
+)
 from .actor import Actor
 from .bijector import (
     ExponentialBijector,
@@ -7,8 +10,14 @@ from .bijector import (
     SoftplusBijector,
     make_bijector,
 )
-from .causal_attn import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer
-from .cnn import Cnn, SeparableConv2d
+from .causal_attn import (
+    CausalMultiheadSelfAttention,
+    CausalTransformerEncoderLayer,
+)
+from .cnn import (
+    Cnn,
+    SeparableConv2d,
+)
 from .critic import Value
 from .detach_grad import DetachGradient
 from .distribution import (
@@ -31,18 +40,43 @@ from .gate import (
     get_gate_cls,
 )
 from .inference import InferenceModule
-from .mha import MultiheadAttention, MultiheadCrossAttention, MultiheadSelfAttention
+from .mha import (
+    MultiheadAttention,
+    MultiheadCrossAttention,
+    MultiheadSelfAttention,
+)
 from .mlp import Mlp
-from .module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
+from .module import (
+    LayerFactoryLike,
+    Module,
+    ModuleFactory,
+    ModuleFactoryLike,
+)
 from .normal_nll_loss import NormalNllLoss
-from .normalization import Denormalization, Normalization
-from .normalizer import ExponentialMovingNormalizer, RunningMeanStd
+from .normalization import (
+    Denormalization,
+    Normalization,
+)
+from .normalizer import (
+    ExponentialMovingNormalizer,
+    RunningMeanStd,
+)
 from .parameter import ParameterWrapper
-from .rnn import Gru, Lstm, Rnn
+from .rnn import (
+    Gru,
+    Lstm,
+    Rnn,
+)
 from .sequential import Sequential
 from .simba import Simba
-from .stub import StubModule
-from .transformer import FeedForward, TransformerEncoderLayer
+from .stub import (
+    Identity,
+    StubModule,
+)
+from .transformer import (
+    FeedForward,
+    TransformerEncoderLayer,
+)
 
 __all__ = [
     # Simple modules
@@ -60,6 +94,7 @@ __all__ = [
     "Gru",
     "GruGate",
     "HighwayGate",
+    "Identity",
     "IdentityBijector",
     "InferenceModule",
     "InputGate",
