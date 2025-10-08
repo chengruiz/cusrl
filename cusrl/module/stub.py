@@ -9,7 +9,8 @@ __all__ = ["StubModule"]
 
 @dataclass(slots=True)
 class StubModuleFactory(ModuleFactory["StubModule"]):
-    def __call__(self, input_dim: int, output_dim: int | None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None
         return StubModule(input_dim=input_dim, output_dim=output_dim)
 
 

@@ -29,7 +29,7 @@ class RnnFactory(ModuleFactory["Rnn"]):
         self.module_cls: str | type[RnnLike] = module_cls
         self.kwargs = kwargs
 
-    def __call__(self, input_dim: int, output_dim: int | None = None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         # RNN / LSTM / GRU
         module_cls = getattr(nn, self.module_cls) if isinstance(self.module_cls, str) else self.module_cls
         return Rnn(module_cls, input_size=input_dim, output_dim=output_dim, **self.kwargs)
@@ -221,7 +221,8 @@ class LstmFactory(ModuleFactory["Lstm"]):
         for name, value in kwargs.items():
             setattr(self, name, value)
 
-    def __call__(self, input_dim: int, output_dim: int | None = None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None
         return Lstm(input_dim=input_dim, output_dim=output_dim, **self.__dict__)
 
 
@@ -259,7 +260,8 @@ class GruFactory(ModuleFactory["Gru"]):
         for name, value in kwargs.items():
             setattr(self, name, value)
 
-    def __call__(self, input_dim: int, output_dim: int | None = None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None
         return Gru(input_dim=input_dim, output_dim=output_dim, **self.__dict__)
 
 

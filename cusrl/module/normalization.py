@@ -15,7 +15,7 @@ class NormalizationFactory(ModuleFactory["Normalization"]):
     mean: Sequence[float] | np.ndarray | Tensor
     std: Sequence[float] | np.ndarray | Tensor
 
-    def __call__(self, input_dim: int | None, output_dim: int | None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         module = Normalization(torch.as_tensor(self.mean), torch.as_tensor(self.std))
         if input_dim is not None and module.input_dim != input_dim:
             raise ValueError(f"Input dimension mismatch: {module.input_dim} != {input_dim}.")
@@ -57,7 +57,7 @@ class DenormalizationFactory(ModuleFactory["Denormalization"]):
     mean: Sequence[float] | np.ndarray | Tensor
     std: Sequence[float] | np.ndarray | Tensor
 
-    def __call__(self, input_dim: int | None, output_dim: int | None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         module = Denormalization(torch.as_tensor(self.mean), torch.as_tensor(self.std))
         if input_dim is not None and module.input_dim != input_dim:
             raise ValueError(f"Input dimension mismatch: {module.input_dim} != {input_dim}.")

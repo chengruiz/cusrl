@@ -19,7 +19,7 @@ class ValueFactory(ModuleFactory["Value"]):
     latent_dim: int | None = None
     action_aware: bool = False
 
-    def __call__(self, input_dim: int | None, output_dim: int = 1) -> "Value":
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = 1):
         backbone = self.backbone_factory(input_dim, self.latent_dim)
         value_head = self.head_factory(backbone.output_dim, output_dim)
         return Value(backbone, value_head, action_aware=self.action_aware)

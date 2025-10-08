@@ -14,7 +14,8 @@ class SimbaFactory(ModuleFactory["Simba"]):
     num_blocks: int = 1
     activation_fn: str | type[nn.Module] = nn.ReLU
 
-    def __call__(self, input_dim: int, output_dim: int | None = None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None
         return Simba(
             input_dim=input_dim,
             hidden_dim=self.hidden_dim,

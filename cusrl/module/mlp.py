@@ -16,7 +16,8 @@ class MlpFactory(ModuleFactory["Mlp"]):
     ends_with_activation: bool = False
     dropout: float = 0.0
 
-    def __call__(self, input_dim: int, output_dim: int | None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None
         return Mlp(
             input_dim=input_dim,
             output_dim=output_dim,

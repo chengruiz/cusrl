@@ -16,7 +16,7 @@ class ActorFactory(ModuleFactory["Actor"]):
     distribution_factory: DistributionFactoryLike
     latent_dim: int | None = None
 
-    def __call__(self, input_dim: int | None, output_dim: int) -> "Actor":
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         backbone = self.backbone_factory(input_dim, self.latent_dim)
         distribution = self.distribution_factory(backbone.output_dim, output_dim)
         return Actor(backbone, distribution)

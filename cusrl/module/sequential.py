@@ -16,7 +16,7 @@ class SequentialFactory(ModuleFactory["Sequential"]):
     factories: Iterable[ModuleFactory]
     hidden_dims: Iterable[int | None]
 
-    def __call__(self, input_dim: int | None, output_dim: int | None):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         output_dims = list(self.hidden_dims) + [output_dim]
         layers = []
         for factory, output_dim in zip(self.factories, output_dims, strict=True):

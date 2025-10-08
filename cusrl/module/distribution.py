@@ -23,7 +23,7 @@ ParamType = TypeVar("ParamType")
 
 
 class DistributionFactory(ModuleFactory[DistributionType]):
-    def __call__(self, input_dim: int, output_dim: int) -> DistributionType:
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         raise NotImplementedError
 
 
@@ -167,7 +167,7 @@ class Distribution(Module, Generic[ParamType]):
         return self
 
 
-DistributionFactoryLike: TypeAlias = Callable[[int, int], Distribution]
+DistributionFactoryLike: TypeAlias = Callable[[int | None, int | None], Distribution]
 
 
 class DeterministicWrapper(nn.Module):
@@ -235,7 +235,8 @@ class StddevVector(nn.Module):
 class NormalDistFactory(DistributionFactory["NormalDist"]):
     bijector: str | Bijector | None = "exp"
 
-    def __call__(self, input_dim: int, output_dim: int):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None and output_dim is not None
         return NormalDist(input_dim, output_dim, bijector=self.bijector)
 
 
@@ -267,13 +268,9 @@ class AdaptiveNormalDistFactory(DistributionFactory["AdaptiveNormalDist"]):
     bijector: str | Bijector | None = "exp"
     backward: bool = True
 
-    def __call__(self, input_dim: int, output_dim: int):
-        return AdaptiveNormalDist(
-            input_dim,
-            output_dim,
-            bijector=self.bijector,
-            backward=self.backward,
-        )
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None and output_dim is not None
+        return AdaptiveNormalDist(input_dim, output_dim, bijector=self.bijector, backward=self.backward)
 
 
 class AdaptiveNormalDist(_Normal):
@@ -316,7 +313,8 @@ class AdaptiveNormalDist(_Normal):
 
 
 class OneHotCategoricalDistFactory(DistributionFactory["OneHotCategoricalDist"]):
-    def __call__(self, input_dim: int, output_dim: int):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None and output_dim is not None
         return OneHotCategoricalDist(input_dim, output_dim)
 
 

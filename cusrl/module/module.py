@@ -50,7 +50,7 @@ ModuleType = TypeVar("ModuleType", bound="Module")
 
 
 class ModuleFactory(Generic[ModuleType]):
-    def __call__(self, input_dim: int | None, output_dim: int | None) -> ModuleType:
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None) -> ModuleType:
         raise NotImplementedError
 
     @staticmethod
@@ -65,7 +65,7 @@ class ModuleFactory(Generic[ModuleType]):
 
 
 ModuleFactoryLike: TypeAlias = Callable[[int | None, int | None], "Module"] | ModuleFactory
-LayerFactoryLike: TypeAlias = Callable[[int, int], nn.Module] | ModuleFactoryLike
+LayerFactoryLike: TypeAlias = Callable[[int | None, int | None], nn.Module] | ModuleFactoryLike
 
 
 class Module(nn.Module):
