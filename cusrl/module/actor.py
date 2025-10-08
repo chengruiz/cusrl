@@ -56,7 +56,7 @@ class Actor(Module):
     def to_distributed(self):
         if not self.is_distributed:
             self.is_distributed = True
-            self.backbone = self.backbone.to_distributed()
+            self.backbone = self.backbone.to_distributed()  # type: ignore[assignment]
             self.distribution = self.distribution.to_distributed()
         return self
 

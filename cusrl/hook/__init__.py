@@ -17,7 +17,10 @@ from .lr_schedule import (
     MiniBatchWiseLRSchedule,
     ThresholdLRSchedule,
 )
-from .observation import ObservationNanToZero, ObservationNormalization
+from .observation import (
+    ObservationNanToZero,
+    ObservationNormalization,
+)
 from .on_policy import (
     OnPolicyBufferCapacitySchedule,
     OnPolicyPreparation,
@@ -44,7 +47,10 @@ from .symmetry import (
     SymmetricDataAugmentation,
     SymmetryLoss,
 )
-from .value import ValueComputation, ValueLoss
+from .value import (
+    ValueComputation,
+    ValueLoss,
+)
 
 __all__ = [
     "ActionSmoothnessLoss",

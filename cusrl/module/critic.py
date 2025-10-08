@@ -59,7 +59,7 @@ class Value(Module):
     def to_distributed(self):
         if not self.is_distributed:
             self.is_distributed = True
-            self.backbone = self.backbone.to_distributed()
+            self.backbone = self.backbone.to_distributed()  # type: ignore[assignment]
             self.value_head = make_distributed(self.value_head)
         return self
 
