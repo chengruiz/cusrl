@@ -251,7 +251,7 @@ class Agent(ABC):
     def setup_module(self, module: _ModuleType) -> _ModuleType:
         # Can also return a DistributedDataParallel instance with the module wrapped
         module = module.to(device=self.device)
-        if distributed.enabled():
+        if distributed.enabled() and any(param.requires_grad for param in module.parameters()):
             module = distributed.make_distributed(module)
         return module
 

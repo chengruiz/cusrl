@@ -32,7 +32,9 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.criterion: nn.MSELoss
 
     def init(self):
-        self.register_module("predictor", self.predictor_factory(self.agent.actor.latent_dim, 1))
+        self.agent.actor(torch.zeros(1, self.agent.observation_dim))
+        latent_dim = self.agent.actor.intermediate_repr[self.latent_name].numel()
+        self.register_module("predictor", self.predictor_factory(latent_dim, self.agent.value_dim))
         self.criterion = nn.MSELoss()
 
     def objective(self, batch):
@@ -78,8 +80,10 @@ class StatePrediction(Hook[ActorCritic]):
     def init(self):
         if not self.agent.has_state:
             raise ValueError("StatePrediction: State is not defined for the agent.")
+        self.agent.actor(torch.zeros(1, self.agent.observation_dim))
+        latent_dim = self.agent.actor.intermediate_repr[self.latent_name].numel()
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
-        self.register_module("predictor", self.predictor_factory(self.agent.actor.latent_dim, target_dim))
+        self.register_module("predictor", self.predictor_factory(latent_dim, target_dim))
         self.criterion = nn.MSELoss()
 
     def objective(self, batch):
@@ -136,8 +140,10 @@ class NextStatePrediction(Hook[ActorCritic]):
     def init(self):
         if not self.agent.has_state:
             raise ValueError("NextStatePrediction: State is not defined for the agent.")
+        self.agent.actor(torch.zeros(1, self.agent.observation_dim))
+        latent_dim = self.agent.actor.intermediate_repr[self.latent_name].numel()
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
-        predictor = self.predictor_factory(self.agent.actor.latent_dim + self.agent.action_dim, target_dim)
+        predictor = self.predictor_factory(latent_dim + self.agent.action_dim, target_dim)
         self.register_module("predictor", ActionAwarePredictorWrapper(predictor))
         self.criterion = nn.MSELoss()
 
