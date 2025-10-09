@@ -15,13 +15,13 @@ __all__ = ["Value"]
 @dataclass(slots=True)
 class ValueFactory(ModuleFactory["Value"]):
     backbone_factory: ModuleFactoryLike
-    head_factory: LayerFactoryLike = nn.Linear
+    value_head_factory: LayerFactoryLike = nn.Linear  # type: ignore[assignment]
     latent_dim: int | None = None
     action_aware: bool = False
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = 1):
         backbone = self.backbone_factory(input_dim, self.latent_dim)
-        value_head = self.head_factory(backbone.output_dim, output_dim)
+        value_head = self.value_head_factory(backbone.output_dim, output_dim)
         return Value(backbone, value_head, action_aware=self.action_aware)
 
 
@@ -93,7 +93,7 @@ class Value(Module):
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         return self.value_head(latent), memory
 
-    def step_memory(self, state, memory=None, **kwargs):
+    def step_memory(self, state, memory: Memory = None, **kwargs):
         return self.backbone.step_memory(state, memory, **kwargs)
 
     def reset_memory(self, memory: Memory, done: Slice | torch.Tensor | None = None):

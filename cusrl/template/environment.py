@@ -277,7 +277,7 @@ class Environment(ABC, Generic[ArrayType]):
         - state (ArrayType | None):
             States of reset instances of shape :math:`(Ni, Ds)`, where
             :math:`Ds` is the state dimension. If the environment does not have
-            privileged observations, the state should be ``None``, which means
+            privileged information, the state should be ``None``, which means
             the states are the same as the observations.
         - info (dict[str, Nested[ArrayType]]):
             Additional information dict for reset instances as named arrays.

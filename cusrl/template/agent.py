@@ -146,7 +146,7 @@ class Agent(ABC):
                 The current observation from the environment.
             state (ArrayType | None, optional):
                 The current state from the environment (e.g. privileged
-                observation). Defaults to None.
+                information). Defaults to None.
 
         Returns:
             action (ArrayType):

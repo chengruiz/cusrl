@@ -15,7 +15,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         self,
         latent_name: str = "backbone.output",
         weight: float = 0.01,
-        predictor_factory: LayerFactoryLike = nn.Linear,
+        predictor_factory: LayerFactoryLike = nn.Linear,  # type: ignore[assignment]
         predicts_value_instead_of_return: bool = False,
     ):
         super().__init__()
@@ -57,12 +57,33 @@ class ReturnPrediction(Hook[ActorCritic]):
 
 
 class StatePrediction(Hook[ActorCritic]):
+    """A hook to predict states from actor representations.
+
+    This hook adds an auxiliary loss to the main training objective. The loss is
+    the MSELoss between the predicted state and the actual state. This
+    encourages the specified latent representation to encode information
+    about states (or privileged information).
+
+    Args:
+        target_indices (Slice):
+            Indices of the state to be predicted.
+        latent_name (str):
+            The name of the intermediate representation from the actor to be
+            used as input of the predictor. Defaults to ``"backbone.output"``.
+        weight (float):
+            The weight of the state prediction loss in the total objective.
+            Defaults to ``0.01``.
+        predictor_factory (LayerFactoryLike):
+            A callable that creates the predictor module (e.g., `nn.Linear`).
+            Defaults to ``nn.Linear``.
+    """
+
     def __init__(
         self,
         target_indices: Slice,
         latent_name: str = "backbone.output",
         weight: float = 0.01,
-        predictor_factory: LayerFactoryLike = nn.Linear,
+        predictor_factory: LayerFactoryLike = nn.Linear,  # type: ignore[assignment]
     ):
         super().__init__()
         self.target_indices = target_indices
@@ -122,7 +143,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         target_indices: Slice,
         latent_name: str = "backbone.output",
         weight: float = 0.01,
-        predictor_factory: LayerFactoryLike = nn.Linear,
+        predictor_factory: LayerFactoryLike = nn.Linear,  # type: ignore[assignment]
     ):
         super().__init__()
         self.target_indices = target_indices
