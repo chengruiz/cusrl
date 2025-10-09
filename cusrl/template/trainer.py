@@ -79,6 +79,26 @@ class EnvironmentStats:
             return 0.0
         return self.len_buffer[: self.num_episodes].mean().item()
 
+    def state_dict(self) -> dict:
+        return {
+            "episode_rew": self.episode_rew.clone(),
+            "episode_len": self.episode_len.clone(),
+            "rew_buffer": self.rew_buffer.clone(),
+            "len_buffer": self.len_buffer.clone(),
+            "num_episodes": self.num_episodes,
+            "total_steps": self.total_steps,
+        }
+
+    def load_state_dict(self, state_dict: dict):
+        if not state_dict:
+            return
+        self.episode_rew.copy_(state_dict["episode_rew"])
+        self.episode_len.copy_(state_dict["episode_len"])
+        self.rew_buffer.copy_(state_dict["rew_buffer"])
+        self.len_buffer.copy_(state_dict["len_buffer"])
+        self.num_episodes = state_dict["num_episodes"]
+        self.total_steps = state_dict["total_steps"]
+
 
 def save_version_info(output_dir: str, workspace: str | None = None):
     workspace_str: str = os.getcwd() if workspace is None else os.path.abspath(workspace)
@@ -165,6 +185,7 @@ class Trainer:
     ):
         self.environment = environment if isinstance(environment, Environment) else environment()
         self.agent: Agent = agent_factory.from_environment(self.environment)
+        self.stats = EnvironmentStats(self.environment.num_instances, self.environment.spec.reward_dim)
         self.verbose = verbose and is_main_process()
         self.iteration = self._load_checkpoint(checkpoint_path)
         if init_iteration is not None:
@@ -178,7 +199,6 @@ class Trainer:
         for callback in self.callbacks:
             callback(self)
 
-        self.stats = EnvironmentStats(self.environment.num_instances, self.environment.spec.reward_dim)
         self.timer = Timer()
         self._save_trial_info()
 
@@ -250,6 +270,7 @@ class Trainer:
                 "agent": self.agent.state_dict(),
                 "environment": self.environment.state_dict(),
                 "iteration": self.iteration,
+                "stats": self.stats.state_dict(),
             },
             iteration=self.iteration,
         )
@@ -261,8 +282,9 @@ class Trainer:
             return 0
         trial = Trial(checkpoint_path, verbose=distributed.is_main_process())
         checkpoint = trial.load_checkpoint(map_location=self.agent.device)
-        self.environment.load_state_dict(checkpoint["environment"])
         self.agent.load_state_dict(checkpoint["agent"])
+        self.environment.load_state_dict(checkpoint["environment"])
+        self.stats.load_state_dict(checkpoint.get("stats", {}))
 
         if self.verbose:
             print(f"Checkpoint loaded from '{checkpoint_path}'.")
