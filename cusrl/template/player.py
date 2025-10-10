@@ -12,10 +12,13 @@ __all__ = ["Player"]
 class PlayerHook:
     def __init__(self):
         self.player: Player
+        self.agent: Agent
+        self.environment: Environment
 
     def init(self, player: "Player"):
         self.player = player
-        return self
+        self.agent = player.agent
+        self.environment = player.environment
 
     def step(self, step: int, transition: dict[str, Array], metrics: dict[str, float]):
         pass
@@ -89,10 +92,13 @@ class Player:
         self.timestep = self.environment.spec.timestep if timestep is None else timestep
         self.deterministic = deterministic
         self.verbose = verbose
-        self.hooks = [hook.init(self) for hook in hooks]
+        self.hooks = []
+        for hook in hooks:
+            self.register_hook(hook)
 
     def register_hook(self, hook: Hook):
-        self.hooks.append(hook.init(self))
+        hook.init(self)
+        self.hooks.append(hook)
 
     def run_playing_loop(self):
         observation, state, _ = self.environment.reset()
