@@ -27,6 +27,7 @@ from .distribution import (
     NormalDist,
     OneHotCategoricalDist,
 )
+from .encoding import SinusoidalPositionalEncoding2D
 from .export import GraphBuilder
 from .gate import (
     Gate,
@@ -120,6 +121,7 @@ __all__ = [
     "SigmoidBijector",
     "SigmoidTanhGate",
     "Simba",
+    "SinusoidalPositionalEncoding2D",
     "SoftplusBijector",
     "StubModule",
     "SwiGlu",
