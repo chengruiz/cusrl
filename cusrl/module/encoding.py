@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor, nn
 
-__all__ = ["SinusoidalPositionalEncoding2D"]
+__all__ = ["LearnablePositionalEncoding2D", "SinusoidalPositionalEncoding2D"]
 
 
 def sinusoidal_positional_encoding_2d(
@@ -70,6 +70,31 @@ class SinusoidalPositionalEncoding2D(nn.Module):
         pe = sinusoidal_positional_encoding_2d(height, width, num_channels, base=base).permute(2, 0, 1)
         self.pe: Tensor
         self.register_buffer("pe", pe, persistent=False)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return x + self.pe.type_as(x)
+
+
+class LearnablePositionalEncoding2D(nn.Module):
+    """Adds learnable 2D positional encodings to the input tensor.
+
+    The shape of the input tensor should be :math:`(..., C, H, W)`, where
+    :math:`C` is the number of channels, :math:`H` is the height, and :math:`W`
+    is the width.
+
+    Args:
+        num_channels (int):
+            The number of channels of the input tensor.
+        height (int):
+            The height of the input tensor's spatial dimensions.
+        width (int):
+            The width of the input tensor's spatial dimensions.
+    """
+
+    def __init__(self, num_channels: int, height: int, width: int):
+        super().__init__()
+        self.pe = nn.Parameter(torch.zeros(num_channels, height, width))
+        nn.init.trunc_normal_(self.pe, std=0.02)
 
     def forward(self, x: Tensor) -> Tensor:
         return x + self.pe.type_as(x)

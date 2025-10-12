@@ -27,7 +27,10 @@ from .distribution import (
     NormalDist,
     OneHotCategoricalDist,
 )
-from .encoding import SinusoidalPositionalEncoding2D
+from .encoding import (
+    LearnablePositionalEncoding2D,
+    SinusoidalPositionalEncoding2D,
+)
 from .export import GraphBuilder
 from .gate import (
     Gate,
@@ -100,6 +103,7 @@ __all__ = [
     "InferenceModule",
     "InputGate",
     "LayerFactoryLike",
+    "LearnablePositionalEncoding2D",
     "Lstm",
     "Mlp",
     "Module",
