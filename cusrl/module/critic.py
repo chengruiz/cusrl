@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 import torch
 from torch import nn
@@ -55,6 +56,7 @@ class Value(Module):
         self.value_head = value_head
         self.value_rms: RunningMeanStd | None = None
         self.action_aware: bool = action_aware
+        self.backbone_kwargs: dict[str, Any] = {}
 
     def to_distributed(self):
         if not self.is_distributed:
@@ -88,6 +90,7 @@ class Value(Module):
             if action is None:
                 raise ValueError("Action must be provided when 'action_aware' is True.")
             state = torch.cat([state, action], dim=-1)
+        kwargs.update(self.backbone_kwargs)
         latent, memory = self.backbone(state, memory=memory, done=done, **kwargs)
         self.intermediate_repr["backbone.output"] = latent
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
