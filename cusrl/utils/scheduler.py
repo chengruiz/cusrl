@@ -1,10 +1,12 @@
+import math
 from typing import Any
 
 __all__ = [
     "LessThan",
     "NotLessThan",
-    "PiecewiseLinearFunction",
-    "StepFunction",
+    "PiecewiseLinearScheduler",
+    "StepScheduler",
+    "TanhScheduler",
 ]
 
 
@@ -39,8 +41,8 @@ class NotLessThan:
         return value >= self.threshold
 
 
-class StepFunction:
-    """A step function.
+class StepScheduler:
+    """A step function scheduler.
 
     The function starts with an initial value and changes its value at specific
     points. The points must be sorted by their x-coordinate in increasing order.
@@ -69,8 +71,8 @@ class StepFunction:
         return value
 
 
-class PiecewiseLinearFunction:
-    """A piecewise linear function.
+class PiecewiseLinearScheduler:
+    """A piecewise linear function scheduler.
 
     The function is defined by a set of points. It linearly interpolates between
     consecutive points. Before the first point, it returns the y-value of the
@@ -101,3 +103,39 @@ class PiecewiseLinearFunction:
                 return y0 + (y1 - y0) * (iteration - x0) / (x1 - x0)
         # Right of last point
         return self.points[-1][1]
+
+
+class TanhScheduler:
+    """A scheduler that interpolates between two values using a hyperbolic
+    tangent function.
+
+    Args:
+        point0 (tuple[int, float]):
+            The first point (x0, y0).
+        point1 (tuple[int, float]):
+            The second point (x1, y1).
+        eta (float):
+            A positive parameter that controls the steepness of the transition.
+    """
+
+    def __init__(self, point0: tuple[int, float], point1: tuple[int, float], eta: float):
+        self.x0, self.y0 = point0
+        self.x1, self.y1 = point1
+        self.eta = eta
+        self.mid = (self.x0 + self.x1) / 2
+        self.eps0 = self._get_epsilon(self.x0)
+        self.eps1 = self._get_epsilon(self.x1)
+        if self.x0 >= self.x1:
+            raise ValueError("X coordinates must be strictly increasing")
+        if self.eta <= 0:
+            raise ValueError("eta must be positive")
+
+    def _get_epsilon(self, iteration: int) -> float:
+        return 0.5 + 0.5 * math.tanh(self.eta * 2 * (iteration - self.mid) / (self.x1 - self.x0))
+
+    def __call__(self, iteration: int) -> float:
+        if iteration < self.x0:
+            return self.y0
+        if iteration <= self.x1:
+            return self.y0 + (self.y1 - self.y0) * (self._get_epsilon(iteration) - self.eps0) / (self.eps1 - self.eps0)
+        return self.y1
