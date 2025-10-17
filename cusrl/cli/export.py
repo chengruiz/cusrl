@@ -43,7 +43,7 @@ def main(args):
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)
     experiment = cli_utils.load_experiment_spec_from_args(args, trial)
-    environment = experiment.make_playing_env(cli_utils.process_environment_args(args))
+    environment = experiment.make_training_env(cli_utils.process_environment_args(args))
     agent_factory = experiment.make_agent_factory()
     agent: Agent = agent_factory.from_environment(environment)
     if trial is not None:
