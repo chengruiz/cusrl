@@ -63,13 +63,15 @@ class SinusoidalPositionalEncoding2D(nn.Module):
             The width of the input tensor's spatial dimensions.
         base (float, optional):
             The base value for the sinusoidal formula. Defaults to ``10000.0``.
+        requires_grad (bool, optional):
+            If ``True``, make the positional encodings learnable. Defaults to
+            ``False``.
     """
 
-    def __init__(self, num_channels: int, height: int, width: int, base: float = 10000.0):
+    def __init__(self, num_channels: int, height: int, width: int, base: float = 10000.0, requires_grad: bool = False):
         super().__init__()
         pe = sinusoidal_positional_encoding_2d(height, width, num_channels, base=base).permute(2, 0, 1)
-        self.pe: Tensor
-        self.register_buffer("pe", pe, persistent=False)
+        self.pe = nn.Parameter(pe, requires_grad=requires_grad)
 
     def forward(self, x: Tensor) -> Tensor:
         return x + self.pe.type_as(x)
