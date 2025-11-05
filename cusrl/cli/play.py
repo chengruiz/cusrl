@@ -22,6 +22,12 @@ def configure_parser(parser):
                         help="Override the timestep of the environment")
     parser.add_argument("--seed", type=int, metavar="N",
                         help="Random seed (default: random)")
+    parser.add_argument("--device", type=str,
+                        help="Device to use for playing")
+    parser.add_argument("--autocast", nargs="?", const=True, metavar="DTYPE",
+                        help="Datatype for automatic mixed precision (default: disabled)")
+    parser.add_argument("--compile", action="store_true",
+                        help="Whether to use `torch.compile`")
     parser.add_argument("--stochastic", action='store_true',
                         help="Whether to use stochastic actions instead of deterministic")
     parser.add_argument("--environment-args", type=str, metavar="ARG",
@@ -40,6 +46,7 @@ def main(args):
     experiment = cli_utils.load_experiment_spec_from_args(args, trial)
     experiment.make_player(
         environment_kwargs=cli_utils.process_environment_args(args),
+        agent_factory_kwargs={"device": args.device, "autocast": args.autocast, "compile": args.compile},
         checkpoint_path=trial,
         num_steps=args.num_steps,
         timestep=args.timestep,
