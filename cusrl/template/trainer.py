@@ -3,6 +3,8 @@ import pickle
 import subprocess
 import sys
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass, fields
+from typing import Any, Literal
 
 import git
 import numpy as np
@@ -128,6 +130,88 @@ def save_version_info(output_dir: str, workspace: str | None = None):
         f.write(version)
 
 
+@dataclass
+class TrainerFactory:
+    environment_factory: Environment.Factory | None = None
+    agent_factory: Agent.Factory | None = None
+    num_iterations: int | None = None
+    save_interval: int | None = None
+    checkpoint_path: str | None = None
+    callbacks: Iterable[Callable[["Trainer"], None]] = ()
+
+    max_iterations: int | None = None  # For compatibility with IsaacLab environments
+    experiment_name: str | None = None  # For compatibility with IsaacLab environments
+    run_name: str | None = None  # For compatibility with rsl_rl configurations
+
+    def __init_subclass__(cls):
+        """Enables direct assignment of default values to dataclass fields
+        without the need for annotating again."""
+        super().__init_subclass__()
+        for field in fields(cls):
+            if field.name in cls.__annotations__:  # will be processed by dataclass
+                continue
+            if (value := getattr(cls, field.name, None)) is None:
+                continue
+            field.default = value
+            try:
+                delattr(cls, field.name)
+            except AttributeError:
+                pass
+
+    def __call__(
+        self,
+        environment: Environment | Environment.Factory | None = None,
+        agent_factory: Agent.Factory | None = None,
+        logger_factory: LoggerFactoryLike | None = None,
+        num_iterations: int | None = None,
+        init_iteration: int | None = None,
+        save_interval: int | None = None,
+        checkpoint_path: str | None | Literal[False] = False,
+        verbose: bool = True,
+        callbacks: Iterable[Callable[["Trainer"], None]] = (),
+        agent_overrides: dict[str, Any] | None = None,
+    ) -> "Trainer":
+        if environment is None:
+            if self.environment_factory is None:
+                raise ValueError("'environment' should be provided if 'environment_factory' is not set.")
+            environment = self.environment_factory
+        if agent_factory is None:
+            if self.agent_factory is None:
+                raise ValueError("'agent_factory' should be provided if not set on initialization.")
+            agent_factory = self.agent_factory
+        if agent_overrides is not None:
+            agent_factory.override(**agent_overrides)
+        if num_iterations is None:
+            if self.num_iterations is not None:
+                num_iterations = self.num_iterations
+            elif self.max_iterations is not None:
+                num_iterations = self.max_iterations
+            if num_iterations is None:
+                raise ValueError(
+                    "'num_iterations' should be provided if neither 'num_iterations' "
+                    "nor 'max_iterations' is set on initialization."
+                )
+        if save_interval is None:
+            if self.save_interval is None:
+                raise ValueError("'save_interval' should be provided if not set on initialization.")
+            save_interval = self.save_interval
+        if checkpoint_path is False:
+            checkpoint_path = self.checkpoint_path
+        callbacks = list(self.callbacks) + list(callbacks)
+
+        return Trainer(
+            environment=environment,
+            agent_factory=agent_factory,
+            logger_factory=logger_factory,
+            num_iterations=num_iterations,
+            init_iteration=init_iteration,
+            save_interval=save_interval,
+            checkpoint_path=checkpoint_path,
+            verbose=verbose,
+            callbacks=callbacks,
+        )
+
+
 class Trainer:
     """Orchestrates and manages a reinforcement learning training loop.
 
@@ -170,6 +254,8 @@ class Trainer:
         run_training_loop():
             Execute the training loop until reaching num_iterations.
     """
+
+    Factory = TrainerFactory
 
     def __init__(
         self,

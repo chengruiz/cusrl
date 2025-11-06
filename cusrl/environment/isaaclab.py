@@ -1,14 +1,14 @@
 import argparse
 import importlib
 from collections.abc import Sequence
-from dataclasses import MISSING, dataclass, fields
+from dataclasses import dataclass, fields
 from typing import Any, cast
 
 import gymnasium as gym
 import torch
 
 import cusrl.utils
-from cusrl.template import Environment
+from cusrl.template import Environment, Trainer
 from cusrl.utils import from_dict, to_dict
 from cusrl.utils.typing import Slice
 
@@ -174,25 +174,7 @@ def make_isaaclab_env(
 
 
 @dataclass
-class TrainerCfg:
-    max_iterations: int = MISSING
-    save_interval: int = MISSING
-    experiment_name: str = MISSING
-    agent_factory: cusrl.template.Agent.Factory = MISSING
-
-    def __init_subclass__(cls):
-        super().__init_subclass__()
-        for field in fields(cls):
-            if (value := getattr(cls, field.name, MISSING)) is MISSING:
-                if field.default is MISSING and field.default_factory is MISSING:
-                    raise ValueError(f"The default value or factory of field '{field.name}' is not defined.")
-            elif field.name not in cls.__annotations__:  # will be processed by dataclass
-                field.default = value
-                try:
-                    delattr(cls, field.name)
-                except AttributeError:
-                    pass
-
+class TrainerCfg(Trainer.Factory):
     def __post_init__(self):
         # Manually set the serialization methods to each instance
         self.to_dict = self._to_dict
