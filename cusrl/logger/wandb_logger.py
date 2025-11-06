@@ -1,3 +1,4 @@
+import os
 from typing import Literal
 
 from cusrl.template.logger import Logger
@@ -8,7 +9,7 @@ __all__ = ["Wandb"]
 class WandbFactory:
     def __init__(
         self,
-        log_dir: str,
+        log_dir: os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,
@@ -59,7 +60,7 @@ class Wandb(Logger):
 
     def __init__(
         self,
-        log_dir: str,
+        log_dir: os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,

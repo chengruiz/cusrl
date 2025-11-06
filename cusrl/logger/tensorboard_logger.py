@@ -1,3 +1,5 @@
+import os
+
 from cusrl.template.logger import Logger
 
 __all__ = ["Tensorboard"]
@@ -6,7 +8,7 @@ __all__ = ["Tensorboard"]
 class TensorboardFactory:
     def __init__(
         self,
-        log_dir: str,
+        log_dir: os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,
@@ -33,7 +35,7 @@ class Tensorboard(Logger):
 
     def __init__(
         self,
-        log_dir: str,
+        log_dir: os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,

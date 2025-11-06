@@ -17,7 +17,7 @@ __all__ = [
 
 @dataclass(slots=True)
 class LoggerFactory:
-    log_dir: str
+    log_dir: os.PathLike
     name: str | None = None
     interval: int = 1
     add_datetime_prefix: bool = True
@@ -50,14 +50,14 @@ class Logger:
         `latest` -> symlink to `[timestamp]:[name]/`
 
     Args:
-        log_dir (str):
+        log_dir (os.PathLike):
             The root directory where logs will be stored.
         name (str | None, optional):
-            A specific name for the experiment run. If None, the name is empty.
-            Defaults to None.
+            A specific name for the experiment run. If ``None``, logs are stored
+            directly under ``log_dir``. Defaults to ``None``.
         interval (int, optional):
-            The interval at which to log data. If greater than 1, data is
-            averaged over the interval before logging. Defaults to 1.
+            The interval at which to log data. If greater than ``1``, data is
+            averaged over the interval before logging. Defaults to ``1``.
         add_datetime_prefix (bool, optional):
             If True, a timestamp prefix (YYYY-MM-DD-HH-MM-SS) is added to the
             experiment directory name. Defaults to True.
@@ -67,19 +67,20 @@ class Logger:
 
     def __init__(
         self,
-        log_dir: str,
+        log_dir: os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,
     ):
-        self.name = name or ""
-        if "/" in self.name or "\\" in self.name:
-            raise ValueError("'name' should not contain '/' or '\\' characters.")
-        if add_datetime_prefix:
-            timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-            self.name = f"{timestamp}:{self.name}" if self.name else timestamp
-
-        self.log_dir = Path(os.path.join(log_dir, self.name)).absolute()
+        self.log_dir = Path(log_dir).absolute()
+        self.name = name
+        if self.name is not None:
+            if "/" in self.name or "\\" in self.name:
+                raise ValueError("'name' should not contain '/' or '\\' characters.")
+            if add_datetime_prefix:
+                timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+                self.name = f"{timestamp}:{self.name}" if self.name else timestamp
+            self.log_dir /= self.name
         self.log_dir.mkdir(parents=True, exist_ok=True)
         symlink_path = self.log_dir / ".." / "latest"
         symlink_path.unlink(missing_ok=True)
@@ -124,7 +125,7 @@ class Logger:
 
 def make_logger_factory(
     logger_type: str | None = None,
-    log_dir: str | None = None,
+    log_dir: os.PathLike | None = None,
     name: str | None = None,
     interval: int = 1,
     add_datetime_prefix: bool = True,

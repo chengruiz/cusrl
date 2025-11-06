@@ -17,7 +17,7 @@ def configure_parser(parser):
                         help="Logger for statistics tracking (default: tensorboard)")
     parser.add_argument("--log-dir", type=str, default="logs", metavar="DIR",
                         help="Directory to save logs to (default: logs)")
-    parser.add_argument("--name", type=str,
+    parser.add_argument("--name", type=str, default="",
                         help="Name of this trial")
     parser.add_argument("--log-interval", type=int, default=1, metavar="N",
                         help="Interval to log at (default: 1)")
