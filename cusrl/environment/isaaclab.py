@@ -78,7 +78,7 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
         if shape is None:
             return None
         if not len(shape) == 1:
-            raise ValueError("Only 1D state space is supported. ")
+            raise ValueError("Only 1D state space is supported.")
         return shape[0]
 
     def reset(self, *, indices: torch.Tensor | Slice | None = None):
