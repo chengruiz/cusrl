@@ -3,7 +3,7 @@ from collections.abc import Iterable
 import torch
 
 import cusrl
-from cusrl.preset.ppo import OptimizerFactory
+from cusrl.preset.optimizer import AdamFactory
 
 __all__ = [
     "AgentFactory",
@@ -64,7 +64,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
             critic_factory=cusrl.Value.Factory(
                 backbone_factory=cusrl.StubModule.Factory(),
             ),
-            optimizer_factory=OptimizerFactory(lr=lr),
+            optimizer_factory=AdamFactory(defaults={"lr": lr}),
             sampler=cusrl.AutoMiniBatchSampler(
                 num_epochs=sampler_epochs,
                 num_mini_batches=sampler_mini_batches,

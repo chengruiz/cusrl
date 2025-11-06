@@ -3,18 +3,13 @@ from collections.abc import Iterable
 import torch
 
 import cusrl
+from cusrl.preset.optimizer import AdamFactory
 
 __all__ = [
     "AgentFactory",
-    "OptimizerFactory",
     "RecurrentAgentFactory",
     "hook_suite",
 ]
-
-
-class OptimizerFactory(cusrl.template.OptimizerFactory):
-    def __init__(self, lr: float = 2e-4):
-        super().__init__(torch.optim.AdamW, defaults=dict(lr=lr))
 
 
 def hook_suite(
@@ -113,7 +108,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
                     ends_with_activation=True,
                 ),
             ),
-            optimizer_factory=OptimizerFactory(lr=lr),
+            optimizer_factory=AdamFactory(defaults={"lr": lr}),
             sampler=cusrl.AutoMiniBatchSampler(
                 num_epochs=sampler_epochs,
                 num_mini_batches=sampler_mini_batches,
@@ -215,7 +210,7 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
                     hidden_size=critic_hidden_size,
                 ),
             ),
-            optimizer_factory=OptimizerFactory(lr=lr),
+            optimizer_factory=AdamFactory(defaults={"lr": lr}),
             sampler=cusrl.AutoMiniBatchSampler(
                 num_epochs=sampler_epochs,
                 num_mini_batches=sampler_mini_batches,
