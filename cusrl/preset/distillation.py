@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 import torch
 
@@ -32,31 +33,31 @@ def hook_suite(
     return [hook for hook in hooks if hook is not None]
 
 
+@dataclass
 class AgentFactory(cusrl.template.ActorCritic.Factory):
-    def __init__(
-        self,
-        num_steps_per_update: int = 24,
-        actor_hidden_dims: Iterable[int] = (256, 128),
-        critic_hidden_dims: Iterable[int] = (256, 128),
-        activation_fn: str | type[torch.nn.Module] = "ReLU",
-        lr: float = 2e-4,
-        sampler_epochs: int = 1,
-        sampler_mini_batches: int = 8,
-        init_distribution_std: float | None = None,
-        expert_path: str = "",
-        expert_observation_name: str = "observation",
-        normalize_observation: bool = False,
-        max_grad_norm: float | None = 1.0,
-        device: str | torch.device | None = None,
-        compile: bool = False,
-        autocast: bool | torch.dtype = False,
-    ):
+    num_steps_per_update: int = 24
+    actor_hidden_dims: Iterable[int] = (256, 128)
+    critic_hidden_dims: Iterable[int] = (256, 128)
+    activation_fn: str | type[torch.nn.Module] = "ReLU"
+    lr: float = 2e-4
+    sampler_epochs: int = 1
+    sampler_mini_batches: int = 8
+    init_distribution_std: float | None = None
+    expert_path: str = ""
+    expert_observation_name: str = "observation"
+    normalize_observation: bool = False
+    max_grad_norm: float | None = 1.0
+    device: str | torch.device | None = None
+    compile: bool = False
+    autocast: bool | torch.dtype = False
+
+    def __post_init__(self):
         super().__init__(
-            num_steps_per_update=num_steps_per_update,
+            num_steps_per_update=self.num_steps_per_update,
             actor_factory=cusrl.Actor.Factory(
                 backbone_factory=cusrl.Mlp.Factory(
-                    hidden_dims=actor_hidden_dims,
-                    activation_fn=activation_fn,
+                    hidden_dims=self.actor_hidden_dims,
+                    activation_fn=self.activation_fn,
                     ends_with_activation=True,
                 ),
                 distribution_factory=cusrl.NormalDist.Factory(),
@@ -64,36 +65,19 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
             critic_factory=cusrl.Value.Factory(
                 backbone_factory=cusrl.StubModule.Factory(),
             ),
-            optimizer_factory=AdamFactory(defaults={"lr": lr}),
+            optimizer_factory=AdamFactory(defaults={"lr": self.lr}),
             sampler=cusrl.AutoMiniBatchSampler(
-                num_epochs=sampler_epochs,
-                num_mini_batches=sampler_mini_batches,
+                num_epochs=self.sampler_epochs,
+                num_mini_batches=self.sampler_mini_batches,
             ),
             hooks=hook_suite(
-                init_distribution_std=init_distribution_std,
-                expert_path=expert_path,
-                expert_observation_name=expert_observation_name,
-                normalize_observation=normalize_observation,
-                max_grad_norm=max_grad_norm,
+                init_distribution_std=self.init_distribution_std,
+                expert_path=self.expert_path,
+                expert_observation_name=self.expert_observation_name,
+                normalize_observation=self.normalize_observation,
+                max_grad_norm=self.max_grad_norm,
             ),
-            device=device,
-            compile=compile,
-            autocast=autocast,
+            device=self.device,
+            compile=self.compile,
+            autocast=self.autocast,
         )
-        self._kwargs = {
-            "num_steps_per_update": num_steps_per_update,
-            "actor_hidden_dims": actor_hidden_dims,
-            "critic_hidden_dims": critic_hidden_dims,
-            "activation_fn": activation_fn,
-            "lr": lr,
-            "sampler_epochs": sampler_epochs,
-            "sampler_mini_batches": sampler_mini_batches,
-            "init_distribution_std": init_distribution_std,
-            "expert_path": expert_path,
-            "expert_observation_name": expert_observation_name,
-            "normalize_observation": normalize_observation,
-            "max_grad_norm": max_grad_norm,
-        }
-
-    def to_dict(self):
-        return self._kwargs
