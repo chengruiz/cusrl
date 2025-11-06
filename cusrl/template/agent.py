@@ -20,6 +20,12 @@ AgentType = TypeVar("AgentType", bound="Agent")
 
 
 class AgentFactory(ABC, Generic[AgentType]):
+    num_steps_per_update: int
+    name: str
+    device: torch.device | str | None
+    compile: bool
+    autocast: bool | str | torch.dtype
+
     def __init__(
         self,
         num_steps_per_update: int,
@@ -32,11 +38,6 @@ class AgentFactory(ABC, Generic[AgentType]):
         self.name = name
         self.device = device
         self.compile = compile
-        if isinstance(autocast, str):
-            dtype = getattr(torch, autocast, None)
-            if dtype is None or not isinstance(dtype, torch.dtype):
-                raise ValueError(f"Invalid autocast datatype '{autocast}'.")
-            autocast = dtype
         self.autocast = autocast
 
     def override(self, **kwargs: Any) -> Self:
@@ -73,13 +74,15 @@ class Agent(ABC):
         Factory (AgentFactory):
             A factory class used to create instances of the agent.
         MODULES (list[str]):
-            A list of attribute names that correspond to `torch.nn.Module`
+            A list of attribute names that correspond to :cls:`torch.nn.Module`
             instances. These modules will be automatically handled by methods
-            like `state_dict`, `load_state_dict`, and `_set_training_mode`.
+            like :func:`state_dict`, :func:`load_state_dict`, and
+            :func:`_set_training_mode`.
         OPTIMIZERS (list[str]):
-            A list of attribute names that correspond to `torch.optim.Optimizer`
-            instances. These optimizers will be automatically handled by
-            `state_dict` and `load_state_dict`.
+            A list of attribute names that correspond to
+            :cls:`torch.optim.Optimizer` instances. These optimizers will be
+            automatically handled by :func:`state_dict` and
+            :func:`load_state_dict`.
 
     Args:
         environment_spec (EnvironmentSpec):
@@ -89,15 +92,15 @@ class Agent(ABC):
         name (str):
             The name of the agent.
         device (torch.device | str | None):
-            The device (e.g., "cpu", "cuda") on which to place tensors and
-            models.
+            The device (e.g., ``"cpu"``, ``"cuda"``) on which to place tensors
+            and models.
         compile (bool):
-            If True, `torch.compile` will be used on the modules to optimize
-            performance.
-        autocast (bool | torch.dtype):
-            Enables automatic mixed precision. If True, defaults to
-            `torch.float16`. Can be set to a specific `torch.dtype`. If False,
-            mixed precision is disabled.
+            If ``True``, :func:`torch.compile` will be used on the modules to
+            optimize performance.
+        autocast (bool | str | torch.dtype):
+            Enables automatic mixed precision. If ``True``, defaults to
+            ``torch.float16``. Can be set to a specific ``torch.dtype``. If
+            ``False``, mixed precision is disabled.
     """
 
     Factory = AgentFactory
@@ -111,7 +114,7 @@ class Agent(ABC):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
-        autocast: bool | torch.dtype = False,
+        autocast: bool | str | torch.dtype = False,
     ):
         self.observation_dim = environment_spec.observation_dim
         self.action_dim = environment_spec.action_dim
@@ -124,8 +127,15 @@ class Agent(ABC):
         self.name = name
         self.device = cusrl.device(device)
         self.compile = compile
-        self.autocast_enabled = autocast is not None and autocast is not False
-        self.dtype = autocast if isinstance(autocast, torch.dtype) else (torch.float16 if autocast else torch.float32)
+        if isinstance(autocast, str):
+            self.dtype = getattr(torch, autocast, None)
+            if self.dtype is None or not isinstance(self.dtype, torch.dtype):
+                raise ValueError(f"Invalid autocast dtype '{autocast}'.")
+        elif isinstance(autocast, torch.dtype):
+            self.dtype = autocast
+        else:
+            self.dtype = torch.float16 if autocast else torch.float32
+        self.autocast_enabled = autocast is not False
         self.inference_mode = False
         self.deterministic = False
 

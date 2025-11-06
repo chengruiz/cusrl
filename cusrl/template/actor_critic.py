@@ -43,6 +43,12 @@ class HookList(list[Hook]):
 
 
 class ActorCriticFactory(AgentFactory["ActorCritic"]):
+    actor_factory: Actor.Factory
+    critic_factory: Value.Factory
+    optimizer_factory: OptimizerFactory
+    sampler: Sampler
+    hooks: HookList
+
     def __init__(
         self,
         actor_factory: Actor.Factory,
@@ -172,7 +178,7 @@ class ActorCritic(Agent):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
-        autocast: bool | torch.dtype = False,
+        autocast: bool | str | torch.dtype = False,
     ):
         super().__init__(
             environment_spec=environment_spec,
