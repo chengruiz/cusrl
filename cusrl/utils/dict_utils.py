@@ -154,14 +154,12 @@ def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:
 
 def to_dict(obj) -> dict[str, Any] | Any:
     """Converts an object to a dictionary representation."""
+    if isinstance(obj, type):
+        return get_class_str(obj)
     if hasattr(obj, "to_dict"):
         obj_dict = obj.to_dict()
-
-    # If the object is not a dictorionary-convertable object
     elif isinstance(obj, (list, tuple)):
         return type(obj)(to_dict(item) for item in obj)
-    elif isinstance(obj, type):
-        return get_class_str(obj)
     elif inspect.isfunction(obj):
         return get_function_str(obj)
     elif isinstance(obj, (str, int, float, bool, type(None))):
