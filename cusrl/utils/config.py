@@ -47,7 +47,6 @@ class Configurations:
         if self._cuda:
             torch.cuda.set_device(self._device)
         self._flash_attention_enabled = True
-        torch.set_float32_matmul_precision("high")
 
     @property
     def cuda(self) -> bool:
