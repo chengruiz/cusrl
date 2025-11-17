@@ -29,6 +29,7 @@ from .distribution import (
 )
 from .encoding import (
     LearnablePositionalEncoding2D,
+    RotaryEmbedding,
     SinusoidalPositionalEncoding2D,
 )
 from .export import GraphBuilder
@@ -119,6 +120,7 @@ __all__ = [
     "PassthroughGate",
     "ResidualGate",
     "Rnn",
+    "RotaryEmbedding",
     "RunningMeanStd",
     "SeparableConv2d",
     "Sequential",

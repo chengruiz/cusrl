@@ -1,7 +1,11 @@
 import torch
 from torch import Tensor, nn
 
-__all__ = ["LearnablePositionalEncoding2D", "SinusoidalPositionalEncoding2D"]
+__all__ = [
+    "LearnablePositionalEncoding2D",
+    "RotaryEmbedding",
+    "SinusoidalPositionalEncoding2D",
+]
 
 
 def sinusoidal_positional_encoding_2d(
@@ -100,3 +104,82 @@ class LearnablePositionalEncoding2D(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return x + self.pe.type_as(x)
+
+
+class RotaryEmbedding(nn.Module):
+    """Implements Rotary Positional Embedding (RoPE), described in:
+    "RoFormer: Enhanced Transformer with Rotary Position Embedding",
+    https://arxiv.org/abs/2104.09864.
+
+    Args:
+        head_dim (int):
+            The per-head dimensionality of the feature embedding. Must be an
+            even number.
+        max_seq_len (int, optional):
+            The maximum sequence length for which to pre-cache the sine and
+            cosine values. Defaults to 2048.
+        base (float, optional):
+            The base value used for calculating the inverse frequency of the
+            sinusoidal embeddings. Defaults to 10000.0.
+
+    Raises:
+        ValueError: If `num_channels` is not an even number.
+    """
+
+    inv_freq: Tensor
+    cos_cached: Tensor
+    sin_cached: Tensor
+
+    def __init__(self, head_dim: int, max_seq_len: int = 2048, base: float = 10000.0):
+        super().__init__()
+        if head_dim % 2 != 0:
+            raise ValueError("'head_dim' must be even for RotaryEmbedding.")
+        self.head_dim = head_dim
+        self.max_seq_len = int(max_seq_len)
+        self.base = float(base)
+
+        inv_freq = 1.0 / (self.base ** (torch.arange(0, head_dim, 2, dtype=torch.float32) / head_dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
+        self.register_buffer("cos_cached", None, persistent=False)
+        self.register_buffer("sin_cached", None, persistent=False)
+        self._build_cache(self.max_seq_len)
+
+    def _build_cache(self, seq_len: int) -> None:
+        positions = torch.arange(seq_len, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
+        angles = positions.unsqueeze(1) @ self.inv_freq.unsqueeze(0)  # (L, C / 2)
+        self.cos_cached = torch.cos(angles)
+        self.sin_cached = torch.sin(angles)
+
+    def _get_cos_sin(self, seq_len: int, device: torch.device | None = None, dtype: torch.dtype | None = None):
+        if seq_len > self.cos_cached.shape[0]:
+            self._build_cache(seq_len)
+        cos = self.cos_cached[:seq_len]
+        sin = self.sin_cached[:seq_len]
+        if device is not None:
+            cos = cos.to(device)
+            sin = sin.to(device)
+        if dtype is not None:
+            cos = cos.to(dtype=dtype)
+            sin = sin.to(dtype=dtype)
+        return cos, sin
+
+    @staticmethod
+    def rotate_half(x: Tensor) -> Tensor:
+        x1, x2 = x.chunk(2, dim=-1)
+        return torch.cat((-x2, x1), dim=-1)
+
+    @staticmethod
+    def apply_rotary_emb(x: Tensor, cos: Tensor, sin: Tensor) -> Tensor:
+        """Apply rotary embedding to tensor.
+
+        Args:
+            x: tensor of shape (B, L, H, C / H).
+            cos, sin: tensor of shape (L, C / H / 2).
+        """
+        cos = cos.repeat(1, 2).unsqueeze(-2)  # (L, 1, C / H)
+        sin = sin.repeat(1, 2).unsqueeze(-2)  # (L, 1, C / H)
+        return x * cos + RotaryEmbedding.rotate_half(x) * sin
+
+    def forward(self, x: Tensor) -> Tensor:
+        cos, sin = self._get_cos_sin(x.shape[-3], device=x.device, dtype=x.dtype)
+        return self.apply_rotary_emb(x, cos, sin)
