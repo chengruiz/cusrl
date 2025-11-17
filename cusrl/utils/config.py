@@ -46,7 +46,14 @@ class Configurations:
 
         if self._cuda:
             torch.cuda.set_device(self._device)
-        self._flash_attention_enabled = True
+
+        try:
+            import flash_attn
+
+            self._flash_attention_found = True
+        except ImportError:
+            self._flash_attention_found = False
+        self._flash_attention_enabled = self._flash_attention_found
 
     @property
     def cuda(self) -> bool:
@@ -89,6 +96,8 @@ class Configurations:
         return self._flash_attention_enabled
 
     def enable_flash_attention(self, enabled: bool = True):
+        if enabled and not self._flash_attention_found:
+            raise RuntimeError("'flash_attn' cannot be enabled as it is not installed.")
         self._flash_attention_enabled = enabled
 
 

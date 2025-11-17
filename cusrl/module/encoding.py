@@ -170,10 +170,6 @@ class RotaryEmbedding(nn.Module):
         self.register_buffer("sin_cached", None, persistent=False)
         self._build_cache(self.max_seq_len)
 
-        from cusrl.module.mha import FlashAttention
-
-        self._flash = FlashAttention.is_available()
-
     def _build_cache(self, seq_len: int) -> None:
         positions = torch.arange(seq_len, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
         angles = positions.unsqueeze(1) @ self.inv_freq.unsqueeze(0)  # (L, C / 2)
@@ -195,7 +191,7 @@ class RotaryEmbedding(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         cos, sin = self._get_cos_sin(x.shape[-3], device=x.device, dtype=x.dtype)
-        if self._flash and CONFIG.flash_attention_enabled and x.device.type != "cpu":
+        if CONFIG.flash_attention_enabled and x.device.type != "cpu":
             assert apply_rotary_emb_flash is not None
             return apply_rotary_emb_flash(x, cos, sin)  # type: ignore
         return apply_rotary_emb(x, cos, sin)
@@ -206,7 +202,7 @@ class RotaryEmbedding(nn.Module):
         Args:
             qkv: tensor of shape (B, L, 3, H, C / H).
         """
-        if self._flash and CONFIG.flash_attention_enabled and qkv.device.type != "cpu":
+        if CONFIG.flash_attention_enabled and qkv.device.type != "cpu":
             assert apply_rotary_emb_qkv_flash_ is not None
             cos, sin = self._get_cos_sin(qkv.shape[-4], device=qkv.device, dtype=qkv.dtype)
             apply_rotary_emb_qkv_flash_(qkv, cos, sin)
