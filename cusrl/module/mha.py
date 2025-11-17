@@ -351,7 +351,7 @@ class MultiheadSelfAttention(nn.Module):
             qkv = self.rope.apply_qkv(qkv)
 
         if self._flash and CONFIG.flash_attention_enabled and input.device.type != "cpu":
-            # Compute cross-attention via FlashAttention with KV packed
+            # Compute cross-attention via FlashAttention with QKV packed
             assert flash_attn_qkvpacked_func is not None
             attn_out = flash_attn_qkvpacked_func(
                 qkv.to(self.dtype),
