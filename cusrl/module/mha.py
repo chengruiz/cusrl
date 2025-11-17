@@ -7,6 +7,7 @@ try:
 except ImportError:
     flash_attn = flash_attn_func = flash_attn_kvpacked_func = flash_attn_qkvpacked_func = None
 
+from cusrl.module.encoding import RotaryEmbedding
 from cusrl.utils import CONFIG
 
 __all__ = [
@@ -282,6 +283,9 @@ class MultiheadSelfAttention(nn.Module):
             Total dimension of the model.
         num_heads (int):
             The number of parallel attention heads.
+        rope_base (float | None, optional):
+            If provided, enables Rotary Positional Embedding with the given
+            base frequency. Defaults to ``None``.
         dropout (float, optional):
             Dropout probability on attention weights. Defaults to ``0.0``.
         bias (bool, optional):
@@ -303,6 +307,7 @@ class MultiheadSelfAttention(nn.Module):
         self,
         embed_dim: int,
         num_heads: int,
+        rope_base: float | None = None,
         dropout: float = 0.0,
         bias: bool = True,
         batch_first: bool = True,
@@ -314,12 +319,14 @@ class MultiheadSelfAttention(nn.Module):
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.head_dim = embed_dim // num_heads
+        self.rope_base = rope_base
 
         self.dropout = dropout
         self.batch_first = batch_first
         self.dtype = dtype
         self._flash = FlashAttention.is_available(dtype)
 
+        self.rope = RotaryEmbedding(self.head_dim, base=rope_base) if rope_base is not None else None
         self.qkv_proj = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.reset_parameters()
@@ -340,6 +347,8 @@ class MultiheadSelfAttention(nn.Module):
 
         # Projections
         qkv = self.qkv_proj(input).unflatten(-1, (3, self.num_heads, self.head_dim))
+        if self.rope is not None:
+            qkv = self.rope.apply_qkv(qkv)
 
         if self._flash and CONFIG.flash_attention_enabled and input.device.type != "cpu":
             # Compute cross-attention via FlashAttention with KV packed

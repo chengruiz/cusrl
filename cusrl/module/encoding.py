@@ -1,6 +1,15 @@
 import torch
 from torch import Tensor, nn
 
+from cusrl.utils.config import CONFIG
+
+try:
+    from flash_attn.layers.rotary import apply_rotary_emb as apply_rotary_emb_flash
+    from flash_attn.layers.rotary import apply_rotary_emb_qkv_ as apply_rotary_emb_qkv_flash_
+except ImportError:
+    apply_rotary_emb_flash = apply_rotary_emb_qkv_flash_ = None
+
+
 __all__ = [
     "LearnablePositionalEncoding2D",
     "RotaryEmbedding",
@@ -106,6 +115,23 @@ class LearnablePositionalEncoding2D(nn.Module):
         return x + self.pe.type_as(x)
 
 
+def rotate_half(x: Tensor) -> Tensor:
+    x1, x2 = x.chunk(2, dim=-1)
+    return torch.cat((-x2, x1), dim=-1)
+
+
+def apply_rotary_emb(x: Tensor, cos: Tensor, sin: Tensor) -> Tensor:
+    """Apply rotary embedding to tensor.
+
+    Args:
+        x: tensor of shape (B, L, H, C / H).
+        cos, sin: tensor of shape (L, C / H / 2).
+    """
+    cos = cos.repeat(1, 2).unsqueeze(-2)  # (L, 1, C / H)
+    sin = sin.repeat(1, 2).unsqueeze(-2)  # (L, 1, C / H)
+    return x * cos + rotate_half(x) * sin
+
+
 class RotaryEmbedding(nn.Module):
     """Implements Rotary Positional Embedding (RoPE), described in:
     "RoFormer: Enhanced Transformer with Rotary Position Embedding",
@@ -144,6 +170,10 @@ class RotaryEmbedding(nn.Module):
         self.register_buffer("sin_cached", None, persistent=False)
         self._build_cache(self.max_seq_len)
 
+        from cusrl.module.mha import FlashAttention
+
+        self._flash = FlashAttention.is_available()
+
     def _build_cache(self, seq_len: int) -> None:
         positions = torch.arange(seq_len, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
         angles = positions.unsqueeze(1) @ self.inv_freq.unsqueeze(0)  # (L, C / 2)
@@ -163,23 +193,23 @@ class RotaryEmbedding(nn.Module):
             sin = sin.to(dtype=dtype)
         return cos, sin
 
-    @staticmethod
-    def rotate_half(x: Tensor) -> Tensor:
-        x1, x2 = x.chunk(2, dim=-1)
-        return torch.cat((-x2, x1), dim=-1)
-
-    @staticmethod
-    def apply_rotary_emb(x: Tensor, cos: Tensor, sin: Tensor) -> Tensor:
-        """Apply rotary embedding to tensor.
-
-        Args:
-            x: tensor of shape (B, L, H, C / H).
-            cos, sin: tensor of shape (L, C / H / 2).
-        """
-        cos = cos.repeat(1, 2).unsqueeze(-2)  # (L, 1, C / H)
-        sin = sin.repeat(1, 2).unsqueeze(-2)  # (L, 1, C / H)
-        return x * cos + RotaryEmbedding.rotate_half(x) * sin
-
     def forward(self, x: Tensor) -> Tensor:
         cos, sin = self._get_cos_sin(x.shape[-3], device=x.device, dtype=x.dtype)
-        return self.apply_rotary_emb(x, cos, sin)
+        if self._flash and CONFIG.flash_attention_enabled and x.device.type != "cpu":
+            assert apply_rotary_emb_flash is not None
+            return apply_rotary_emb_flash(x, cos, sin)  # type: ignore
+        return apply_rotary_emb(x, cos, sin)
+
+    def apply_qkv(self, qkv: Tensor) -> Tensor:
+        """Apply rotary embedding to query, key, and value tensors.
+
+        Args:
+            qkv: tensor of shape (B, L, 3, H, C / H).
+        """
+        if self._flash and CONFIG.flash_attention_enabled and qkv.device.type != "cpu":
+            assert apply_rotary_emb_qkv_flash_ is not None
+            cos, sin = self._get_cos_sin(qkv.shape[-4], device=qkv.device, dtype=qkv.dtype)
+            apply_rotary_emb_qkv_flash_(qkv, cos, sin)
+            return qkv
+        q, k, v = qkv.unbind(dim=-3)
+        return torch.stack([self(q), self(k), v], dim=-3)

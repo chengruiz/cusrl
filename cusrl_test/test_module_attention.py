@@ -218,10 +218,12 @@ def test_cross_mha_consistency_with_torch(dtype):
 
 @pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
 def test_rope_correctness():
-    from flash_attn.layers.rotary import apply_rotary_emb
-
     x = torch.randn(2, 16, 4, 8).to("cuda")
+    qkv = torch.randn(2, 16, 3, 4, 8).to("cuda")
     module = RotaryEmbedding(head_dim=8, max_seq_len=16).to("cuda")
-    out1 = module(x)
-    out2 = apply_rotary_emb(x, module.cos_cached, module.sin_cached)
-    assert torch.allclose(out1, out2, atol=1e-5)
+    cusrl.config.enable_flash_attention(False)
+    out1_x, out1_qkv = module(x), module.apply_qkv(qkv)
+    cusrl.config.enable_flash_attention(True)
+    out2_x, out2_qkv = module(x), module.apply_qkv(qkv)
+    assert torch.allclose(out1_x, out2_x, atol=1e-5)
+    assert torch.allclose(out1_qkv, out2_qkv, atol=1e-5)
