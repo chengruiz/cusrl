@@ -124,9 +124,7 @@ class Module(nn.Module):
         self._rnn_compatible: bool = False
 
     @property
-    def device(self):
-        if hasattr(self, "_device"):
-            return self._device
+    def device(self) -> torch.device:
         return next(self.parameters()).device
 
     def to_distributed(self) -> DistributedDataParallel | Self:

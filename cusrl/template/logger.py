@@ -17,7 +17,7 @@ __all__ = [
 
 @dataclass(slots=True)
 class LoggerFactory:
-    log_dir: os.PathLike
+    log_dir: str | os.PathLike
     name: str | None = None
     interval: int = 1
     add_datetime_prefix: bool = True
@@ -50,7 +50,7 @@ class Logger:
         `latest` -> symlink to `[timestamp]:[name]/`
 
     Args:
-        log_dir (os.PathLike):
+        log_dir (str | os.PathLike):
             The root directory where logs will be stored.
         name (str | None, optional):
             A specific name for the experiment run. If ``None``, logs are stored
@@ -67,7 +67,7 @@ class Logger:
 
     def __init__(
         self,
-        log_dir: os.PathLike,
+        log_dir: str | os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,
@@ -125,7 +125,7 @@ class Logger:
 
 def make_logger_factory(
     logger_type: str | None = None,
-    log_dir: os.PathLike | None = None,
+    log_dir: str | os.PathLike | None = None,
     name: str | None = None,
     interval: int = 1,
     add_datetime_prefix: bool = True,

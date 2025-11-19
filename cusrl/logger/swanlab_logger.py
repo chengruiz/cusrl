@@ -9,7 +9,7 @@ __all__ = ["Swanlab"]
 class SwanlabFactory:
     def __init__(
         self,
-        log_dir: os.PathLike,
+        log_dir: str | os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,
@@ -66,7 +66,7 @@ class Swanlab(Logger):
 
     def __init__(
         self,
-        log_dir: os.PathLike,
+        log_dir: str | os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,

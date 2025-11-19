@@ -9,7 +9,7 @@ __all__ = ["Wandb"]
 class WandbFactory:
     def __init__(
         self,
-        log_dir: os.PathLike,
+        log_dir: str | os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,
@@ -60,7 +60,7 @@ class Wandb(Logger):
 
     def __init__(
         self,
-        log_dir: os.PathLike,
+        log_dir: str | os.PathLike,
         name: str | None = None,
         interval: int = 1,
         add_datetime_prefix: bool = True,
