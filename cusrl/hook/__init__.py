@@ -18,7 +18,7 @@ from .lr_schedule import (
     ThresholdLRSchedule,
 )
 from .observation import (
-    ObservationNanToZero,
+    ObservationNanToNum,
     ObservationNormalization,
 )
 from .on_policy import (
@@ -69,7 +69,7 @@ __all__ = [
     "MiniBatchWiseLRSchedule",
     "ModuleInitialization",
     "NextStatePrediction",
-    "ObservationNanToZero",
+    "ObservationNanToNum",
     "ObservationNormalization",
     "OnPolicyBufferCapacitySchedule",
     "OnPolicyPreparation",

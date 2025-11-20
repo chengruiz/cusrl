@@ -10,11 +10,11 @@ from cusrl.module.normalizer import mean_var_count
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.typing import Slice
 
-__all__ = ["ObservationNanToZero", "ObservationNormalization"]
+__all__ = ["ObservationNanToNum", "ObservationNormalization"]
 
 
-class ObservationNanToZero(Hook[ActorCritic]):
-    """Replaces NaN values with zero in observations and states.
+class ObservationNanToNum(Hook[ActorCritic]):
+    """Replaces NaN values with number in observations and states.
 
     This hook sanitizes incoming tensors to prevent NaNs from propagating
     through the pipeline. It operates in-place on the following fields when
@@ -22,24 +22,37 @@ class ObservationNanToZero(Hook[ActorCritic]):
 
     - ``"observation"`` and ``"state"`` during :func:`pre_act`;
     - ``"next_observation"`` and ``"next_state"`` during :func:`post_step`.
+
+    Args:
+        nan (float, optional):
+            The value to replace NaNs with. Defaults to ``0.0``.
+        posinf (float, optional):
+            The value to replace positive infinity with. Defaults to ``0.0``.
+        neginf (float, optional):
+            The value to replace negative infinity with. Defaults to ``0.0``.
     """
 
-    @staticmethod
-    def nan_to_zero_(tensor: Tensor | None):
+    def __init__(self, nan: float = 0.0, posinf: float = 0.0, neginf: float = 0.0):
+        super().__init__()
+        self.nan = nan
+        self.posinf = posinf
+        self.neginf = neginf
+
+    def nan_to_num_(self, tensor: Tensor | None):
         if tensor is not None:
-            tensor.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
+            tensor.nan_to_num_(nan=self.nan, posinf=self.posinf, neginf=self.neginf)
 
     def pre_act(self, transition):
         observation = transition.get("observation")
         state = transition.get("state")
-        self.nan_to_zero_(cast(Tensor | None, observation))
-        self.nan_to_zero_(cast(Tensor | None, state))
+        self.nan_to_num_(cast(Tensor | None, observation))
+        self.nan_to_num_(cast(Tensor | None, state))
 
     def post_step(self, transition):
         next_observation = transition.get("next_observation")
         next_state = transition.get("next_state")
-        self.nan_to_zero_(cast(Tensor | None, next_observation))
-        self.nan_to_zero_(cast(Tensor | None, next_state))
+        self.nan_to_num_(cast(Tensor | None, next_observation))
+        self.nan_to_num_(cast(Tensor | None, next_state))
 
 
 class ObservationNormalization(Hook[ActorCritic]):
