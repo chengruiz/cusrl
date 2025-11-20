@@ -10,10 +10,9 @@ __all__ = ["Player"]
 
 
 class PlayerHook:
-    def __init__(self):
-        self.player: Player
-        self.agent: Agent
-        self.environment: Environment
+    player: "Player"
+    agent: Agent
+    environment: Environment
 
     def init(self, player: "Player"):
         self.player = player
