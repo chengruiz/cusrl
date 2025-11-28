@@ -89,7 +89,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
     desired_kl_divergence: float | None = None
     device: str | torch.device | None = None
     compile: bool = False
-    autocast: bool | torch.dtype = False
+    autocast: bool | None | str | torch.dtype = False
 
     def __post_init__(self):
         super().__init__(
@@ -164,7 +164,7 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
     desired_kl_divergence: float | None = None
     device: str | torch.device | None = None
     compile: bool = False
-    autocast: bool | torch.dtype = False
+    autocast: bool | None | str | torch.dtype = False
 
     def __post_init__(self):
         super().__init__(

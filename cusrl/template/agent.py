@@ -24,7 +24,7 @@ class AgentFactory(ABC, Generic[AgentType]):
     name: str
     device: torch.device | str | None
     compile: bool
-    autocast: bool | str | torch.dtype
+    autocast: bool | None | str | torch.dtype
 
     def __init__(
         self,
@@ -32,7 +32,7 @@ class AgentFactory(ABC, Generic[AgentType]):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
-        autocast: bool | str | torch.dtype = False,
+        autocast: bool | None | str | torch.dtype = False,
     ):
         self.num_steps_per_update = num_steps_per_update
         self.name = name
@@ -114,7 +114,7 @@ class Agent(ABC):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
-        autocast: bool | str | torch.dtype = False,
+        autocast: bool | None | str | torch.dtype = False,
     ):
         self.observation_dim = environment_spec.observation_dim
         self.action_dim = environment_spec.action_dim
@@ -131,11 +131,13 @@ class Agent(ABC):
             self.dtype = getattr(torch, autocast, None)
             if self.dtype is None or not isinstance(self.dtype, torch.dtype):
                 raise ValueError(f"Invalid autocast dtype '{autocast}'.")
+            self.autocast_enabled = True
         elif isinstance(autocast, torch.dtype):
+            self.autocast_enabled = True
             self.dtype = autocast
         else:
-            self.dtype = torch.float16 if autocast else torch.float32
-        self.autocast_enabled = autocast is not False
+            self.autocast_enabled = bool(autocast)
+            self.dtype = torch.float16 if self.autocast_enabled else torch.float32
         self.inference_mode = False
         self.deterministic = False
 

@@ -49,7 +49,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
     max_grad_norm: float | None = 1.0
     device: str | torch.device | None = None
     compile: bool = False
-    autocast: bool | torch.dtype = False
+    autocast: bool | None | str | torch.dtype = False
 
     def __post_init__(self):
         super().__init__(

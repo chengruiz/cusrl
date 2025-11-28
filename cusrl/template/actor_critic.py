@@ -60,7 +60,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
-        autocast: bool | str | torch.dtype = False,
+        autocast: bool | None | str | torch.dtype = False,
     ):
         super().__init__(
             num_steps_per_update=num_steps_per_update,
@@ -178,7 +178,7 @@ class ActorCritic(Agent):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool = False,
-        autocast: bool | str | torch.dtype = False,
+        autocast: bool | None | str | torch.dtype = False,
     ):
         super().__init__(
             environment_spec=environment_spec,
