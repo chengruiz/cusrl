@@ -94,11 +94,6 @@ class EnvironmentStats:
     def load_state_dict(self, state_dict: dict):
         if not state_dict:
             return
-        self.episode_rew.copy_(state_dict["episode_rew"])
-        self.episode_len.copy_(state_dict["episode_len"])
-        self.rew_buffer.copy_(state_dict["rew_buffer"])
-        self.len_buffer.copy_(state_dict["len_buffer"])
-        self.num_episodes = state_dict["num_episodes"]
         self.total_steps = state_dict["total_steps"]
 
 
