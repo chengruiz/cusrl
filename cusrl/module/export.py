@@ -205,6 +205,17 @@ def _optimize_onnx_model(model, output_path: str, verbose: bool = True) -> bool:
 
     try:
         import onnx
+        import onnxoptimizer
+
+        optimized_model = onnxoptimizer.optimize(model)
+        onnx.save(optimized_model, output_path)
+        print_if_verbose("\033[1;32mOptimized ONNX model with onnxoptimizer.\033[0m")
+        return True
+    except ModuleNotFoundError:
+        pass
+
+    try:
+        import onnx
         import onnxslim
         from onnxslim.utils import print_model_info_as_table, summarize_model
 
@@ -223,20 +234,9 @@ def _optimize_onnx_model(model, output_path: str, verbose: bool = True) -> bool:
     except ModuleNotFoundError:
         pass
 
-    try:
-        import onnx
-        import onnxoptimizer
-
-        optimized_model = onnxoptimizer.optimize(model)
-        onnx.save(optimized_model, output_path)
-        print_if_verbose("\033[1;32mOptimized ONNX model with onnxoptimizer.\033[0m")
-        return True
-    except ModuleNotFoundError:
-        pass
-
     print_if_verbose(
-        "\033[1;33mFailed to optimize ONNX model. Run `pip install onnxslim`"
-        "or `pip install onnxoptimizer` to install an optimizer.\033[0m"
+        "\033[1;33mFailed to optimize ONNX model. Run `pip install onnxoptimizer`"
+        "or `pip install onnxslim` to install an optimizer.\033[0m"
     )
     return False
 
