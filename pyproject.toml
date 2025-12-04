@@ -17,7 +17,7 @@ export = [
     "onnx",
     "onnxruntime",
     "onnxscript",
-    "onnxslim!=v0.1.62",    # or "onnxoptimizer"
+    "onnxoptimizer",  # or "onnxslim"
 ]
 swanlab = ["swanlab"]
 tensorboard = ["tensorboard"]
