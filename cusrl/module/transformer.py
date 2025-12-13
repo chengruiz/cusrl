@@ -82,6 +82,7 @@ class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
     activation_fn: type[nn.Module] = nn.GELU
     rope_base: float | None = None
     dropout: float = 0.0
+    batch_first: bool = True
     dtype: torch.dtype = torch.float16
     gate_type: str | None = "residual"
     layer_norm: Literal[None, "pre", "post"] = "post"
@@ -94,6 +95,7 @@ class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
             activation_fn=self.activation_fn,
             rope_base=self.rope_base,
             dropout=self.dropout,
+            batch_first=self.batch_first,
             dtype=self.dtype,
             gate_type=self.gate_type,
             layer_norm=self.layer_norm,
@@ -113,6 +115,7 @@ class TransformerEncoderLayer(Module):
         activation_fn: type[nn.Module] = nn.GELU,
         rope_base: float | None = None,
         dropout: float = 0.0,
+        batch_first: bool = True,
         dtype: torch.dtype = torch.float16,
         gate_type: str | None = "residual",
         layer_norm: Literal[None, "pre", "post"] = "post",
@@ -140,6 +143,7 @@ class TransformerEncoderLayer(Module):
             num_heads=num_heads,
             rope_base=rope_base,
             dropout=dropout,
+            batch_first=batch_first,
             dtype=dtype,
         )
         self.dropout1 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
