@@ -3,6 +3,7 @@ from typing import cast
 
 import numpy as np
 from torch import Tensor
+from typing_extensions import Self
 
 from cusrl.hook.symmetry import SymmetryDefLike
 from cusrl.module import GraphBuilder, RunningMeanStd
@@ -115,6 +116,10 @@ class ObservationNormalization(Hook[ActorCritic]):
         self._mirror_state: SymmetryDefLike | None = None
         self._observation_is_subset_of_state: Slice | Tensor | None = None
         self._last_done: Tensor | None = None
+
+    def freeze(self) -> Self:
+        self.frozen = True
+        return self
 
     def init(self):
         # Retrieve and normalize the subset index spec
