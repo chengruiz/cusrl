@@ -251,8 +251,8 @@ class SymmetricDataAugmentation(SymmetryHook):
             batch["next_state"] = batch["augmented_next_state"]
 
         for key in ("action_logp", "advantage"):
-            original = cast(Tensor, batch[key])
-            batch[key] = original.unsqueeze(-3).expand(*augmented_observation.shape[:-1], original.size(-1))
+            if (original := cast(Tensor | None, batch.get(key))) is not None:
+                batch[key] = original.unsqueeze(-3).expand(*augmented_observation.shape[:-1], original.size(-1))
         if (augmented_actor_memory := batch.get("augmented_actor_memory")) is not None:
             batch["actor_memory"] = augmented_actor_memory
 
