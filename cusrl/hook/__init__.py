@@ -9,6 +9,7 @@ from .environment_spec import (
     DynamicEnvironmentSpecOverride,
     EnvironmentSpecOverride,
 )
+from .estimation import StateEstimation
 from .gae import GeneralizedAdvantageEstimation
 from .gradient import GradientClipping
 from .initialization import ModuleInitialization
@@ -79,6 +80,7 @@ __all__ = [
     "RandomNetworkDistillation",
     "ReturnPrediction",
     "RewardShaping",
+    "StateEstimation",
     "StatePrediction",
     "SymmetricArchitecture",
     "SymmetricDataAugmentation",
