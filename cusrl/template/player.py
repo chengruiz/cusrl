@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from cusrl import utils
 from cusrl.template.agent import Agent
 from cusrl.template.environment import Environment, get_done_indices, update_observation_and_state
+from cusrl.template.trainer import EnvironmentStats
 from cusrl.template.trial import Trial
 from cusrl.utils.typing import Array
 
@@ -81,6 +82,11 @@ class Player:
     ):
         self.environment = environment if isinstance(environment, Environment) else environment()
         self.agent = agent if isinstance(agent, Agent) else agent.from_environment(self.environment)
+        self.stats = EnvironmentStats(
+            self.environment.num_instances,
+            self.environment.spec.reward_dim,
+            buffer_size=self.environment.num_instances,
+        )
         if checkpoint_path is not None:
             trial = Trial(checkpoint_path) if isinstance(checkpoint_path, str) else checkpoint_path
             checkpoint = trial.load_checkpoint(map_location=self.agent.device)
@@ -101,22 +107,31 @@ class Player:
 
     def run_playing_loop(self):
         observation, state, _ = self.environment.reset()
-        rate = utils.Rate(1 / self.timestep) if self.timestep is not None else None
+        rate = utils.Rate(1 / self.timestep) if self.timestep is not None and self.timestep > 0 else None
         step = 0
-        while self.num_steps is None or step < self.num_steps:
-            action = self.agent.act(observation, state)
-            observation, state, reward, terminated, truncated, info = self.environment.step(action)
-            self.agent.step(observation, reward, terminated, truncated, state, **info)
-            for hook in self.hooks:
-                hook.step(step, self.agent.transition, self.environment.get_metrics())
-            if done_indices := get_done_indices(terminated, truncated):
-                if not self.environment.spec.autoreset:
-                    init_observation, init_state, _ = self.environment.reset(indices=done_indices)
-                    observation, state = update_observation_and_state(
-                        observation, state, done_indices, init_observation, init_state
-                    )
+        try:
+            while self.num_steps is None or step < self.num_steps:
+                action = self.agent.act(observation, state)
+                observation, state, reward, terminated, truncated, info = self.environment.step(action)
+                self.stats.track_step(reward)
+                self.agent.step(observation, reward, terminated, truncated, state, **info)
                 for hook in self.hooks:
-                    hook.reset(done_indices)
-            if rate is not None:
-                rate.tick()
-            step += 1
+                    hook.step(step, self.agent.transition, self.environment.get_metrics())
+                if done_indices := get_done_indices(terminated, truncated):
+                    self.stats.track_episode(done_indices)
+                    if not self.environment.spec.autoreset:
+                        init_observation, init_state, _ = self.environment.reset(indices=done_indices)
+                        observation, state = update_observation_and_state(
+                            observation, state, done_indices, init_observation, init_state
+                        )
+                    for hook in self.hooks:
+                        hook.reset(done_indices)
+                if rate is not None:
+                    rate.tick()
+                step += 1
+        except KeyboardInterrupt:
+            print("\033[F\033[0K\rPlaying interrupted.")
+
+        print(f"Mean step reward: \033[4m{self.stats.mean_step_reward:.3f}\033[0m")
+        print(f"Mean episode reward: \033[4m{self.stats.mean_episode_reward:.3f}\033[0m")
+        print(f"Mean episode length: \033[4m{self.stats.mean_episode_length:.3f}\033[0m")

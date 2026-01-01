@@ -20,9 +20,9 @@ from cusrl.utils import CONFIG, Timer, distributed, is_main_process
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.nest import flatten_nested
 from cusrl.utils.str_utils import format_float
-from cusrl.utils.typing import Slice
+from cusrl.utils.typing import Array, Slice
 
-__all__ = ["Trainer"]
+__all__ = ["EnvironmentStats", "Trainer"]
 
 
 class EnvironmentStats:
@@ -39,7 +39,7 @@ class EnvironmentStats:
         self.num_steps = 0
         self.reward = torch.zeros([reward_dim], device="cpu")
 
-    def track_step(self, reward):
+    def track_step(self, reward: Array):
         reward = torch.as_tensor(reward, device="cpu")
         self.total_steps += self.num_envs
         self.episode_rew += reward
