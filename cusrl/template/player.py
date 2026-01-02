@@ -1,5 +1,7 @@
 from collections.abc import Iterable
 
+from tqdm import tqdm
+
 from cusrl import utils
 from cusrl.template.agent import Agent
 from cusrl.template.environment import Environment, get_done_indices, update_observation_and_state
@@ -110,25 +112,27 @@ class Player:
         rate = utils.Rate(1 / self.timestep) if self.timestep is not None and self.timestep > 0 else None
         step = 0
         try:
-            while self.num_steps is None or step < self.num_steps:
-                action = self.agent.act(observation, state)
-                observation, state, reward, terminated, truncated, info = self.environment.step(action)
-                self.stats.track_step(reward)
-                self.agent.step(observation, reward, terminated, truncated, state, **info)
-                for hook in self.hooks:
-                    hook.step(step, self.agent.transition, self.environment.get_metrics())
-                if done_indices := get_done_indices(terminated, truncated):
-                    self.stats.track_episode(done_indices)
-                    if not self.environment.spec.autoreset:
-                        init_observation, init_state, _ = self.environment.reset(indices=done_indices)
-                        observation, state = update_observation_and_state(
-                            observation, state, done_indices, init_observation, init_state
-                        )
+            with tqdm(total=self.num_steps, disable=not self.verbose) as progress_bar:
+                while self.num_steps is None or step < self.num_steps:
+                    action = self.agent.act(observation, state)
+                    observation, state, reward, terminated, truncated, info = self.environment.step(action)
+                    self.stats.track_step(reward)
+                    self.agent.step(observation, reward, terminated, truncated, state, **info)
                     for hook in self.hooks:
-                        hook.reset(done_indices)
-                if rate is not None:
-                    rate.tick()
-                step += 1
+                        hook.step(step, self.agent.transition, self.environment.get_metrics())
+                    if done_indices := get_done_indices(terminated, truncated):
+                        self.stats.track_episode(done_indices)
+                        if not self.environment.spec.autoreset:
+                            init_observation, init_state, _ = self.environment.reset(indices=done_indices)
+                            observation, state = update_observation_and_state(
+                                observation, state, done_indices, init_observation, init_state
+                            )
+                        for hook in self.hooks:
+                            hook.reset(done_indices)
+                    if rate is not None:
+                        rate.tick()
+                    step += 1
+                    progress_bar.update()
         except KeyboardInterrupt:
             print("\033[F\033[0K\rPlaying interrupted.")
 

@@ -4,3 +4,4 @@ numpy>=1.26.0
 objprint~=0.3.0
 pyyaml~=6.0.2
 torch>=2.4.0
+tqdm~=4.67.1
