@@ -1,8 +1,6 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-import torch
-
 import cusrl
 from cusrl.preset import ppo
 from cusrl.utils.typing import Array, Slice
