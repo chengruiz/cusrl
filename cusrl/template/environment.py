@@ -262,7 +262,12 @@ class Environment(ABC, Generic[ArrayType]):
         )
 
     @abstractmethod
-    def reset(self, *, indices: ArrayType | Slice | None = None) -> tuple[
+    def reset(
+        self,
+        *,
+        indices: ArrayType | Slice | None = None,
+        randomize_episode_progress: bool = False,
+    ) -> tuple[
         ArrayType,
         ArrayType | None,
         dict[str, Nested[ArrayType]],
@@ -271,7 +276,11 @@ class Environment(ABC, Generic[ArrayType]):
 
         Args:
             indices (ArrayType | Slice | None, optional):
-                Indices of instances to reset. If None, resets all instances.
+                Indices of instances to reset. If ``None``, resets all
+                instances. Defaults to ``None``.
+            randomize_episode_progress (bool, optional):
+                Whether to randomize the episode progress when resetting the
+                environment. Defaults to ``False``.
 
         Returns:
         - observation (ArrayType):
@@ -311,7 +320,7 @@ class Environment(ABC, Generic[ArrayType]):
                 where :math:`Do` is the observation dimension.
             - **next_state** (ArrayType | None):
                 Next states of all instances of shape :math:`(N, Ds)`, where
-                :math:`Ds` is the state dimension; or None if equal to the
+                :math:`Ds` is the state dimension; or ``None`` if equal to the
                 observations.
             - **reward** (ArrayType):
                 Rewards of all instances of shape :math:`(N, Dr)`, where

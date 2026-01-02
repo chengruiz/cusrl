@@ -14,7 +14,7 @@ __all__ = [
 
 
 class DummyEnvironment(cusrl.Environment):
-    def reset(self, *, indices=None):
+    def reset(self, *, indices=None, randomize_episode_progress=False):
         num_instances = self.num_instances
         if indices is not None:
             num_instances = torch.zeros(num_instances)[indices].numel()
@@ -37,7 +37,7 @@ class DummyEnvironment(cusrl.Environment):
 
 
 class DummyNumpyEnvironment(cusrl.Environment):
-    def reset(self, *, indices=None):
+    def reset(self, *, indices=None, randomize_episode_progress=False):
         num_instances = self.num_instances
         if indices is not None:
             num_instances = np.zeros(num_instances)[indices].size
@@ -106,7 +106,7 @@ def create_dummy_env(
 
 
 def run_environment_evaluation_loop(environment: cusrl.Environment, agent: cusrl.Agent, num_iterations=5):
-    observation, state, _ = environment.reset()
+    observation, state, _ = environment.reset(randomize_episode_progress=True)
     for iteration in range(num_iterations):
         while True:
             action = agent.act(observation, state)

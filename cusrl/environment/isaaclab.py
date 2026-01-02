@@ -81,10 +81,14 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
             raise ValueError("Only 1D state space is supported.")
         return shape[0]
 
-    def reset(self, *, indices: torch.Tensor | Slice | None = None):
+    def reset(
+        self,
+        *,
+        indices: torch.Tensor | Slice | None = None,
+        randomize_episode_progress: bool = False,
+    ):
         if indices is None:
             observation_dict, _ = self.wrapped.reset()
-            self.unwrapped.episode_length_buf.random_(int(self.unwrapped.max_episode_length))
             observation = observation_dict.pop("policy")
             state = observation_dict.pop("critic", None)
             extras = observation_dict
@@ -100,6 +104,11 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
                 observation = observation[indices]
             if state is not None:
                 state = state[indices]
+
+        if randomize_episode_progress:
+            self.unwrapped.episode_length_buf[indices] = torch.randint_like(
+                self.unwrapped.episode_length_buf[indices], int(self.unwrapped.max_episode_length)
+            )
 
         return observation, state, extras
 

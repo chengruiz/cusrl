@@ -306,7 +306,7 @@ class Trainer:
         self._save_checkpoint()
 
         with self.timer.record("environment"):
-            observation, state, _ = self.environment.reset()
+            observation, state, _ = self.environment.reset(randomize_episode_progress=True)
         while self.iteration < self.num_iterations:
             observation, state = self._rollout_and_update(observation, state)
             for callback in self.callbacks:

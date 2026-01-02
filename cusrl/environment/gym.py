@@ -41,7 +41,12 @@ class GymEnvAdapter(Environment[np.ndarray]):
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
 
-    def reset(self, *, indices: np.ndarray | Slice | None = None):
+    def reset(
+        self,
+        *,
+        indices: np.ndarray | Slice | None = None,
+        randomize_episode_progress: bool = False,
+    ):
         observation, info = self.wrapped.reset()
         observation = observation.reshape(1, -1)
         if self.wrapped.render_mode is not None:
@@ -97,7 +102,12 @@ class GymVectorEnvAdapter(Environment[np.ndarray]):
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
 
-    def reset(self, *, indices: np.ndarray | Slice | None = None):
+    def reset(
+        self,
+        *,
+        indices: np.ndarray | Slice | None = None,
+        randomize_episode_progress: bool = False,
+    ):
         if indices is None:
             observation, info = self.wrapped.reset()
             return observation, None, info
