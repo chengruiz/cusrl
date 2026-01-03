@@ -16,10 +16,6 @@ def configure_parser(parser):
                         help="Path to the checkpoint file or directory")
     parser.add_argument("--load-experiment-spec", action='store_true',
                         help="Whether to load experiment spec from the checkpoint directory")
-    parser.add_argument("--num-steps", type=int, metavar="N",
-                        help="Number of steps to run the player for (default: infinite)")
-    parser.add_argument("--timestep", type=float, metavar="T",
-                        help="Override the timestep of the environment")
     parser.add_argument("--seed", type=int, metavar="N",
                         help="Random seed (default: random)")
     parser.add_argument("--device", type=str,
@@ -28,8 +24,14 @@ def configure_parser(parser):
                         help="Datatype for automatic mixed precision (default: disabled)")
     parser.add_argument("--compile", action="store_true",
                         help="Whether to use `torch.compile`")
+    parser.add_argument("--num-steps", type=int, metavar="N",
+                        help="Number of steps to run the player for (default: infinite)")
+    parser.add_argument("--timestep", type=float, metavar="T",
+                        help="Override the timestep of the environment")
     parser.add_argument("--stochastic", action='store_true',
                         help="Whether to use stochastic actions instead of deterministic")
+    parser.add_argument("--quiet", action='store_true',
+                        help="Whether to suppress output during playing")
     parser.add_argument("--environment-args", type=str, metavar="ARG",
                         help="Additional arguments for the environment")
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, metavar="MODULE [ARG ...]",
@@ -51,7 +53,7 @@ def main(args):
         num_steps=args.num_steps,
         timestep=args.timestep,
         deterministic=not args.stochastic,
-        verbose=True,
+        verbose=not args.quiet,
     ).run_playing_loop()
 
 
