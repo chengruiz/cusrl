@@ -152,8 +152,9 @@ class Player:
         self._display_stats()
 
     def _sigint_handler(self, signum, frame):
-        print("\033[F\033[0K\rPlaying interrupted.")
-        self.interrupted = True
+        if not self.interrupted:
+            print("\033[F\033[0K\rPlaying interrupted.")
+            self.interrupted = True
 
     def _display_stats(self):
         metrics = {
