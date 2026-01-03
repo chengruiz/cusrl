@@ -1,3 +1,5 @@
+import signal
+from collections import defaultdict
 from collections.abc import Iterable
 
 from tqdm import tqdm
@@ -89,9 +91,11 @@ class Player:
             self.environment.spec.reward_dim,
             buffer_size=self.environment.num_instances,
         )
+        self.metrics: dict[str, float] = defaultdict(float)
+        self.trial: Trial | None = None
         if checkpoint_path is not None:
-            trial = Trial(checkpoint_path) if isinstance(checkpoint_path, str) else checkpoint_path
-            checkpoint = trial.load_checkpoint(map_location=self.agent.device)
+            self.trial = Trial(checkpoint_path) if isinstance(checkpoint_path, str) else checkpoint_path
+            checkpoint = self.trial.load_checkpoint(map_location=self.agent.device)
             self.agent.load_state_dict(checkpoint["agent"])
             self.environment.load_state_dict(checkpoint["environment"])
         self.agent.set_inference_mode(deterministic=deterministic)
@@ -99,7 +103,9 @@ class Player:
         self.timestep = self.environment.spec.timestep if timestep is None else timestep
         self.deterministic = deterministic
         self.verbose = verbose
+        self.interrupted = False
         self.hooks = []
+        self.step = 0
         for hook in hooks:
             self.register_hook(hook)
 
@@ -107,35 +113,50 @@ class Player:
         hook.init(self)
         self.hooks.append(hook)
 
+    def sigint_handler(self):
+        print("\033[F\033[0K\rPlaying interrupted.")
+        self.interrupted = True
+
     def run_playing_loop(self):
         observation, state, _ = self.environment.reset()
         rate = utils.Rate(1 / self.timestep) if self.timestep is not None and self.timestep > 0 else None
-        step = 0
-        try:
-            with tqdm(total=self.num_steps, disable=not self.verbose) as progress_bar:
-                while self.num_steps is None or step < self.num_steps:
-                    action = self.agent.act(observation, state)
-                    observation, state, reward, terminated, truncated, info = self.environment.step(action)
-                    self.stats.track_step(reward)
-                    self.agent.step(observation, reward, terminated, truncated, state, **info)
+        signal.signal(signal.SIGINT, lambda s, f: self.sigint_handler())
+        with tqdm(total=self.num_steps, disable=not self.verbose, dynamic_ncols=True) as progress_bar:
+            while (self.num_steps is None or self.step < self.num_steps) and not self.interrupted:
+                action = self.agent.act(observation, state)
+                observation, state, reward, terminated, truncated, info = self.environment.step(action)
+                metrics = self.environment.get_metrics()
+                self.stats.track_step(reward)
+                self.agent.step(observation, reward, terminated, truncated, state, **info)
+                for key, value in metrics.items():
+                    self.metrics[key] += value
+                for hook in self.hooks:
+                    hook.step(self.step, self.agent.transition, metrics)
+                if done_indices := get_done_indices(terminated, truncated):
+                    self.stats.track_episode(done_indices)
+                    if not self.environment.spec.autoreset:
+                        init_observation, init_state, _ = self.environment.reset(indices=done_indices)
+                        observation, state = update_observation_and_state(
+                            observation, state, done_indices, init_observation, init_state
+                        )
                     for hook in self.hooks:
-                        hook.step(step, self.agent.transition, self.environment.get_metrics())
-                    if done_indices := get_done_indices(terminated, truncated):
-                        self.stats.track_episode(done_indices)
-                        if not self.environment.spec.autoreset:
-                            init_observation, init_state, _ = self.environment.reset(indices=done_indices)
-                            observation, state = update_observation_and_state(
-                                observation, state, done_indices, init_observation, init_state
-                            )
-                        for hook in self.hooks:
-                            hook.reset(done_indices)
-                    if rate is not None:
-                        rate.tick()
-                    step += 1
-                    progress_bar.update()
-        except KeyboardInterrupt:
-            print("\033[F\033[0K\rPlaying interrupted.")
+                        hook.reset(done_indices)
+                if rate is not None:
+                    rate.tick()
+                self.step += 1
+                progress_bar.update()
 
-        print(f"Mean step reward: \033[4m{self.stats.mean_step_reward:.3f}\033[0m")
-        print(f"Mean episode reward: \033[4m{self.stats.mean_episode_reward:.3f}\033[0m")
-        print(f"Mean episode length: \033[4m{self.stats.mean_episode_length:.3f}\033[0m")
+        self.display_stats()
+
+    def display_stats(self):
+        metrics = {
+            "Mean step reward": f"{self.stats.mean_step_reward:.4f}",
+            "Mean episode reward": f"{self.stats.mean_episode_reward:.4f}",
+            "Mean episode length": f"{self.stats.mean_episode_length:.4f}",
+        } | {key: f"{value / self.step:.4f}" for key, value in self.metrics.items()}
+        max_key_length = max(len(key) for key in metrics.keys())
+        max_value_length = max(len(value) for value in metrics.values())
+        print("┌" + "─" * (max_key_length + 2) + "┬" + "─" * (max_value_length + 2) + "┐")
+        for key, value in metrics.items():
+            print(f"│ {key.ljust(max_key_length)} │ {value.ljust(max_value_length)} │")
+        print("└" + "─" * (max_key_length + 2) + "┴" + "─" * (max_value_length + 2) + "┘")
