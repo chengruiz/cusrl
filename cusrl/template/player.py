@@ -3,6 +3,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 
 from tqdm import tqdm
+from typing_extensions import Self
 
 from cusrl import utils
 from cusrl.template.agent import Agent
@@ -60,9 +61,9 @@ class Player:
             called at each step and reset event.
 
     Methods:
-        register_hook(hook: PlayerHook) -> None
+        register_hook(hook: PlayerHook) -> Self
             Register and initialize an additional hook to be called during play.
-        run_playing_loop() -> None
+        run_playing_loop() -> dict[str, float]
             Reset the environment, then repeatedly:
             - Query the agent for an action;
             - Step the environment;
@@ -112,11 +113,12 @@ class Player:
         for hook in hooks:
             self.register_hook(hook)
 
-    def register_hook(self, hook: Hook):
+    def register_hook(self, hook: Hook) -> Self:
         hook.init(self)
         self.hooks.append(hook)
+        return self
 
-    def run_playing_loop(self):
+    def run_playing_loop(self) -> dict[str, float]:
         observation, state, _ = self.environment.reset()
         rate = utils.Rate(1 / self.timestep) if self.timestep is not None and self.timestep > 0 else None
         signal.signal(signal.SIGINT, self._sigint_handler)
@@ -149,22 +151,22 @@ class Player:
                 self.step += 1
                 progress_bar.update()
 
-        self._display_stats()
+        metrics = {
+            "Mean step reward": self.stats.mean_step_reward,
+            "Mean episode reward": self.stats.mean_episode_reward,
+            "Mean episode length": self.stats.mean_episode_length,
+        } | {key: value / self.step for key, value in self.metrics.items()}
+        self._display_metrics(metrics)
+        return metrics
 
     def _sigint_handler(self, signum, frame):
-        if not self.interrupted:
-            print("\033[F\033[0K\rPlaying interrupted.")
-            self.interrupted = True
+        self.interrupted = True
 
-    def _display_stats(self):
-        metrics = {
-            "Mean step reward": f"{self.stats.mean_step_reward:.4f}",
-            "Mean episode reward": f"{self.stats.mean_episode_reward:.4f}",
-            "Mean episode length": f"{self.stats.mean_episode_length:.4f}",
-        } | {key: f"{value / self.step:.4f}" for key, value in self.metrics.items()}
-        max_key_length = max(len(key) for key in metrics.keys())
-        max_value_length = max(len(value) for value in metrics.values())
+    def _display_metrics(self, metrics: dict[str, float]):
+        formatted_metrics = {key: f"{value:.4f}" for key, value in metrics.items()}
+        max_key_length = max(len(key) for key in formatted_metrics.keys())
+        max_value_length = max(len(value) for value in formatted_metrics.values())
         print("┌" + "─" * (max_key_length + 2) + "┬" + "─" * (max_value_length + 2) + "┐")
-        for key, value in metrics.items():
+        for key, value in formatted_metrics.items():
             print(f"│ {key.ljust(max_key_length)} │ {value.ljust(max_value_length)} │")
         print("└" + "─" * (max_key_length + 2) + "┴" + "─" * (max_value_length + 2) + "┘")
