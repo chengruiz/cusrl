@@ -1,5 +1,6 @@
 import argparse
 
+import cusrl
 from cusrl.cli import utils as cli_utils
 from cusrl.template import Agent
 
@@ -40,6 +41,7 @@ def configure_parser(parser):
 
 
 def main(args):
+    cusrl.config.enable_flash_attention(False)
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)
     experiment = cli_utils.load_experiment_spec_from_args(args, trial)
