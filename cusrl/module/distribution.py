@@ -207,7 +207,7 @@ class _Normal(Distribution[MeanStdDict]):
 
 
 class StddevVector(nn.Module):
-    def __init__(self, output_dim: int, bijector: str | Bijector | None = "exp"):
+    def __init__(self, output_dim: int, bijector: str | Bijector | None = None):
         super().__init__()
         self.bijector = make_bijector(bijector)
         self.param = nn.Parameter(torch.ones(output_dim) * self.bijector.inverse(1.0))
@@ -233,7 +233,7 @@ class StddevVector(nn.Module):
 
 @dataclass(slots=True)
 class NormalDistFactory(DistributionFactory["NormalDist"]):
-    bijector: str | Bijector | None = "exp"
+    bijector: str | Bijector | None = None
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         assert input_dim is not None and output_dim is not None
@@ -243,7 +243,7 @@ class NormalDistFactory(DistributionFactory["NormalDist"]):
 class NormalDist(_Normal):
     Factory = NormalDistFactory
 
-    def __init__(self, input_dim: int, output_dim: int, bijector: str | Bijector | None = "exp"):
+    def __init__(self, input_dim: int, output_dim: int, bijector: str | Bijector | None = None):
         super().__init__(input_dim, output_dim)
         self.std: StddevVector = StddevVector(output_dim, bijector=bijector)
 
