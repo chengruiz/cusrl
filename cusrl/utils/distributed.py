@@ -76,7 +76,7 @@ def gather_print(*args, **kwargs):
 
     output = make_none_obj_list()
     torch.distributed.all_gather_object(output, buf.getvalue())
-    if CONFIG.local_rank == 0:
+    if CONFIG.rank == 0:
         for rank, out in enumerate(output):
             print(f"Rank {rank}: {out}", end="")
 
