@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from cusrl.utils.config import CONFIG
+from cusrl.utils.config import CONFIG, configure_distributed
 
 __all__ = [
     "average_dict",
@@ -30,7 +30,7 @@ _T = TypeVar("_T")
 
 
 def average_dict(info_dict: dict[str, float]) -> dict[str, float]:
-    if not CONFIG.distributed:
+    if not configure_distributed():
         return info_dict
 
     info_dict_list = gather_obj(info_dict)
@@ -45,7 +45,7 @@ def average_dict(info_dict: dict[str, float]) -> dict[str, float]:
 
 
 def barrier():
-    if not CONFIG.distributed:
+    if not configure_distributed():
         return
     torch.distributed.barrier()
 
@@ -60,7 +60,7 @@ def is_main_process() -> bool:
 
 
 def gather_obj(obj: _T) -> list[_T]:
-    if not CONFIG.distributed:
+    if not configure_distributed():
         return [obj]
     obj_list = [None for _ in range(CONFIG.world_size)]
     torch.distributed.all_gather_object(obj_list, obj)
@@ -68,7 +68,7 @@ def gather_obj(obj: _T) -> list[_T]:
 
 
 def gather_print(*args, **kwargs):
-    if not CONFIG.distributed:
+    if not configure_distributed():
         print(*args, **kwargs)
         return
     buf = StringIO()
@@ -82,7 +82,7 @@ def gather_print(*args, **kwargs):
 
 
 def gather_stack(tensor: torch.Tensor) -> torch.Tensor:
-    if not CONFIG.distributed:
+    if not configure_distributed():
         return tensor.unsqueeze(0)
 
     if torch.distributed.get_backend() == torch.distributed.Backend.GLOO:
@@ -93,7 +93,7 @@ def gather_stack(tensor: torch.Tensor) -> torch.Tensor:
 
 
 def gather_tensor(tensor: torch.Tensor) -> list[torch.Tensor]:
-    if not CONFIG.distributed:
+    if not configure_distributed():
         return [tensor]
     tensor_list = [torch.empty_like(tensor) for _ in range(CONFIG.world_size)]
     torch.distributed.all_gather(tensor_list, tensor)
@@ -107,7 +107,7 @@ def local_rank() -> int:
 def make_distributed(module, *, force: bool = False) -> Any:
     from cusrl.module.module import DistributedDataParallel
 
-    if not CONFIG.distributed:
+    if not configure_distributed():
         raise RuntimeError("DistributedDataParallel is not enabled.")
     if isinstance(module, nn.parallel.DistributedDataParallel):
         return module
@@ -117,7 +117,7 @@ def make_distributed(module, *, force: bool = False) -> Any:
 
 
 def make_none_obj_list() -> list[object]:
-    if not CONFIG.distributed:
+    if not configure_distributed():
         return []
     return [None for _ in range(CONFIG.world_size)]
 
@@ -133,7 +133,7 @@ def rank() -> int:
 
 def reduce_mean_(tensor: torch.Tensor) -> torch.Tensor:
     """Reduces the tensor across all processes by averaging."""
-    if not CONFIG.distributed:
+    if not configure_distributed():
         return tensor
     if torch.distributed.get_backend() == torch.distributed.Backend.GLOO:
         torch.distributed.all_reduce(tensor, op=torch.distributed.ReduceOp.SUM)
@@ -143,7 +143,7 @@ def reduce_mean_(tensor: torch.Tensor) -> torch.Tensor:
 
 
 def reduce_mean_var_(mean: torch.Tensor, var: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    if not CONFIG.distributed:
+    if not configure_distributed():
         return mean, var
     all_mean_var = gather_stack(torch.cat((mean, var), dim=0))
     all_means, all_vars = all_mean_var.chunk(2, -1)

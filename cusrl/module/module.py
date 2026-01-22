@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from cusrl.utils.config import configure_distributed
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = [
@@ -21,6 +22,7 @@ class DistributedDataParallel(nn.parallel.DistributedDataParallel):
     is_distributed = True
 
     def __init__(self, module, *args, **kwargs):
+        configure_distributed()
         kwargs["gradient_as_bucket_view"] = True
         super().__init__(module, *args, **kwargs)
         self.register_state_dict_post_hook(self._state_dict_post_hook)
