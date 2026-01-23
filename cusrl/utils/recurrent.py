@@ -67,7 +67,6 @@ def set_sequence_batch_masked_(tensor: Tensor, mask: Tensor, value: Tensor | Num
         tensor.movedim(-2, 1).masked_fill_(mask, value)
 
 
-@torch.jit.script
 def compute_sequence_indices(done: Tensor) -> Tensor:
     """Computes cumulative sequence boundary indices from end-of-sequence flags.
 
@@ -95,7 +94,6 @@ def compute_sequence_indices(done: Tensor) -> Tensor:
     return indices
 
 
-@torch.jit.script
 def compute_sequence_lengths(done: Tensor) -> Tensor:
     """Computes sequence lengths from a 'done' tensor.
 
@@ -128,7 +126,6 @@ def compute_sequence_lengths(done: Tensor) -> Tensor:
     return sequence_lens
 
 
-@torch.jit.script
 def cumulate_sequence_lengths(sequence_lens: Tensor) -> Tensor:
     """Computes cumulative sequence lengths based on sequence lengths."""
     cumulative_sequence_lens = sequence_lens.new_zeros(sequence_lens.size(0) + 1)
@@ -136,7 +133,6 @@ def cumulate_sequence_lengths(sequence_lens: Tensor) -> Tensor:
     return cumulative_sequence_lens
 
 
-@torch.jit.script
 def compute_cumulative_sequence_lengths(done: Tensor) -> Tensor:
     """Computes cumulative sequence lengths based on a ``done`` tensor."""
     return cumulate_sequence_lengths(compute_sequence_lengths(done))

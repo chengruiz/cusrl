@@ -8,7 +8,6 @@ from cusrl.template import ActorCritic, Hook
 __all__ = ["GeneralizedAdvantageEstimation"]
 
 
-@torch.jit.script
 def _generalized_advantage_estimation(
     reward: torch.Tensor,
     done: torch.Tensor,

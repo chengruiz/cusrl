@@ -25,6 +25,7 @@ class Configurations:
             self._rank = int(os.environ["RANK"])
             self._local_rank = int(os.environ["LOCAL_RANK"])
             self._world_size = int(os.environ["WORLD_SIZE"])
+            self._local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
             if self._cuda:
                 self.device = torch.device(f"cuda:{self._local_rank}")
         else:
@@ -32,6 +33,7 @@ class Configurations:
             self._rank = 0
             self._local_rank = 0
             self._world_size = 1
+            self._local_world_size = 1
 
         try:
             import flash_attn
@@ -44,6 +46,14 @@ class Configurations:
     @property
     def cuda(self) -> bool:
         return self._cuda
+
+    @property
+    def seed(self) -> int | None:
+        return self._seed
+
+    @seed.setter
+    def seed(self, value: int | None):
+        self._seed = value
 
     @property
     def device(self) -> torch.device:
@@ -75,12 +85,8 @@ class Configurations:
         return self._world_size
 
     @property
-    def seed(self) -> int | None:
-        return self._seed
-
-    @seed.setter
-    def seed(self, value: int | None):
-        self._seed = value
+    def local_world_size(self) -> int:
+        return self._local_world_size
 
     @property
     def flash_attention_enabled(self) -> bool:
@@ -110,7 +116,7 @@ def is_autocast_available() -> bool:
 def configure_distributed(
     backend: str | None = None,
     **kwargs,
-):
+) -> bool:
     if not CONFIG.distributed:
         return False
     if GroupMember.WORLD is None:
