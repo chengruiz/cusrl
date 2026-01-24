@@ -31,6 +31,27 @@ class PlayerHook:
     def reset(self, indices: Slice):
         pass
 
+    def close(self):
+        pass
+
+
+class PlayerHookComposite(PlayerHook, list[PlayerHook]):
+    def init(self, player: "Player"):
+        for hook in self:
+            hook.init(player)
+
+    def step(self, step: int, transition, metrics):
+        for hook in self:
+            hook.step(step, transition, metrics)
+
+    def reset(self, indices: Slice):
+        for hook in self:
+            hook.reset(indices)
+
+    def close(self):
+        for hook in self:
+            hook.close()
+
 
 class Player:
     """Orchestrates a playing loop between an Agent and an Environment, also
@@ -109,13 +130,13 @@ class Player:
         self.metrics: dict[str, float] = defaultdict(float)
         self.interrupted = False
 
-        self.hooks: list[PlayerHook] = []
+        self.hook = PlayerHookComposite()
         for hook in hooks:
             self.register_hook(hook)
 
     def register_hook(self, hook: Hook) -> Self:
         hook.init(self)
-        self.hooks.append(hook)
+        self.hook.append(hook)
         return self
 
     def run_playing_loop(self) -> dict[str, float]:
@@ -123,33 +144,34 @@ class Player:
         rate = utils.Rate(1 / self.timestep) if self.timestep is not None and self.timestep > 0 else None
         signal.signal(signal.SIGINT, self._sigint_handler)
 
-        with tqdm(total=self.num_steps, disable=not self.verbose, dynamic_ncols=True) as progress_bar:
-            while (self.num_steps is None or self.step < self.num_steps) and not self.interrupted:
-                action = self.agent.act(observation, state)
-                observation, state, reward, terminated, truncated, info = self.environment.step(action)
-                metrics = self.environment.get_metrics()
-                self.stats.track_step(reward)
-                for key, value in metrics.items():
-                    self.metrics[key] += value
+        try:
+            with tqdm(total=self.num_steps, disable=not self.verbose, dynamic_ncols=True) as progress_bar:
+                while (self.num_steps is None or self.step < self.num_steps) and not self.interrupted:
+                    action = self.agent.act(observation, state)
+                    observation, state, reward, terminated, truncated, info = self.environment.step(action)
+                    metrics = self.environment.get_metrics()
+                    self.stats.track_step(reward)
+                    for key, value in metrics.items():
+                        self.metrics[key] += value
 
-                self.agent.step(observation, reward, terminated, truncated, state, **info)
-                for hook in self.hooks:
-                    hook.step(self.step, self.agent.transition, metrics)
+                    self.agent.step(observation, reward, terminated, truncated, state, **info)
+                    self.hook.step(self.step, self.agent.transition, metrics)
 
-                if done_indices := get_done_indices(terminated, truncated):
-                    self.stats.track_episode(done_indices)
-                    if not self.environment.spec.autoreset:
-                        init_observation, init_state, _ = self.environment.reset(indices=done_indices)
-                        observation, state = update_observation_and_state(
-                            observation, state, done_indices, init_observation, init_state
-                        )
-                    for hook in self.hooks:
-                        hook.reset(done_indices)
+                    if done_indices := get_done_indices(terminated, truncated):
+                        self.stats.track_episode(done_indices)
+                        if not self.environment.spec.autoreset:
+                            init_observation, init_state, _ = self.environment.reset(indices=done_indices)
+                            observation, state = update_observation_and_state(
+                                observation, state, done_indices, init_observation, init_state
+                            )
+                        self.hook.reset(done_indices)
 
-                if rate is not None:
-                    rate.tick()
-                self.step += 1
-                progress_bar.update()
+                    if rate is not None:
+                        rate.tick()
+                    self.step += 1
+                    progress_bar.update()
+        finally:
+            self.hook.close()
 
         metrics = {
             "Mean step reward": self.stats.mean_step_reward,

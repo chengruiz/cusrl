@@ -8,13 +8,13 @@ from .misc import set_global_seed
 from .timing import Rate, Timer
 
 __all__ = [
+    "distributed",
+    "scheduler",
     "CONFIG",
     "Metrics",
     "Rate",
     "Timer",
     "configure_distributed",
-    "distributed",
-    "scheduler",
     "device",
     "from_dict",
     "is_autocast_available",

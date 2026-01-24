@@ -16,6 +16,7 @@ __all__ = [
     "import_module",
     "import_obj",
     "set_global_seed",
+    "to_numpy",
 ]
 
 
@@ -169,3 +170,11 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
 
     CONFIG.seed = seed
     return seed
+
+
+def to_numpy(value: Any) -> np.ndarray:
+    if isinstance(value, np.ndarray):
+        return value
+    if isinstance(value, torch.Tensor):
+        return value.detach().cpu().numpy()
+    return np.asarray(value)

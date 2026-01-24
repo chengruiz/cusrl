@@ -1,3 +1,5 @@
+from cusrl.hook import player
+
 from .advantage import (
     AdvantageNormalization,
     AdvantageReduction,
@@ -54,6 +56,7 @@ from .value import (
 )
 
 __all__ = [
+    "player",
     "ActionSmoothnessLoss",
     "AdaptiveLRSchedule",
     "AdvantageNormalization",
