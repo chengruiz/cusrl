@@ -13,6 +13,26 @@ __all__ = ["SaveTransition"]
 
 
 class SaveTransition(PlayerHook):
+    """Saves transition data collected during playing to .npz files.
+
+    This hook accumulates transition dictionary items (e.g., observations,
+    actions, rewards) in a buffer and periodically writes them to disk using
+    `numpy.savez`.
+
+    Args:
+        output_path (str | None, optional):
+            The target file path. If ``None``, a timestamped filename is
+            generated. Defaults to ``None``.
+        keys (Iterable[str], optional):
+            A list of keys to extract from the transition dictionary. Defaults
+            to ``("observation", "reward", "terminated", "truncated",
+            "action")``.
+        save_interval (int | None, optional):
+            The number of steps between file flushes. If provided, output files
+            will be sharded. If ``None``, all data is saved to a single file
+            upon closing. Defaults to ``None``.
+    """
+
     DEFAULT_KEYS = ("observation", "reward", "terminated", "truncated", "action")
 
     def __init__(

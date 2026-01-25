@@ -181,10 +181,10 @@ class Module(nn.Module):
     def clear_intermediate_repr(self):
         self.intermediate_repr.clear()
 
-    def inference(self, memory=None):
-        from cusrl.module.inference import InferenceModule
+    def inference(self, memory: Memory = None):
+        from cusrl.module.inference import InferenceWrapper
 
-        return InferenceModule(self, memory=memory)
+        return InferenceWrapper(self, memory=memory)
 
     def rnn_compatible(self):
         if not self.is_recurrent and not self._rnn_compatible:

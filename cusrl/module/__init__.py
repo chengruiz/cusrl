@@ -44,7 +44,7 @@ from .gate import (
     SigmoidTanhGate,
     get_gate_cls,
 )
-from .inference import InferenceModule
+from .inference import InferenceWrapper
 from .mha import (
     MultiheadAttention,
     MultiheadCrossAttention,
@@ -101,7 +101,7 @@ __all__ = [
     "HighwayGate",
     "Identity",
     "IdentityBijector",
-    "InferenceModule",
+    "InferenceWrapper",
     "InputGate",
     "LayerFactoryLike",
     "LearnablePositionalEncoding2D",

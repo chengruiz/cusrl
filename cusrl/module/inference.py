@@ -1,23 +1,31 @@
-from collections.abc import Callable
-
 import numpy as np
 import torch
 
 from cusrl.module.module import Module
-from cusrl.utils.typing import Array, ArrayType, Memory, Slice
+from cusrl.utils.typing import ArrayType, Memory, Slice
 
-__all__ = ["InferenceModule"]
+__all__ = ["InferenceWrapper"]
 
 
-class InferenceModule(Module):
+class InferenceWrapper(Module):
+    """A wrapper module designed to facilitate inference with CusRL modules.
+
+    This class wraps a given CusRL module, handling memory management for
+    recurrent states and ensuring seamless conversion between NumPy arrays and
+    PyTorch tensors during the forward pass.
+
+    Args:
+        module (Module):
+            The CusRL module to be wrapped.
+        memory (Memory, optional):
+            The initial hidden state for the Module. Defaults to ``None``.
+    """
+
     def __init__(self, module: Module, memory: Memory = None):
         module = module.rnn_compatible()
         super().__init__(like=module, intermediate_repr=module.intermediate_repr)
         self._wrapped = module
         self.memory = memory
-
-        self._forward_call: Callable[..., Array]
-        object.__setattr__(self, "_forward_call", module.forward)  # avoid registering as submodule
         self._forward_kwargs = {}
 
     @property
@@ -43,7 +51,7 @@ class InferenceModule(Module):
         add_batch_dim = input.ndim == 1
         if add_batch_dim:
             input = input.unsqueeze(0)
-        action, self.memory = self._forward_call(
+        action, self.memory = self._wrapped(
             input,
             memory=self.memory,
             **self._forward_kwargs,

@@ -6,6 +6,9 @@ __all__ = ["Timer", "Rate"]
 
 
 class Timer:
+    """A utility class for measuring and accumulating execution time of code
+    blocks, functions, or named sections."""
+
     def __init__(self):
         self.start_time = {}
         self.total_time = defaultdict(int)
