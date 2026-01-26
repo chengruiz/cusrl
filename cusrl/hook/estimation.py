@@ -1,7 +1,7 @@
 from typing import cast
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from cusrl.module import Module, ModuleFactoryLike
 from cusrl.template import ActorCritic, Hook
@@ -22,6 +22,7 @@ class StateEstimation(Hook[ActorCritic]):
         target_name: str = "state",
         target_indices: Slice = slice(None),
         target_dim: int | None = None,
+        estimation_name: str = "state_estimation",
         weight: float = 1.0,
     ):
         super().__init__()
@@ -32,6 +33,7 @@ class StateEstimation(Hook[ActorCritic]):
         self.target_name = target_name
         self.target_indices = target_indices
         self.target_dim = target_dim
+        self.estimation_name = estimation_name
 
         # Mutable attributes
         self.weight: float = weight
@@ -63,18 +65,25 @@ class StateEstimation(Hook[ActorCritic]):
         self.register_module("estimator", self.estimator_factory(source_dim, target_dim).rnn_compatible())
         self.criterion = nn.MSELoss()
 
-    def post_step(self, transition):
-        source = cast(torch.Tensor, transition[self.source_name])[..., self.source_indices]
+    def pre_act(self, transition):
+        source = cast(Tensor, transition[self.source_name])[..., self.source_indices]
         with self.agent.autocast():
-            next_estimator_memory = self.estimator.step_memory(source, memory=self._estimator_memory, sequential=False)
+            estimation, next_estimator_memory = self.estimator(
+                source,
+                memory=self._estimator_memory,
+                sequential=False,
+            )
 
+        transition[self.estimation_name] = estimation
         transition["estimator_memory"] = self._estimator_memory
         self._estimator_memory = next_estimator_memory
-        self.estimator.reset_memory(self._estimator_memory, transition["done"])
+
+    def post_step(self, transition):
+        self.estimator.reset_memory(self._estimator_memory, cast(Tensor, transition["done"]))
 
     def objective(self, batch):
-        source = cast(torch.Tensor, batch[self.source_name])[..., self.source_indices]
-        target = cast(torch.Tensor, batch[self.target_name])[..., self.target_indices]
+        source = cast(Tensor, batch[self.source_name])[..., self.source_indices]
+        target = cast(Tensor, batch[self.target_name])[..., self.target_indices]
         with self.agent.autocast():
             estimation, _ = self.estimator(source, memory=batch["estimator_memory"], done=batch["done"])
             state_estimation_loss = self.weight * self.criterion(estimation, target)
