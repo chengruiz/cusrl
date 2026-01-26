@@ -68,6 +68,11 @@ class Actor(Module):
         self.backbone.clear_intermediate_repr()
         self.distribution.clear_intermediate_repr()
 
+    def inference(self, memory: Memory = None):
+        from cusrl.module.inference import InferenceWrapper
+
+        return InferenceWrapper(self, memory=memory, forward_kwargs={"forward_type": "act_deterministic"})
+
     def forward(
         self,
         *args,

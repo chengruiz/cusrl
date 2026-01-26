@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import torch
 
@@ -19,14 +21,22 @@ class InferenceWrapper(Module):
             The CusRL module to be wrapped.
         memory (Memory, optional):
             The initial hidden state for the Module. Defaults to ``None``.
+        forward_kwargs (dict[str, Any] | None, optional):
+            Additional keyword arguments to be passed to the module's forward
+            method. Defaults to ``None``.
     """
 
-    def __init__(self, module: Module, memory: Memory = None):
+    def __init__(
+        self,
+        module: Module,
+        memory: Memory = None,
+        forward_kwargs: dict[str, Any] | None = None,
+    ):
         module = module.rnn_compatible()
         super().__init__(like=module, intermediate_repr=module.intermediate_repr)
         self._wrapped = module
         self.memory = memory
-        self._forward_kwargs = {}
+        self.forward_kwargs = forward_kwargs or {}
 
     @property
     def wrapped(self):
@@ -54,7 +64,7 @@ class InferenceWrapper(Module):
         action, self.memory = self._wrapped(
             input,
             memory=self.memory,
-            **self._forward_kwargs,
+            **self.forward_kwargs,
             **kwargs,
         )
         if add_batch_dim:
