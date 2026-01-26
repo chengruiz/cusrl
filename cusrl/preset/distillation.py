@@ -27,7 +27,7 @@ def hook_suite(
         ),
         cusrl.hook.ObservationNormalization() if normalize_observation else None,
         cusrl.hook.OnPolicyPreparation(),
-        cusrl.hook.PolicyDistillationLoss(expert_path, expert_observation_name),
+        cusrl.hook.PolicyDistillation(expert_path, expert_observation_name),
         cusrl.hook.GradientClipping(max_grad_norm) if max_grad_norm is not None else None,
     ]
     return [hook for hook in hooks if hook is not None]

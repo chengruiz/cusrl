@@ -6,7 +6,10 @@ from .advantage import (
 )
 from .amp import AdversarialMotionPrior
 from .condition import ConditionalObjectiveActivation
-from .distillation import PolicyDistillationLoss
+from .distillation import (
+    PolicyDistillation,
+    PolicyDistillationLoss,
+)
 from .environment_spec import (
     DynamicEnvironmentSpecOverride,
     EnvironmentSpecOverride,
@@ -78,6 +81,7 @@ __all__ = [
     "OnPolicyBufferCapacitySchedule",
     "OnPolicyPreparation",
     "OnPolicyStatistics",
+    "PolicyDistillation",
     "PolicyDistillationLoss",
     "PpoSurrogateLoss",
     "RandomNetworkDistillation",
