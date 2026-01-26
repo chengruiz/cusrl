@@ -109,6 +109,8 @@ def make_distributed(module, *, force: bool = False) -> Any:
 
     if not configure_distributed():
         raise RuntimeError("DistributedDataParallel is not enabled.")
+    if not any(param.requires_grad for param in module.parameters()):
+        return module
     if isinstance(module, nn.parallel.DistributedDataParallel):
         return module
     if hasattr(module, "to_distributed") and not force:

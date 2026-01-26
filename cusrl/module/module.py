@@ -130,9 +130,12 @@ class Module(nn.Module):
         return next(self.parameters()).device
 
     def to_distributed(self) -> DistributedDataParallel | Self:
-        if not self.is_distributed:
-            return DistributedDataParallel(self)
-        return self
+        if self.is_distributed:
+            return self
+        if not any(param.requires_grad for param in self.parameters()):
+            self.is_distributed = True
+            return self
+        return DistributedDataParallel(self)
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError
