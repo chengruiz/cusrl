@@ -104,16 +104,16 @@ def local_rank() -> int:
     return CONFIG.local_rank
 
 
-def make_distributed(module, *, force: bool = False) -> Any:
+def make_distributed(module) -> Any:
     from cusrl.module.module import DistributedDataParallel
 
     if not configure_distributed():
         raise RuntimeError("DistributedDataParallel is not enabled.")
-    if not any(param.requires_grad for param in module.parameters()):
-        return module
     if isinstance(module, nn.parallel.DistributedDataParallel):
         return module
-    if hasattr(module, "to_distributed") and not force:
+    if not any(param.requires_grad for param in module.parameters()):
+        return module
+    if hasattr(module, "to_distributed"):
         return module.to_distributed()
     return DistributedDataParallel(module)
 
