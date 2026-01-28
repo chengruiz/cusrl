@@ -61,12 +61,10 @@ class Configurations:
 
     @device.setter
     def device(self, value: str | torch.device):
-        self.set_device(value)
+        self._device = torch.device(value)
 
     def set_device(self, value: str | torch.device):
-        self._device = torch.device(value)
-        if self._device.type == "cuda":
-            torch.cuda.set_device(self._device)
+        self.device = value
 
     @property
     def distributed(self) -> bool:
