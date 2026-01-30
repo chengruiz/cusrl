@@ -108,7 +108,7 @@ def make_distributed(module) -> Any:
     from cusrl.module.module import DistributedDataParallel
 
     if not configure_distributed():
-        raise RuntimeError("DistributedDataParallel is not enabled.")
+        raise RuntimeError("Distributed training is not enabled.")
     if isinstance(module, nn.parallel.DistributedDataParallel):
         return module
     if not any(param.requires_grad for param in module.parameters()):

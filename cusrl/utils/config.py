@@ -120,14 +120,16 @@ def configure_distributed(
     if GroupMember.WORLD is None:
         from cusrl.utils.distributed import print_rank0
 
-        print_rank0(f"\033[1;32mInitializing distributed training with {CONFIG._world_size} processes.\033[0m")
+        print_rank0(f"\033[1;32mInitializing distributed training with {CONFIG.world_size} processes.\033[0m")
         torch.distributed.init_process_group(
             backend=backend,
-            world_size=CONFIG._world_size,
-            rank=CONFIG._rank,
-            device_id=CONFIG._device,
+            world_size=CONFIG.world_size,
+            rank=CONFIG.rank,
+            device_id=CONFIG.device,
             **kwargs,
         )
+        if CONFIG.device.type == "cuda":
+            torch.cuda.set_device(CONFIG.device)
     return True
 
 
