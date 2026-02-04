@@ -23,7 +23,6 @@ class DistributedDataParallel(nn.parallel.DistributedDataParallel):
 
     def __init__(self, module, *args, **kwargs):
         configure_distributed()
-        kwargs["gradient_as_bucket_view"] = True
         super().__init__(module, *args, **kwargs)
         self.register_state_dict_post_hook(self._state_dict_post_hook)
         self._register_load_state_dict_pre_hook(self._load_state_dict_pre_hook)

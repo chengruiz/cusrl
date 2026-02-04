@@ -117,15 +117,19 @@ def configure_distributed(
 ) -> bool:
     if not CONFIG.distributed:
         return False
+    if backend is None:
+        backend = torch.distributed.get_default_backend_for_device(CONFIG.device)
+
     if GroupMember.WORLD is None:
         from cusrl.utils.distributed import print_rank0
 
-        print_rank0(f"\033[1;32mInitializing distributed training with {CONFIG.world_size} processes.\033[0m")
+        print_rank0(
+            f"\033[1;32mInitializing distributed training (world_size={CONFIG.world_size}, backend={backend}).\033[0m"
+        )
         torch.distributed.init_process_group(
             backend=backend,
             world_size=CONFIG.world_size,
             rank=CONFIG.rank,
-            device_id=CONFIG.device,
             **kwargs,
         )
         if CONFIG.device.type == "cuda":

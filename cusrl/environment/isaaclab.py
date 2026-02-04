@@ -144,6 +144,7 @@ class IsaacLabEnvLauncher(IsaacLabEnvAdapter):
         AppLauncher.add_app_launcher_args(parser)
         args = parser.parse_args(argv or [])
         args.device = str(cusrl.device())
+        args.distributed = cusrl.config.distributed
         self.app_launcher = AppLauncher(args)
         self.simulation_app = self.app_launcher.app
 
