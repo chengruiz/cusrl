@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import overload
 
 import torch
 from torch import nn
@@ -28,15 +29,25 @@ class SequentialFactory(ModuleFactory["Sequential"]):
 
 class Sequential(Module):
     Factory = SequentialFactory
+    layers: nn.ModuleList
 
-    def __init__(self, modules: Iterable[Module]):
-        self.layers = list(modules)
+    @overload
+    def __init__(self, *args: Module): ...
+    @overload
+    def __init__(self, modules: Iterable[Module]): ...
+
+    def __init__(self, modules, *args):
+        if args:
+            assert isinstance(modules, Module)
+            layers: list[Module] = [modules, *args]
+        else:
+            layers = [modules] if isinstance(modules, Module) else list(modules)
         super().__init__(
-            input_dim=self.layers[0].input_dim,
-            output_dim=self.layers[-1].output_dim,
-            is_recurrent=any(layer.is_recurrent for layer in self.layers),
+            input_dim=layers[0].input_dim,
+            output_dim=layers[-1].output_dim,
+            is_recurrent=any(layer.is_recurrent for layer in layers),
         )
-        self.layers = nn.ModuleList(self.layers)
+        self.layers = nn.ModuleList(layers)
 
     def forward(self, input, **kwargs):
         last_memory = kwargs.pop("memory", None)
