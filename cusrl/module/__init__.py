@@ -45,6 +45,11 @@ from .gate import (
     get_gate_cls,
 )
 from .inference import InferenceWrapper
+from .loss import (
+    GradientPenaltyLoss,
+    L2RegularizationLoss,
+    NormalNllLoss,
+)
 from .mha import (
     MultiheadAttention,
     MultiheadCrossAttention,
@@ -57,7 +62,6 @@ from .module import (
     ModuleFactory,
     ModuleFactoryLike,
 )
-from .normal_nll_loss import NormalNllLoss
 from .normalization import (
     Denormalization,
     Normalization,
@@ -95,6 +99,7 @@ __all__ = [
     "FeedForward",
     "Gate",
     "GeGlu",
+    "GradientPenaltyLoss",
     "GraphBuilder",
     "Gru",
     "GruGate",
@@ -103,6 +108,7 @@ __all__ = [
     "IdentityBijector",
     "InferenceWrapper",
     "InputGate",
+    "L2RegularizationLoss",
     "LayerFactoryLike",
     "LearnablePositionalEncoding2D",
     "Lstm",

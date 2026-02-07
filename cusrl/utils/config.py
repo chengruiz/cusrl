@@ -124,7 +124,7 @@ def configure_distributed(
         from cusrl.utils.distributed import print_rank0
 
         print_rank0(
-            f"\033[1;32mInitializing distributed training (world_size={CONFIG.world_size}, backend={backend}).\033[0m"
+            f"\033[1;32mInitializing distributed training (backend={backend}, world_size={CONFIG.world_size}).\033[0m"
         )
         torch.distributed.init_process_group(
             backend=backend,

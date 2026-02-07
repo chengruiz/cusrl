@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import Tensor, nn
 
-from cusrl.module import Module, ModuleFactoryLike, RunningMeanStd
+from cusrl.module import GradientPenaltyLoss, Module, ModuleFactoryLike, RunningMeanStd
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.dict_utils import get_first
 from cusrl.utils.typing import Array, Slice
@@ -85,6 +85,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         self.transition_dim: int
         self.transition_rms: RunningMeanStd
         self.criterion: nn.BCEWithLogitsLoss
+        self.grad_penalty: GradientPenaltyLoss
 
     def init(self):
         self.dataset = None
@@ -106,6 +107,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         self.register_module("discriminator", self.discriminator_factory(self.transition_dim, 1))
         self.register_module("transition_rms", RunningMeanStd(self.transition_dim))
         self.criterion = nn.BCEWithLogitsLoss()
+        self.grad_penalty = GradientPenaltyLoss()
 
     @torch.no_grad()
     def post_step(self, transition):
@@ -152,26 +154,13 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             expert_logit = self.discriminator(expert_transition)
             expert_disc_loss = self.criterion(expert_logit, torch.ones_like(expert_logit))
             discrimination_loss = (agent_disc_loss + expert_disc_loss) / 2
-            grad_penalty_loss = self._compute_grad_penalty_loss(expert_logit, expert_transition)
+            grad_penalty_loss = self.grad_penalty(expert_logit, expert_transition)
 
         self.agent.record(
             amp_discrimination_loss=discrimination_loss,
             amp_grad_penalty_loss=grad_penalty_loss,
         )
         return (discrimination_loss + grad_penalty_loss * self.grad_penalty_weight) * self.loss_weight
-
-    @staticmethod
-    def _compute_grad_penalty_loss(outputs: Tensor, inputs: Tensor) -> Tensor:
-        gradients = torch.autograd.grad(
-            outputs=outputs,
-            inputs=inputs,
-            grad_outputs=torch.ones_like(outputs),
-            create_graph=True,
-            retain_graph=True,
-            only_inputs=True,
-        )[0]
-        gradient_penalty = gradients.square().sum(dim=-1).mean()
-        return gradient_penalty
 
     def _sample_demonstration(self, num_samples: int) -> Tensor:
         if self.dataset is not None:
