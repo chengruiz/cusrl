@@ -118,7 +118,10 @@ def configure_distributed(
     if not CONFIG.distributed:
         return False
     if backend is None:
-        backend = torch.distributed.get_default_backend_for_device(CONFIG.device)
+        if hasattr(torch.distributed, "get_default_backend_for_device"):
+            backend = torch.distributed.get_default_backend_for_device(CONFIG.device)
+        else:
+            backend = "nccl" if CONFIG.device.type == "cuda" else "gloo"
 
     if GroupMember.WORLD is None:
         from cusrl.utils.distributed import print_rank0
