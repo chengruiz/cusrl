@@ -61,10 +61,10 @@ LOG_SQRT_2PI = math.log(2 * math.pi) / 2
 
 class NormalNllLoss(nn.Module):
     r"""Computes the negative log-likelihood (NLL) of a Normal distribution
-    parameterized by mean and log variance.
+    parameterized by mean and a variance parameter.
 
     The input tensor is expected to have its last dimension split evenly into
-    mean ($\mu$) and log variance ($\log \sigma^2$) parts.
+    mean ($\mu$) and the variance parameter specified by ``mode``.
 
     For each element the loss is computed as:
     .. math::
@@ -73,6 +73,9 @@ class NormalNllLoss(nn.Module):
         \right) + \frac{1}{2} \log(2\pi)
 
     Args:
+        mode ({"log_var", "log_std", "var", "std"}, optional):
+            Specifies the representation of the variance parameter. Defaults to
+            ``"log_var"``.
         full (bool, optional):
             Includes the constant term in the loss computation. Defaults to
             ``False``.
@@ -86,22 +89,48 @@ class NormalNllLoss(nn.Module):
     def __init__(
         self,
         *,
+        mode: Literal["log_var", "log_std", "var", "std"] = "log_var",
         full: bool = False,
         eps: float = 1e-6,
         reduction: Literal["none", "mean", "sum"] = "mean",
     ) -> None:
         if eps <= 0:
             raise ValueError("'eps' must be greater than zero.")
+        if mode not in {"log_var", "log_std", "var", "std"}:
+            raise ValueError(f"Invalid mode '{mode}'. Must be one of 'log_var', 'log_std', 'var', or 'std'.")
 
         super().__init__()
+        self.mode = mode
         self.full = full
+        self.eps = eps
+        self.sqrt_eps = math.sqrt(eps)
         self.log_eps = math.log(eps)
         self.reduction = reduction
 
-    def forward(self, input: Tensor, target: Tensor) -> Tensor:
-        mean, log_var = input.chunk(2, dim=-1)
-        log_var = log_var.clamp_min(self.log_eps)
-        nll = 0.5 * (log_var + (target - mean).square() / log_var.exp())
+    def forward(self, input: Tensor | tuple[Tensor, Tensor], target: Tensor) -> Tensor:
+        if isinstance(input, tuple):
+            mean, dist = input
+        else:
+            mean, dist = input.chunk(2, dim=-1)
+
+        if self.mode == "log_var":
+            log_var = dist.clamp_min(self.log_eps)
+            var = log_var.exp()
+        elif self.mode == "log_std":
+            log_std = dist.clamp_min(self.log_eps / 2)
+            log_var = log_std * 2
+            var = log_var.exp()
+        elif self.mode == "var":
+            var = dist.clamp_min(self.eps)
+            log_var = var.log()
+        elif self.mode == "std":
+            std = dist.clamp_min(self.sqrt_eps)
+            var = std.square()
+            log_var = std.log() * 2
+        else:
+            raise ValueError(f"Invalid mode '{self.mode}'.")
+
+        nll = 0.5 * (log_var + (target - mean).square() / var)
         if self.full:
             nll = nll + LOG_SQRT_2PI
 
