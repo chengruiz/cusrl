@@ -305,15 +305,18 @@ class Trainer:
     def run_training_loop(self):
         self._save_checkpoint()
 
-        with self.timer.record("environment"):
-            observation, state, _ = self.environment.reset(randomize_episode_progress=True)
-        while self.iteration < self.num_iterations:
-            observation, state = self._rollout_and_update(observation, state)
-            for callback in self.callbacks:
-                callback(self)
-            self.iteration += 1
-            if self.iteration % self.save_interval == 0:
-                self._save_checkpoint()
+        try:
+            with self.timer.record("environment"):
+                observation, state, _ = self.environment.reset(randomize_episode_progress=True)
+            while self.iteration < self.num_iterations:
+                observation, state = self._rollout_and_update(observation, state)
+                for callback in self.callbacks:
+                    callback(self)
+                self.iteration += 1
+                if self.iteration % self.save_interval == 0:
+                    self._save_checkpoint()
+        finally:
+            self.environment.close()
 
     def _rollout_and_update(self, observation, state):
         while True:

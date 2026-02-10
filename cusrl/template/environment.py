@@ -261,6 +261,10 @@ class Environment(ABC, Generic[ArrayType]):
             **kwargs,
         )
 
+    def close(self):
+        """Closes the environment and releases any resources."""
+        pass
+
     @abstractmethod
     def reset(
         self,

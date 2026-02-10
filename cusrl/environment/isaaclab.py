@@ -44,7 +44,7 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
         # Avoid terminal color issues
         print("\033[0m", end="")
 
-    def __del__(self):
+    def close(self):
         if hasattr(self, "wrapped"):
             self.wrapped.close()
 
@@ -164,8 +164,8 @@ class IsaacLabEnvLauncher(IsaacLabEnvAdapter):
             wrapped = multi_agent_to_single_agent(wrapped)
         super().__init__(wrapped)
 
-    def __del__(self):
-        super().__del__()
+    def close(self):
+        super().close()
         if hasattr(self, "simulation_app"):
             self.simulation_app.close()
 

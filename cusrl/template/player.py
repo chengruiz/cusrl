@@ -172,6 +172,7 @@ class Player:
                     progress_bar.update()
         finally:
             self.hook.close()
+            self.environment.close()
 
         metrics = {
             "Mean step reward": self.stats.mean_step_reward,

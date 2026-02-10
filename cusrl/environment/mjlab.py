@@ -32,7 +32,7 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
             final_state_is_missing=True,
         )
 
-    def __del__(self):
+    def close(self):
         if hasattr(self, "wrapped"):
             self.wrapped.close()
 

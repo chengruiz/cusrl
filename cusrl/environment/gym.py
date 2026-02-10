@@ -41,6 +41,9 @@ class GymEnvAdapter(Environment[np.ndarray]):
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
 
+    def close(self):
+        self.wrapped.close()
+
     def reset(
         self,
         *,
@@ -101,6 +104,9 @@ class GymVectorEnvAdapter(Environment[np.ndarray]):
         )
         wrapped.reset(seed=random.getrandbits(4))
         self.wrapped = wrapped
+
+    def close(self):
+        self.wrapped.close()
 
     def reset(
         self,
