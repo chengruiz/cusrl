@@ -14,6 +14,8 @@ def configure_parser(parser: argparse.ArgumentParser):
                         help="Root logs directory (default: logs)")
     parser.add_argument("--name", type=str, default=None, metavar="NAME",
                         help="Substring to filter trial directory names by")
+    parser.add_argument("--basename", action="store_true",
+                        help="Print only the basename instead of the full path")
     parser.add_argument("--list", action="store_true",
                         help="Whether to list all matching trial directories instead of printing the latest one")
     parser.add_argument("--ckpt", action="store_true",
@@ -21,13 +23,13 @@ def configure_parser(parser: argparse.ArgumentParser):
     # fmt: on
 
 
-def print_trial_path(trial: Path, print_ckpt: bool = False):
+def print_trial_path(trial: Path, *, print_ckpt: bool = False, print_basename: bool = False):
     if print_ckpt:
         try:
             trial = cusrl.Trial(trial, verbose=False).checkpoint_path
         except ValueError:
             pass
-    print(str(trial))
+    print(trial.name if print_basename else str(trial))
 
 
 def main(args: argparse.Namespace):
@@ -52,10 +54,10 @@ def main(args: argparse.Namespace):
 
     if args.list:
         for path in trial_dirs:
-            print_trial_path(path, print_ckpt=args.ckpt)
+            print_trial_path(path, print_ckpt=args.ckpt, print_basename=args.basename)
         return
 
-    print_trial_path(trial_dirs[0], print_ckpt=args.ckpt)
+    print_trial_path(trial_dirs[0], print_ckpt=args.ckpt, print_basename=args.basename)
 
 
 if __name__ == "__main__":
