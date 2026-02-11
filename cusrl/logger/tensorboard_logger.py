@@ -9,7 +9,7 @@ class TensorboardFactory:
     def __init__(
         self,
         log_dir: str | os.PathLike,
-        name: str | None = None,
+        name: str | None = "",
         interval: int = 1,
         add_datetime_prefix: bool = True,
         **kwargs,
@@ -36,7 +36,7 @@ class Tensorboard(Logger):
     def __init__(
         self,
         log_dir: str | os.PathLike,
-        name: str | None = None,
+        name: str | None = "",
         interval: int = 1,
         add_datetime_prefix: bool = True,
         **kwargs,

@@ -18,7 +18,7 @@ __all__ = [
 @dataclass(slots=True)
 class LoggerFactory:
     log_dir: str | os.PathLike
-    name: str | None = None
+    name: str | None = ""
     interval: int = 1
     add_datetime_prefix: bool = True
 
@@ -54,13 +54,13 @@ class Logger:
             The root directory where logs will be stored.
         name (str | None, optional):
             A specific name for the experiment run. If ``None``, logs are stored
-            directly under ``log_dir``. Defaults to ``None``.
+            directly under ``log_dir``. Defaults to "".
         interval (int, optional):
             The interval at which to log data. If greater than ``1``, data is
             averaged over the interval before logging. Defaults to ``1``.
         add_datetime_prefix (bool, optional):
-            If True, a timestamp prefix (YYYY-MM-DD-HH-MM-SS) is added to the
-            experiment directory name. Defaults to True.
+            If ``True``, a timestamp prefix (YYYY-MM-DD-HH-MM-SS) is added to
+            the experiment directory name. Defaults to ``True``.
     """
 
     Factory = LoggerFactory
@@ -68,7 +68,7 @@ class Logger:
     def __init__(
         self,
         log_dir: str | os.PathLike,
-        name: str | None = None,
+        name: str | None = "",
         interval: int = 1,
         add_datetime_prefix: bool = True,
     ):
@@ -126,7 +126,7 @@ class Logger:
 def make_logger_factory(
     logger_type: str | None = None,
     log_dir: str | os.PathLike | None = None,
-    name: str | None = None,
+    name: str | None = "",
     interval: int = 1,
     add_datetime_prefix: bool = True,
     **kwargs,

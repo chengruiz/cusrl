@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import torch
@@ -18,7 +19,7 @@ class Trial:
     algorithm, environment, and available checkpoint iterations.
 
     Args:
-        path (str):
+        path (str | os.PathLike):
             The path to the experiment, trial directory or a specific checkpoint
             file. If an experiment is provided, the latest trial is loaded. If a
             trial directory is provided, the latest checkpoint is loaded.
@@ -50,7 +51,7 @@ class Trial:
             If the path points to a file that is not a valid checkpoint file.
     """
 
-    def __init__(self, path: str, verbose: bool = True):
+    def __init__(self, path: str | os.PathLike, verbose: bool = True):
         trial_path: Path = Path(path)
         if not trial_path.exists():
             raise FileNotFoundError(f"'{trial_path}' not found.")

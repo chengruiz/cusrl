@@ -10,7 +10,7 @@ class WandbFactory:
     def __init__(
         self,
         log_dir: str | os.PathLike,
-        name: str | None = None,
+        name: str | None = "",
         interval: int = 1,
         add_datetime_prefix: bool = True,
         project: str | None = None,
@@ -61,7 +61,7 @@ class Wandb(Logger):
     def __init__(
         self,
         log_dir: str | os.PathLike,
-        name: str | None = None,
+        name: str | None = "",
         interval: int = 1,
         add_datetime_prefix: bool = True,
         **kwargs,
