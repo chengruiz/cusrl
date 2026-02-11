@@ -1,6 +1,6 @@
 import argparse
 
-from cusrl.cli import export, list_experiments, play, train
+from cusrl.cli import export, find_trial, list_experiments, play, train
 
 
 def main():
@@ -14,6 +14,10 @@ def main():
     parser_train = subparsers.add_parser("train", help="Train an agent with a registered experiment")
     train.configure_parser(parser_train)
     parser_train.set_defaults(func=train.main)
+
+    parser_find_trial = subparsers.add_parser("find-trial", help="Find a trial directory or checkpoint path")
+    find_trial.configure_parser(parser_find_trial)
+    parser_find_trial.set_defaults(func=find_trial.main)
 
     parser_play = subparsers.add_parser("play", help="Evaluate an agent with a registered experiment")
     play.configure_parser(parser_play)
