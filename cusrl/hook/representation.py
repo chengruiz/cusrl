@@ -3,7 +3,7 @@ from typing import cast
 import torch
 from torch import nn
 
-from cusrl.module import GraphBuilder, LayerFactoryLike
+from cusrl.module import FlowGraph, LayerFactoryLike
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.typing import Slice
 
@@ -46,7 +46,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.agent.record(return_prediction_loss=return_prediction_loss)
         return return_prediction_loss
 
-    def post_export(self, graph: GraphBuilder):
+    def post_export(self, graph: FlowGraph):
         graph.add_node(
             self.predictor,
             module_name="return_predictor",
@@ -116,7 +116,7 @@ class StatePrediction(Hook[ActorCritic]):
         self.agent.record(state_prediction_loss=state_prediction_loss)
         return state_prediction_loss
 
-    def post_export(self, graph: GraphBuilder):
+    def post_export(self, graph: FlowGraph):
         graph.add_node(
             self.predictor,
             module_name="state_predictor",
@@ -178,7 +178,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         self.agent.record(next_state_prediction_loss=next_state_prediction_loss)
         return next_state_prediction_loss
 
-    def post_export(self, graph: GraphBuilder):
+    def post_export(self, graph: FlowGraph):
         graph.add_node(
             self.predictor,
             module_name="next_state_predictor",

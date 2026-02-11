@@ -32,7 +32,7 @@ from .encoding import (
     RotaryEmbedding,
     SinusoidalPositionalEncoding2D,
 )
-from .export import GraphBuilder
+from .export import FlowGraph
 from .gate import (
     Gate,
     GruGate,
@@ -97,10 +97,10 @@ __all__ = [
     "ExponentialBijector",
     "ExponentialMovingNormalizer",
     "FeedForward",
+    "FlowGraph",
     "Gate",
     "GeGlu",
     "GradientPenaltyLoss",
-    "GraphBuilder",
     "Gru",
     "GruGate",
     "HighwayGate",

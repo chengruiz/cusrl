@@ -6,7 +6,7 @@ from torch import Tensor
 from typing_extensions import Self
 
 from cusrl.hook.symmetry import SymmetryDefLike
-from cusrl.module import GraphBuilder, RunningMeanStd
+from cusrl.module import FlowGraph, RunningMeanStd
 from cusrl.module.normalizer import mean_var_count
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.typing import Slice
@@ -245,7 +245,7 @@ class ObservationNormalization(Hook[ActorCritic]):
                 batch["state"] = self.state_rms.normalize(original_state)
                 batch["next_state"] = self.state_rms.normalize(original_next_state)
 
-    def pre_export(self, graph: GraphBuilder):
+    def pre_export(self, graph: FlowGraph):
         graph.add_node(
             self.observation_rms,
             module_name="observation_rms",

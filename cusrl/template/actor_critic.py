@@ -6,7 +6,7 @@ from typing import Any, Literal
 import torch
 from typing_extensions import Self
 
-from cusrl.module import Actor, Denormalization, GraphBuilder, Normalization, Value
+from cusrl.module import Actor, Denormalization, FlowGraph, Normalization, Value
 from cusrl.template.agent import Agent, AgentFactory
 from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
@@ -112,13 +112,13 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
             hook (Hook):
                 The hook instance to register.
             index (int | None, optional):
-                The index at which to insert the hook. Defaults to None.
+                The index at which to insert the hook. Defaults to ``None``.
             before (str | None, optional):
                 The name of an existing hook to insert this hook before.
-                Defaults to None.
+                Defaults to ``None``.
             after (str | None, optional):
                 The name of an existing hook to insert this hook after. Defaults
-                to None.
+                to ``None``.
         """
         if (index is not None) + (before is not None) + (after is not None) > 1:
             raise ValueError("Only one of index, before, or after can be specified.")
@@ -336,7 +336,7 @@ class ActorCritic(Agent):
 
         actor = self.actor_factory(self.observation_dim, self.action_dim).to(device=self.device)
         actor.load_state_dict(self.actor.state_dict())
-        graph = GraphBuilder(graph_name="actor")
+        graph = FlowGraph(graph_name="actor")
         inputs = {"observation": torch.zeros(1, batch_size, self.environment_spec.observation_dim, device=self.device)}
         input_names = {"observation": "observation"}
         output_names = ["action"]

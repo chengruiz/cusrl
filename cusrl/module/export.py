@@ -1,6 +1,6 @@
 import time
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
+from typing import Any, cast
 
 import torch
 import yaml
@@ -11,12 +11,21 @@ from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.nest import flatten_nested, get_schema, iterate_nested, reconstruct_nested
 from cusrl.utils.typing import NestedTensor
 
-__all__ = ["GraphBuilder"]
+__all__ = ["FlowGraph"]
 
 GetNumTensorsInputType = torch.Tensor | Iterable[torch.Tensor] | Iterable["GetNumTensorsInputType"]
 
 
-class GraphBuilder(nn.Module):
+class FlowGraph(nn.Module):
+    """A dynamic computation graph module that chains sub-modules using forward
+    pre-hooks.
+
+    This class allows for the construction of complex, modular architectures by
+    treating execution as a flow of data through a sequence of nodes. Instead of
+    a rigid `forward` method, it uses a shared context (dictionary) that passes
+    through registered hooks.
+    """
+
     def __init__(self, graph_name: str, output_names: Iterable[str] = ()):
         super().__init__()
         self.graph_name = graph_name
@@ -43,6 +52,42 @@ class GraphBuilder(nn.Module):
         expose_outputs: bool = True,
         prepend: bool = False,
     ):
+        """Registers a module as a node in the computation graph.
+
+        The module is added as a child submodule and a pre-hook is registered to
+        handle its execution. The hook extracts specified inputs from the shared
+        context, runs the module's method, and updates the context with the
+        outputs.
+
+        Args:
+            module (nn.Module):
+                The PyTorch module to add to the graph.
+            module_name (str):
+                A unique name for this node in the graph.
+            input_names (str | Iterable[str] | Mapping[str, str]):
+                Keys to extract from the context to pass to the module. This
+                should be a string or an iterable of strings, representing both
+                the context key and the module argument name; or a mapping from
+                module argument names to context keys.
+            output_names (str | Iterable[str]):
+                Keys to assign to the module's outputs in the context.
+            method_name (str):
+                The method of the module to call. Defaults to ``"__call__"``.
+            extra_kwargs (dict[str, Any] | None):
+                Static keyword arguments to always pass to the module.
+            info (dict[str, Any] | None):
+                Optional metadata dictionary to store with the graph.
+            expose_outputs (bool):
+                If ``True``, adds the outputs of this node to the graph's final
+                outputs.
+            prepend (bool):
+                If ``True``, inserts this node at the beginning of the execution
+                chain.
+
+        Raises:
+            ValueError: If a node with `module_name` already exists.
+        """
+
         if isinstance(input_names, str):
             input_names = {input_names: input_names}
         elif not isinstance(input_names, Mapping):
@@ -145,7 +190,8 @@ class GraphBuilder(nn.Module):
         model_path = f"{output_dir}/{self.graph_name}.onnx"
         torch.onnx.export(
             self,
-            args=tuple(example_inputs.items()),
+            args=() if dynamo else tuple(example_inputs.items()),
+            kwargs=example_inputs if dynamo else None,
             f=model_path,
             verbose=verbose,
             input_names=input_names,
@@ -221,7 +267,7 @@ def _optimize_onnx_model(model, output_path: str, verbose: bool = True) -> bool:
 
         original_info = summarize_model(model, "Before Optimization")
         start_time = time.time()
-        optimized_model = onnxslim.slim(model, verbose=verbose)
+        optimized_model = cast(onnx.ModelProto, onnxslim.slim(model, verbose=verbose))  # type: ignore
         end_time = time.time()
         onnx.save(optimized_model, output_path)
 
@@ -250,7 +296,7 @@ def get_num_tensors(tensor_list: GetNumTensorsInputType) -> int:
 class StatelessWrapper(nn.Module):
     def __init__(
         self,
-        module: GraphBuilder,
+        module: FlowGraph,
         example_inputs: dict[str, NestedTensor],
         output_names: Sequence[str],
     ):
@@ -261,9 +307,9 @@ class StatelessWrapper(nn.Module):
 
     @torch.no_grad()
     def forward(self, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        inputs = reconstruct_nested(inputs, self.input_schema)
+        reconstructed_inputs = cast(dict[str, Any], reconstruct_nested(inputs, self.input_schema))
         # Convert outputs to a flatten dictionary keyed by corresponding output names
-        return flatten_nested(dict(zip(self.output_names, self.module(**inputs))))
+        return flatten_nested(dict(zip(self.output_names, self.module(**reconstructed_inputs))))
 
 
 class StatefulWrapper(nn.Module):

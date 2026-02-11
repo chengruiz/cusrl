@@ -6,7 +6,7 @@ from torch import nn
 from typing_extensions import Self
 
 import cusrl
-from cusrl.module import GraphBuilder
+from cusrl.module import FlowGraph
 from cusrl.template.agent import AgentType
 from cusrl.template.buffer import Buffer
 from cusrl.utils import distributed
@@ -269,14 +269,14 @@ class Hook(Generic[AgentType]):
             iteration: The current training iteration.
         """
 
-    def pre_export(self, graph: GraphBuilder):
+    def pre_export(self, graph: FlowGraph):
         """Called before exporting the agent's model.
 
         Args:
             graph: The graph builder instance.
         """
 
-    def post_export(self, graph: GraphBuilder):
+    def post_export(self, graph: FlowGraph):
         """Called after exporting the agent's model.
 
         Args:
@@ -398,11 +398,11 @@ class HookComposite(Hook):
         for hook in self.active_hooks():
             hook.apply_schedule(iteration)
 
-    def pre_export(self, graph: GraphBuilder):
+    def pre_export(self, graph: FlowGraph):
         for hook in self:
             hook.pre_export(graph)
 
-    def post_export(self, graph: GraphBuilder):
+    def post_export(self, graph: FlowGraph):
         for hook in self:
             hook.post_export(graph)
 
