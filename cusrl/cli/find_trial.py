@@ -44,7 +44,11 @@ def main(args: argparse.Namespace):
             raise FileNotFoundError(f"Experiment directory not found: '{query}' or '{experiment_home}'.")
 
     # Find trial directories under the experiment home
-    trial_dirs: list[Path] = [path for path in experiment_home.iterdir() if path.is_dir() and not path.is_symlink()]
+    trial_dirs: list[Path] = [
+        path
+        for path in experiment_home.iterdir()
+        if path.is_dir() and not path.is_symlink() and (path / "ckpt").exists()
+    ]
     trial_dirs.sort(key=lambda path: path.name, reverse=True)
     if args.name:
         trial_dirs = [path for path in trial_dirs if args.name in path.name]
