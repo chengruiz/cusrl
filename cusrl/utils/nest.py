@@ -1,8 +1,8 @@
 from collections.abc import Callable, Iterator, Mapping
-from typing import TypeVar, overload
+from typing import Any, TypeVar, overload
 
 from cusrl.utils.misc import MISSING
-from cusrl.utils.typing import ListOrTuple, Nested
+from cusrl.utils.typing import Nested
 
 __all__ = [
     "flatten_nested",
@@ -18,7 +18,21 @@ _T = TypeVar("_T")
 _V = TypeVar("_V")
 
 
-def get_schema(value: Nested[_T], prefix: str = "", max_depth: int | None = None) -> Nested[str]:
+def concat_key(prefix: Any, separator: Any, suffix: Any) -> str:
+    prefix, separator, suffix = str(prefix), str(separator), str(suffix)
+    if not prefix:
+        return suffix
+    if not suffix:
+        return prefix
+    return f"{prefix}{separator}{suffix}"
+
+
+def get_schema(
+    value: Nested[_T],
+    prefix: str = "",
+    max_depth: int | None = None,
+    separator: str = ".",
+) -> Nested[str]:
     """Generates a schema of path-like strings from a nested structure.
 
     This function recursively traverses a nested structure containing
@@ -37,6 +51,8 @@ def get_schema(value: Nested[_T], prefix: str = "", max_depth: int | None = None
         max_depth (int or None, optional):
             The maximum depth to traverse. If None, traverses the entire
             structure. Defaults to None.
+        separator (str, optional):
+            Separator used to join path segments. Defaults to ".".
 
     Returns:
         schema (Nested[str]):
@@ -47,7 +63,7 @@ def get_schema(value: Nested[_T], prefix: str = "", max_depth: int | None = None
         >>> get_schema({'a': 1, 'b': {'c': 2}})
         {'a': 'a', 'b': {'c': 'b.c'}}
         >>> get_schema([10, 20, {'key': 30}])
-        ('0', '1', {'key': '2.key'})
+        ['0', '1', {'key': '2.key'}]
     """
     if max_depth is not None:
         if max_depth <= 0:
@@ -55,36 +71,56 @@ def get_schema(value: Nested[_T], prefix: str = "", max_depth: int | None = None
         max_depth -= 1
 
     if isinstance(value, Mapping):
-        if prefix:
-            prefix += "."
-        return {key: get_schema(val, f"{prefix}{key}", max_depth=max_depth) for key, val in value.items()}
+        return {
+            key: get_schema(
+                val,
+                concat_key(prefix, separator, key),
+                max_depth=max_depth,
+                separator=separator,
+            )
+            for key, val in value.items()
+        }
     if isinstance(value, (tuple, list)):
-        if prefix:
-            prefix += "."
-        return tuple(get_schema(item, f"{prefix}{i}", max_depth=max_depth) for i, item in enumerate(value))
+        return type(value)(
+            get_schema(
+                item,
+                concat_key(prefix, separator, i),
+                max_depth=max_depth,
+                separator=separator,
+            )
+            for i, item in enumerate(value)
+        )
     return prefix
 
 
 @overload
-def iterate_nested(data: Nested[_T], prefix: str = "") -> Iterator[tuple[str, _T]]: ...
+def iterate_nested(data: Nested[_T], prefix: str = "", *, separator: str = ".") -> Iterator[tuple[str, _T]]: ...
 @overload
-def iterate_nested(data: Nested[_T], *, max_depth: None) -> Iterator[tuple[str, _T]]: ...
+def iterate_nested(data: Nested[_T], *, max_depth: None, separator: str = ".") -> Iterator[tuple[str, _T]]: ...
 @overload
-def iterate_nested(data: Nested[_T], *, max_depth: int) -> Iterator[tuple[str, Nested[_T]]]: ...
+def iterate_nested(data: Nested[_T], *, max_depth: int, separator: str = ".") -> Iterator[tuple[str, Nested[_T]]]: ...
 @overload
-def iterate_nested(data: Nested[_T], prefix: str, max_depth: None) -> Iterator[tuple[str, _T]]: ...
+def iterate_nested(
+    data: Nested[_T], prefix: str, max_depth: None, *, separator: str = "."
+) -> Iterator[tuple[str, _T]]: ...
 @overload
-def iterate_nested(data: Nested[_T], prefix: str, max_depth: int) -> Iterator[tuple[str, Nested[_T]]]: ...
+def iterate_nested(
+    data: Nested[_T], prefix: str, max_depth: int, *, separator: str = "."
+) -> Iterator[tuple[str, Nested[_T]]]: ...
 
 
 def iterate_nested(
-    data: Nested[_T], prefix: str = "", max_depth: int | None = None
+    data: Nested[_T],
+    prefix: str = "",
+    max_depth: int | None = None,
+    *,
+    separator: str = ".",
 ) -> Iterator[tuple[str, Nested[_T]]]:
     """Generated a flattened view of the nested data.
 
     This function traverses nested dictionaries, lists, and tuples. It
     generates a flattened view where keys from dictionaries and indices from
-    lists/tuples are joined with a dot ('.') to form a single path string
+    lists/tuples are joined with a separator to form a single path string
     for each leaf value.
 
     Args:
@@ -96,6 +132,8 @@ def iterate_nested(
         max_depth (int or None, optional):
             The maximum depth to traverse. If None, traverses the entire
             structure. Defaults to None.
+        separator (str, optional):
+            Separator used to join path segments. Defaults to ".".
 
     Yields:
         generator (Iterator[tuple[str, _T]]):
@@ -121,33 +159,43 @@ def iterate_nested(
         max_depth -= 1
 
     if isinstance(data, Mapping):
-        if prefix:
-            prefix += "."
         for key, value in data.items():
-            yield from iterate_nested(value, f"{prefix}{key}", max_depth=max_depth)
+            yield from iterate_nested(
+                value,
+                concat_key(prefix, separator, key),
+                max_depth=max_depth,
+                separator=separator,
+            )
     elif isinstance(data, (tuple, list)):
-        if prefix:
-            prefix += "."
         for i, value in enumerate(data):
-            yield from iterate_nested(value, f"{prefix}{i}", max_depth=max_depth)
+            yield from iterate_nested(
+                value,
+                concat_key(prefix, separator, i),
+                max_depth=max_depth,
+                separator=separator,
+            )
     else:
         yield prefix, data
 
 
 @overload
-def flatten_nested(data: Nested[_T], prefix: str = "") -> dict[str, _T]: ...
+def flatten_nested(data: Nested[_T], prefix: str = "", *, separator: str = ".") -> dict[str, _T]: ...
 @overload
-def flatten_nested(data: Nested[_T], *, max_depth: None) -> dict[str, _T]: ...
+def flatten_nested(data: Nested[_T], *, max_depth: None, separator: str = ".") -> dict[str, _T]: ...
 @overload
-def flatten_nested(data: Nested[_T], *, max_depth: int) -> dict[str, Nested[_T]]: ...
+def flatten_nested(data: Nested[_T], *, max_depth: int, separator: str = ".") -> dict[str, Nested[_T]]: ...
 @overload
-def flatten_nested(data: Nested[_T], prefix: str, max_depth: None) -> dict[str, _T]: ...
+def flatten_nested(data: Nested[_T], prefix: str, max_depth: None, *, separator: str = ".") -> dict[str, _T]: ...
 @overload
-def flatten_nested(data: Nested[_T], prefix: str, max_depth: int) -> dict[str, Nested[_T]]: ...
+def flatten_nested(data: Nested[_T], prefix: str, max_depth: int, *, separator: str = ".") -> dict[str, Nested[_T]]: ...
 
 
 def flatten_nested(
-    data: Nested[_T], prefix: str = "", max_depth: int | None = None
+    data: Nested[_T],
+    prefix: str = "",
+    max_depth: int | None = None,
+    *,
+    separator: str = ".",
 ) -> dict[str, _T] | dict[str, Nested[_T]]:
     """Flattens a nested data structure into a flat dictionary.
 
@@ -160,6 +208,8 @@ def flatten_nested(
         max_depth (int or None, optional):
             The maximum depth to traverse. If None, traverses the entire
             structure. Defaults to None.
+        separator (str, optional):
+            Separator used to join path segments. Defaults to ".".
 
     Returns:
         flattened_data (dict[str, _T]):
@@ -171,7 +221,7 @@ def flatten_nested(
         >>> flatten_nested(data)
         {'a': 1, 'b.c': 2, 'b.d': 3}
     """
-    return dict(iterate_nested(data, prefix, max_depth=max_depth))
+    return dict(iterate_nested(data, prefix, max_depth=max_depth, separator=separator))
 
 
 def map_nested(func: Callable[[_T], _V], data: Nested[_T]) -> Nested[_V]:
@@ -204,7 +254,9 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: str) -> _T: ...
 @overload
 def reconstruct_nested(flattened_data: dict[str, _T], schema: Mapping[str, Nested[str]]) -> dict[str, Nested[_T]]: ...
 @overload
-def reconstruct_nested(flattened_data: dict[str, _T], schema: ListOrTuple[Nested[str]]) -> tuple[_T, ...]: ...
+def reconstruct_nested(flattened_data: dict[str, _T], schema: list[Nested[str]]) -> list[Nested[_T]]: ...
+@overload
+def reconstruct_nested(flattened_data: dict[str, _T], schema: tuple[Nested[str], ...]) -> tuple[Nested[_T], ...]: ...
 
 
 def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Nested[_T]:
@@ -240,7 +292,7 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Ne
     if isinstance(schema, Mapping):
         return {key: reconstruct_nested(flattened_data, name) for key, name in schema.items()}
     if isinstance(schema, (tuple, list)):
-        return tuple(reconstruct_nested(flattened_data, name) for name in schema)
+        return type(schema)(reconstruct_nested(flattened_data, name) for name in schema)
     return flattened_data[schema]
 
 
@@ -248,6 +300,7 @@ def zip_nested(
     *args: Nested[object],
     prefix: str = "",
     max_depth: int | None = None,
+    separator: str = ".",
 ) -> Iterator[tuple[str, tuple[object, ...]]]:
     """Zips multiple nested structures in lock-step.
 
@@ -266,36 +319,44 @@ def zip_nested(
             recursive use. Defaults to "".
         max_depth:
             Maximum additional levels to descend; None for unlimited.
+        separator:
+            Separator used to join path segments. Defaults to ".".
 
     Yields:
         Iterator[tuple[str, tuple[object, ...]]]: Pairs of (path, values), where
         `values` contains the corresponding sub-objects from each input.
 
     Examples:
-        >>> a = {"x": [1, 2], "y": {"z": 3}}
-        >>> b = {"x": [10, 20], "y": {"z": 30}}
-        >>> list(zip_nested(a, b))
+        >>> a1 = {"x": [1, 2], "y": {"z": 3}}
+        >>> b1 = {"x": [10, 20], "y": {"z": 30}}
+        >>> list(zip_nested(a1, b1))
         [('x.0', (1, 10)), ('x.1', (2, 20)), ('y.z', (3, 30))]
 
-        >>> # Mismatched shapes stop descent at the first divergence
+        >>> # Missing values are filled with MISSING
         >>> a2 = {"x": [1, 2, 3]}
         >>> b2 = {"x": [10, 20]}
         >>> list(zip_nested(a2, b2))
-        [('x', ([1, 2, 3], [10, 20]))]
+        [('x.0', (1, 10)), ('x.1', (2, 20)), ('x.2', (3, MISSING))]
 
-        >>> # Root-level mismatch yields the root with an empty path
-        >>> list(zip_nested({"a": 1, "b": 2}, {"a": 10, "c": 30}))
-        [('', ({'a': 1, 'b': 2}, {'a': 10, 'c': 30}))]
+        >>> a3 = {"a": 1, "b": 2}
+        >>> b3 = {"a": 10, "c": 30}
+        >>> list(zip_nested(a3, b3))
+        [('a', (1, 10)), ('b', (2, MISSING)), ('c', (MISSING, 30))]
 
         >>> # Limit traversal depth
-        >>> list(zip_nested(a, b, max_depth=1))
+        >>> list(zip_nested(a1, b1, max_depth=1))
         [('x', ([1, 2], [10, 20])), ('y', ({'z': 3}, {'z': 30}))]
 
     """
     if not args:
         return
     if len(args) == 1:
-        for prefix, value in iterate_nested(args[0], prefix, max_depth=max_depth):
+        for prefix, value in iterate_nested(
+            args[0],
+            prefix=prefix,
+            max_depth=max_depth,
+            separator=separator,
+        ):
             yield prefix, (value,)
         return
 
@@ -306,15 +367,26 @@ def zip_nested(
             return
         max_depth -= 1
 
-    flat_args = [flatten_nested(arg, max_depth=1) for arg in args]
-    if any(arg is MISSING for arg in flat_args):
+    if any(arg is MISSING for arg in args):
         yield prefix, tuple(args)
         return
 
-    arg_keys = set().union(*(d.keys() for d in flat_args))
-    for key in arg_keys:
+    flat_args = [flatten_nested(arg, max_depth=1, separator=separator) for arg in args]
+    all_keys = []
+    for flat_arg in flat_args:
+        for key in flat_arg.keys():
+            if key not in all_keys:
+                all_keys.append(key)
+
+    if len(all_keys) == 1 and all_keys[0] == "":
+        # All are leaf nodes at this level, yield them
+        yield prefix, tuple(arg[""] for arg in flat_args)
+        return
+
+    for key in all_keys:
         yield from zip_nested(
             *[flat_arg.get(key, MISSING) for flat_arg in flat_args],
-            prefix=f"{prefix}.{key}" if prefix else key,
+            prefix=concat_key(prefix, separator, key),
             max_depth=max_depth,
+            separator=separator,
         )
