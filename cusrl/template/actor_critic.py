@@ -324,8 +324,11 @@ class ActorCritic(Agent):
     def export(
         self,
         output_dir: str,
+        *,
         target_format: Literal["onnx", "jit"] = "onnx",
+        with_environment_normalization: bool = True,
         optimize: bool = True,
+        sequence_len: int | None = 1,
         batch_size: int = 1,
         opset_version: int | None = None,
         dynamo: bool = False,
@@ -334,35 +337,8 @@ class ActorCritic(Agent):
     ):
         os.makedirs(output_dir, exist_ok=True)
 
-        actor = self.actor_factory(self.observation_dim, self.action_dim).to(device=self.device)
-        actor.load_state_dict(self.actor.state_dict())
         graph = FlowGraph(graph_name="actor")
-        inputs = {"observation": torch.zeros(1, batch_size, self.environment_spec.observation_dim, device=self.device)}
-        input_names = {"observation": "observation"}
-        output_names = ["action"]
-        if actor.is_recurrent:
-            _, init_memory = actor(**inputs)
-            actor.reset_memory(init_memory)
-            inputs["memory_in"] = init_memory
-            input_names["memory"] = "memory_in"
-            output_names.append("memory_out")
-
-        self.hook.pre_export(graph)
-        graph.add_node(
-            actor,
-            module_name="actor",
-            input_names=input_names,
-            output_names=output_names,
-            extra_kwargs={"forward_type": "act_deterministic"},
-            info={
-                "observation_dim": self.environment_spec.observation_dim,
-                "action_dim": self.action_dim,
-                "is_recurrent": actor.is_recurrent,
-            },
-            expose_outputs=True,
-        )
-        self.hook.post_export(graph)
-        if self.environment_spec.observation_normalization is not None:
+        if with_environment_normalization and self.environment_spec.observation_normalization is not None:
             graph.add_node(
                 Normalization(
                     self.to_tensor(self.environment_spec.observation_normalization[1]),
@@ -372,9 +348,40 @@ class ActorCritic(Agent):
                 input_names={"input": "observation"},
                 output_names="observation",
                 expose_outputs=False,
-                prepend=True,
             )
-        if self.environment_spec.action_denormalization is not None:
+
+        inputs = {}
+        inputs["observation"] = torch.zeros(
+            sequence_len, batch_size, self.environment_spec.observation_dim, device=self.device
+        )
+        self.hook.pre_export(graph)
+
+        actor_input_names = {"observation": "observation"}
+        actor_output_names = ["action"]
+        if self.actor.is_recurrent:
+            _, actor_init_memory = self.actor(**inputs)
+            self.actor.reset_memory(actor_init_memory)
+            inputs["memory_in"] = actor_init_memory
+            actor_input_names["memory"] = "memory_in"
+            actor_output_names.append("memory_out")
+
+        graph.add_node(
+            self.actor,
+            module_name="actor",
+            input_names=actor_input_names,
+            output_names=actor_output_names,
+            extra_kwargs={"forward_type": "act_deterministic"},
+            info={
+                "observation_dim": self.environment_spec.observation_dim,
+                "action_dim": self.action_dim,
+                "is_recurrent": self.actor.is_recurrent,
+            },
+            expose_outputs=True,
+        )
+
+        self.hook.post_export(graph)
+
+        if with_environment_normalization and self.environment_spec.action_denormalization is not None:
             graph.add_node(
                 Denormalization(
                     self.to_tensor(self.environment_spec.action_denormalization[1]),

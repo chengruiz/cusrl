@@ -3,7 +3,8 @@ import os
 import random
 import sys
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from typing import Any
+from types import MethodType
+from typing import Any, Sequence
 
 import numpy as np
 import torch
@@ -17,6 +18,7 @@ __all__ = [
     "import_obj",
     "set_global_seed",
     "to_numpy",
+    "wrap_method_with_signature",
 ]
 
 
@@ -178,3 +180,22 @@ def to_numpy(value: Any) -> np.ndarray:
     if isinstance(value, torch.Tensor):
         return value.detach().cpu().numpy()
     return np.asarray(value)
+
+
+def wrap_method_with_signature(
+    instance: object,
+    wrapped_method_name: str,
+    arg_names: Sequence[str] = (),
+    kwarg_names: Sequence[str] = (),
+) -> MethodType:
+    args_signature = ", ".join((*arg_names, *kwarg_names))
+    call_signature = ", ".join((*arg_names, *[f"{name}={name}" for name in kwarg_names]))
+
+    function_src = (
+        f"lambda self, {args_signature}: self.{wrapped_method_name}({call_signature})"
+        if args_signature
+        else f"lambda self: self.{wrapped_method_name}()"
+    )
+    function = eval(function_src)
+    method = MethodType(function, instance)
+    return method

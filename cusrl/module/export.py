@@ -8,6 +8,7 @@ from torch import nn
 
 from cusrl.module.module import Module
 from cusrl.utils.dict_utils import prefix_dict_keys
+from cusrl.utils.misc import wrap_method_with_signature
 from cusrl.utils.nest import flatten_nested, get_schema, iterate_nested, reconstruct_nested
 from cusrl.utils.typing import NestedTensor
 
@@ -135,12 +136,12 @@ class FlowGraph(nn.Module):
         self.eval()
 
         # Flatten inputs
-        flattened_inputs: dict[str, torch.Tensor] = flatten_nested(example_inputs)
+        flattened_inputs: dict[str, torch.Tensor] = flatten_nested(example_inputs, separator="__")
 
         # Build the wrappers, trace and save them
         stateless_wrapper = StatelessWrapper(self, example_inputs, self.output_names)
         traced_stateless_module = torch.jit.trace_module(
-            stateless_wrapper, inputs={"forward": (flattened_inputs,)}, strict=False
+            stateless_wrapper, inputs={"forward": tuple(flattened_inputs.values())}, strict=False
         )
         if optimize:
             traced_stateless_module = torch.jit.optimize_for_inference(traced_stateless_module)
@@ -162,7 +163,7 @@ class FlowGraph(nn.Module):
 
         # Save additional information
         info = self.info.copy()
-        flattened_outputs = stateless_wrapper(flattened_inputs)
+        flattened_outputs = stateless_wrapper(**flattened_inputs)
         info["inputs"] = [{name: tuple(value.shape)} for name, value in flattened_inputs.items()]
         info["outputs"] = [{name: tuple(value.shape)} for name, value in flattened_outputs.items()]
         with open(f"{output_dir}/{self.graph_name}.yml", "w") as f:
@@ -180,30 +181,30 @@ class FlowGraph(nn.Module):
     ):
         self.eval()
 
-        example_outputs = self(**example_inputs)
-
-        # Get the actual name for each input / output tensor
-        input_names = [name for name, _ in iterate_nested(example_inputs)]
-        output_names = [name for name, _ in iterate_nested(dict(zip(self.output_names, example_outputs)))]
+        stateless_wrapper = StatelessWrapper(self, example_inputs, self.output_names)
+        flattened_inputs: dict[str, torch.Tensor] = flatten_nested(example_inputs)
+        input_names = stateless_wrapper.flattened_input_names
+        output_names = stateless_wrapper.flattened_output_names
 
         # Export the model to ONNX format
         model_path = f"{output_dir}/{self.graph_name}.onnx"
         torch.onnx.export(
-            self,
-            args=() if dynamo else tuple(example_inputs.items()),
-            kwargs=example_inputs if dynamo else None,
+            stateless_wrapper,
+            args=() if dynamo else tuple(flattened_inputs.values()),
+            kwargs=flattened_inputs if dynamo else None,
             f=model_path,
             verbose=verbose,
             input_names=input_names,
             output_names=output_names,
             opset_version=opset_version,
-            dynamic_axes=None,
             dynamo=dynamo,
             external_data=False,
+            dynamic_shapes=None,
             report=verbose,
             optimize=False,
             verify=True,
             artifacts_dir=output_dir,
+            dynamic_axes=None,
             **kwargs,
         )
 
@@ -296,20 +297,29 @@ def get_num_tensors(tensor_list: GetNumTensorsInputType) -> int:
 class StatelessWrapper(nn.Module):
     def __init__(
         self,
-        module: FlowGraph,
+        wrapped: FlowGraph,
         example_inputs: dict[str, NestedTensor],
         output_names: Sequence[str],
     ):
         super().__init__()
-        self.module = module
-        self.input_schema = get_schema(example_inputs)
+        self.wrapped = wrapped
+        self.input_schema = get_schema(example_inputs, separator="__")
         self.output_names = output_names
 
+        flattened_input = flatten_nested(example_inputs, separator="__")
+        self.flattened_input_names = list(flattened_input.keys())
+        self.flattened_output_names = list(self._forward_impl(**flattened_input).keys())
+        self.forward = wrap_method_with_signature(
+            instance=self,
+            wrapped_method_name="_forward_impl",
+            kwarg_names=self.flattened_input_names,
+        )
+
     @torch.no_grad()
-    def forward(self, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        reconstructed_inputs = cast(dict[str, Any], reconstruct_nested(inputs, self.input_schema))
+    def _forward_impl(self, **kwargs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        reconstructed_inputs = cast(dict[str, Any], reconstruct_nested(kwargs, self.input_schema))
         # Convert outputs to a flatten dictionary keyed by corresponding output names
-        return flatten_nested(dict(zip(self.output_names, self.module(**reconstructed_inputs))))
+        return flatten_nested(dict(zip(self.output_names, self.wrapped(**reconstructed_inputs))), separator="__")
 
 
 class StatefulWrapper(nn.Module):
@@ -326,7 +336,7 @@ class StatefulWrapper(nn.Module):
     explicit forward pass when using the wrapped module.
 
     Args:
-        stateless_wrapper (StatelessWrapper):
+        wrapped (StatelessWrapper):
             The stateless module to be wrapped.
         example_inputs (dict[str, NestedTensor]):
             A dictionary of example inputs. Keys starting with 'memory_in' are
@@ -335,51 +345,48 @@ class StatefulWrapper(nn.Module):
 
     def __init__(
         self,
-        stateless_wrapper: StatelessWrapper,
+        wrapped: StatelessWrapper,
         example_inputs: dict[str, NestedTensor],
     ):
         super().__init__()
-        self.module = stateless_wrapper
+        self.wrapped = wrapped
 
         input_names = []
-        output_names = list(stateless_wrapper(flatten_nested(example_inputs)).keys())
+        output_names = self.wrapped.flattened_output_names.copy()
         memory_names = []
-        for name, value in iterate_nested(example_inputs):
+        for name, value in iterate_nested(example_inputs, separator="__"):
             if not name.startswith("memory_in"):
                 input_names.append(name)
                 continue
             memory_names.append(name)
             output_names.remove(f"memory_out{name.removeprefix('memory_in')}")
-            self.register_buffer(name.replace(".", "__"), value)
+            self.register_buffer(name, value)
         self.input_names: tuple[str, ...] = tuple(input_names)
         self.output_names: tuple[str, ...] = tuple(output_names)
         self.memory_names: tuple[str, ...] = tuple(memory_names)
-        forward_input_signature = f"{', '.join(self.input_names)}"
-        self.forward = eval(
-            f"lambda {forward_input_signature}: self._forward({forward_input_signature})",
-            {"self": self},
+        self.forward = wrap_method_with_signature(
+            instance=self,
+            wrapped_method_name="_forward_impl",
+            kwarg_names=self.input_names,
         )
 
     @torch.no_grad()
-    def _forward(self, *args, **kwargs):
+    def _forward_impl(self, **kwargs):
         # Add memories to inputs
-        memories = {name: getattr(self, name.replace(".", "__")) for name in self.memory_names}
-        inputs = memories | dict(zip(self.input_names, args)) | kwargs
+        memories = {name: getattr(self, name) for name in self.memory_names}
+        inputs = memories | kwargs
         # Inference the module
-        outputs = self.module(inputs)
+        outputs = self.wrapped(**inputs)
         # Update memories with outputs
         for memory_name in self.memory_names:
             memory_out_name = f"memory_out{memory_name.removeprefix('memory_in')}"
-            self._get_memory(memory_name).copy_(outputs.pop(memory_out_name))
+            getattr(self, memory_name).copy_(outputs.pop(memory_out_name))
         # Return the remaining outputs
         outputs = tuple(outputs[name] for name in self.output_names)
         return outputs[0] if len(outputs) == 1 else outputs
 
     def reset(self, indices: torch.Tensor):
         for memory_name in self.memory_names:
-            memory = self._get_memory(memory_name)
+            memory = getattr(self, memory_name)
             memory[..., indices, :] = 0
         return indices
-
-    def _get_memory(self, memory_name: str) -> torch.Tensor:
-        return getattr(self, memory_name.replace(".", "__"))
