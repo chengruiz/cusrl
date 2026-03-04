@@ -1,5 +1,5 @@
 from cusrl import environment, hook, logger, module, preset, sampler, template, utils, zoo
-from cusrl.environment import make_gym_env, make_gym_vec, make_isaaclab_env
+from cusrl.environment import make_gym_env, make_gym_vec, make_isaaclab_env, make_mjlab_env
 from cusrl.module import (
     Actor,
     AdaptiveNormalDist,
@@ -125,6 +125,7 @@ __all__ = [
     "make_gym_env",
     "make_gym_vec",
     "make_isaaclab_env",
+    "make_mjlab_env",
     "make_logger_factory",
     "set_global_seed",
 ]

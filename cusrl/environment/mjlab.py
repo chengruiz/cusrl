@@ -1,6 +1,5 @@
-from typing import cast
+from typing import Any, cast
 
-import gymnasium as gym
 import torch
 
 import cusrl.utils
@@ -16,15 +15,14 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
     """Wraps an mjlab environment to conform to the cusrl.Environment
     interface."""
 
-    def __init__(self, wrapped: gym.Env):
+    def __init__(self, wrapped):
         from mjlab.envs import ManagerBasedRlEnv
 
-        self.wrapped = wrapped
-        self.unwrapped: ManagerBasedRlEnv = wrapped.unwrapped
-        self.device = torch.device(self.unwrapped.device)
+        self.wrapped: ManagerBasedRlEnv = cast(ManagerBasedRlEnv, wrapped)
+        self.device = torch.device(self.wrapped.device)
         self.metrics = cusrl.utils.Metrics()
         super().__init__(
-            num_instances=self.unwrapped.num_envs,
+            num_instances=self.wrapped.num_envs,
             observation_dim=self._get_observation_dim(),
             action_dim=self._get_action_dim(),
             state_dim=self._get_state_dim(),
@@ -37,29 +35,29 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
             self.wrapped.close()
 
     def _get_observation_dim(self) -> int:
-        if hasattr(self.unwrapped, "observation_manager"):
-            shape = self.unwrapped.observation_manager.group_obs_dim["policy"]
+        if hasattr(self.wrapped, "observation_manager"):
+            shape = self.wrapped.observation_manager.group_obs_dim["actor"]
         else:
-            shape = self.unwrapped.single_observation_space["policy"].shape
+            shape = self.wrapped.single_observation_space["actor"].shape
 
         if not len(shape) == 1:
             raise ValueError("Only 1D observation space is supported. ")
         return shape[0]
 
     def _get_action_dim(self) -> int:
-        if hasattr(self.unwrapped, "action_manager"):
-            return self.unwrapped.action_manager.total_action_dim
-        space = self.unwrapped.single_action_space
+        if hasattr(self.wrapped, "action_manager"):
+            return self.wrapped.action_manager.total_action_dim
+        space = self.wrapped.single_action_space
         if not len(space.shape) == 1:
             raise ValueError("Only 1D action space is supported. ")
         return space.shape[0]
 
     def _get_state_dim(self) -> int | None:
         shape = None
-        if hasattr(self.unwrapped, "observation_manager"):
-            shape = self.unwrapped.observation_manager.group_obs_dim.get("critic")
+        if hasattr(self.wrapped, "observation_manager"):
+            shape = self.wrapped.observation_manager.group_obs_dim.get("critic")
         else:
-            space = self.unwrapped.single_observation_space.get("critic")
+            space = self.wrapped.single_observation_space.get("critic")
             if space is not None:
                 shape = space.shape
 
@@ -77,15 +75,15 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
     ):
         if indices is None:
             observation_dict, _ = self.wrapped.reset()
-            observation = observation_dict.pop("policy")
+            observation = observation_dict.pop("actor")
             state = observation_dict.pop("critic", None)
             extras = observation_dict
         else:
             if isinstance(indices, slice):
                 indices = torch.arange(self.num_instances, device=self.device)[indices]
-            observation_dict, _ = self.unwrapped.reset(env_ids=torch.as_tensor(indices, device=self.device))
+            observation_dict, _ = self.wrapped.reset(env_ids=torch.as_tensor(indices, device=self.device))
 
-            observation = observation_dict.pop("policy", None)
+            observation = observation_dict.pop("actor", None)
             state = observation_dict.pop("critic", None)
             extras = {key: value[indices] for key, value in observation_dict.items()}
             if observation is not None:
@@ -94,15 +92,15 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
                 state = state[indices]
 
         if randomize_episode_progress:
-            self.unwrapped.episode_length_buf[indices] = torch.randint_like(
-                self.unwrapped.episode_length_buf[indices], int(self.unwrapped.max_episode_length)
+            self.wrapped.episode_length_buf[indices] = torch.randint_like(
+                self.wrapped.episode_length_buf[indices], int(self.wrapped.max_episode_length)
             )
 
         return observation, state, extras
 
     def step(self, action: torch.Tensor):
         observation_dict, reward, terminated, truncated, extras = self.wrapped.step(action)
-        observation = observation_dict.pop("policy")
+        observation = observation_dict.pop("actor")
         state = observation_dict.pop("critic", None)
         reward = cast(torch.Tensor, reward).unsqueeze(-1)
         terminated = cast(torch.Tensor, terminated).unsqueeze(-1)
@@ -115,3 +113,17 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
         metrics = self.metrics.summary()
         self.metrics.clear()
         return metrics
+
+
+def make_mjlab_env(
+    id: str,
+    play: bool = False,
+    device: str | torch.device | None = None,
+    **kwargs: Any,
+) -> MjlabEnvAdapter:
+    from mjlab.envs import ManagerBasedRlEnv
+    from mjlab.tasks.registry import load_env_cfg
+
+    env_cfg = load_env_cfg(id, play=play)
+    env = ManagerBasedRlEnv(env_cfg, device=str(cusrl.utils.device(device)), **kwargs)
+    return MjlabEnvAdapter(env)
