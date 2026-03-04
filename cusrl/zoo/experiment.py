@@ -19,6 +19,7 @@ class ExperimentSpec:
     training_env_args: tuple[Any, ...] = None
     training_env_kwargs: dict[str, Any] = field(default_factory=dict)
     trainer_callbacks: Iterable[Callable[["Trainer"], None]] = ()
+    player_class: type | None = None
     playing_env_factory: Callable[..., Environment] = None
     playing_env_args: tuple[Any, ...] = None
     playing_env_kwargs: dict[str, Any] = None
@@ -27,7 +28,7 @@ class ExperimentSpec:
     save_interval: int = 50
 
     def __post_init__(self):
-        if ":" in self.environment_name or "/" in self.environment_name or "\\" in self.algorithm_name:
+        if ":" in self.environment_name or "/" in self.environment_name or "\\" in self.environment_name:
             raise ValueError(f"environment_name '{self.environment_name}' cannot contain ':', '/', or '\\'.")
         if ":" in self.algorithm_name or "/" in self.algorithm_name or "\\" in self.algorithm_name:
             raise ValueError(f"algorithm_name '{self.algorithm_name}' cannot contain ':', '/', or '\\'.")
@@ -76,9 +77,9 @@ class ExperimentSpec:
             environment=partial(self.make_training_env, environment_kwargs),
             agent_factory=self.make_agent_factory(agent_factory_kwargs),
             logger_factory=logger_factory,
-            num_iterations=num_iterations or self.num_iterations,
+            num_iterations=self.num_iterations if num_iterations is None else num_iterations,
             init_iteration=init_iteration,
-            save_interval=save_interval or self.save_interval,
+            save_interval=self.save_interval if save_interval is None else save_interval,
             checkpoint_path=checkpoint_path,
             verbose=verbose,
             callbacks=self.trainer_callbacks,
@@ -96,7 +97,8 @@ class ExperimentSpec:
         deterministic: bool = True,
         verbose: bool = True,
     ):
-        return Player(
+        player_class = self.player_class or Player
+        return player_class(
             environment=partial(self.make_playing_env, environment_kwargs),
             agent=self.make_agent_factory(agent_factory_kwargs),
             checkpoint_path=checkpoint_path,
