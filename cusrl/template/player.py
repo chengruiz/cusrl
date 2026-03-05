@@ -149,22 +149,16 @@ class Player:
                 while (self.num_steps is None or self.step < self.num_steps) and not self.interrupted:
                     action = self.agent.act(observation, state)
                     observation, state, reward, terminated, truncated, info = self.environment.step(action)
-                    metrics = self.environment.get_metrics()
-                    self.stats.track_step(reward)
-                    for key, value in metrics.items():
-                        self.metrics[key] += value
-
                     self.agent.step(observation, reward, terminated, truncated, state, **info)
-                    self.hook.step(self.step, self.agent.transition, metrics)
+                    self._step_event(observation, state, reward, terminated, truncated, info)
 
                     if done_indices := get_done_indices(terminated, truncated):
-                        self.stats.track_episode(done_indices)
                         if not self.environment.spec.autoreset:
                             init_observation, init_state, _ = self.environment.reset(indices=done_indices)
                             observation, state = update_observation_and_state(
                                 observation, state, done_indices, init_observation, init_state
                             )
-                        self.hook.reset(done_indices)
+                        self._reset_event(done_indices)
 
                     if rate is not None:
                         rate.tick()
@@ -174,16 +168,30 @@ class Player:
             self.hook.close()
             self.environment.close()
 
-        metrics = {
-            "Mean step reward": self.stats.mean_step_reward,
-            "Mean episode reward": self.stats.mean_episode_reward,
-            "Mean episode length": self.stats.mean_episode_length,
-        } | {key: value / self.step for key, value in self.metrics.items()}
+        metrics = self._get_metrics_report()
         self._display_metrics(metrics)
         return metrics
 
     def _sigint_handler(self, signum, frame):
         self.interrupted = True
+
+    def _step_event(self, observation, state, reward, terminated, truncated, info):
+        self.stats.track_step(reward)
+        metrics = self.environment.get_metrics()
+        for key, value in metrics.items():
+            self.metrics[key] += value
+        self.hook.step(self.step, self.agent.transition, metrics)
+
+    def _reset_event(self, done_indices: list[int]):
+        self.stats.track_episode(done_indices)
+        self.hook.reset(done_indices)
+
+    def _get_metrics_report(self) -> dict[str, float]:
+        return {
+            "Mean step reward": self.stats.mean_step_reward,
+            "Mean episode reward": self.stats.mean_episode_reward,
+            "Mean episode length": self.stats.mean_episode_length,
+        } | {key: value / self.step for key, value in self.metrics.items()}
 
     def _display_metrics(self, metrics: dict[str, float]):
         formatted_metrics = {key: f"{value:.4f}" for key, value in metrics.items()}

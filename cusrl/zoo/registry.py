@@ -20,6 +20,7 @@ experiment_modules = [
     "cusrl.zoo.gym",
     "cusrl.zoo.isaaclab",
     "cusrl.zoo.robot_lab",
+    "cusrl.zoo.mjlab",
 ]
 
 

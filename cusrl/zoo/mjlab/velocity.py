@@ -1,14 +1,14 @@
-from cusrl.environment import make_isaaclab_env
+from cusrl.environment import make_mjlab_env
+from cusrl.environment.mjlab import MjlabPlayer
 from cusrl.preset import ppo
 from cusrl.zoo.registry import register_experiment
 
 register_experiment(
     environment_name=[
-        "RobotLab-Isaac-Velocity-Rough-Anymal-D-v0",
-        "RobotLab-Isaac-Velocity-Rough-Unitree-A1-v0",
-        "RobotLab-Isaac-Velocity-Rough-HandStand-Unitree-A1-v0",
-        "RobotLab-Isaac-Velocity-Rough-Unitree-B2-v0",
-        "RobotLab-Isaac-Velocity-Rough-Unitree-Go2-v0",
+        "Mjlab-Velocity-Flat-Unitree-G1",
+        "Mjlab-Velocity-Flat-Unitree-Go1",
+        "Mjlab-Velocity-Rough-Unitree-G1",
+        "Mjlab-Velocity-Rough-Unitree-Go1",
     ],
     algorithm_name="ppo",
     agent_factory_cls=ppo.AgentFactory,
@@ -24,8 +24,9 @@ register_experiment(
         entropy_loss_weight=0.01,
         desired_kl_divergence=0.015,
     ),
-    training_env_factory=make_isaaclab_env,
-    training_env_kwargs={"extensions": ["robot_lab"]},
+    training_env_factory=make_mjlab_env,
+    player_class=MjlabPlayer,
+    playing_env_kwargs={"play": True},
     num_iterations=20000,
     save_interval=500,
 )

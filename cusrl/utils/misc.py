@@ -4,7 +4,8 @@ import random
 import sys
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from types import MethodType
-from typing import Any, Sequence
+from typing import Any
+from collections.abc import Sequence
 
 import numpy as np
 import torch

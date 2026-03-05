@@ -3,6 +3,7 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias
 
 import gymnasium as gym
+from objprint import objstr
 
 from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
 
@@ -178,6 +179,9 @@ class EnvironmentSpec:
             setattr(self, key, value)
         else:
             self.extras[key] = value
+
+    def __str__(self):
+        return objstr(self, exclude=["environment_instance"], honor_existing=False)
 
 
 EnvironmentFactory: TypeAlias = Callable[[], "Environment"]

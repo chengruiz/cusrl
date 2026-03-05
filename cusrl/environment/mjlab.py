@@ -1,9 +1,13 @@
-from typing import Any, cast
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Any, Literal, cast
+from collections.abc import Sequence
 
 import torch
 
 import cusrl.utils
-from cusrl.template import Environment
+from cusrl.template import Agent, Environment, Player, Trial
+from cusrl.template.environment import get_done_indices
 from cusrl.utils.typing import Slice
 
 __all__ = [
@@ -115,15 +119,112 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
         return metrics
 
 
+class MjlabPlayer(Player):
+    """A Player implementation for playing with mjlab environments using the
+    mjlab built-in viewers."""
+
+    def __init__(
+        self,
+        environment: Environment | Environment.Factory,
+        agent: Agent | Agent.Factory,
+        checkpoint_path: str | Trial | None = None,
+        num_steps: int | None = None,
+        timestep: float | None = None,
+        deterministic: bool = True,
+        verbose: bool = True,
+        hooks: Iterable[Player.Hook] = (),
+    ):
+        super().__init__(
+            environment=environment,
+            agent=agent,
+            checkpoint_path=checkpoint_path,
+            num_steps=num_steps,
+            timestep=timestep,
+            deterministic=deterministic,
+            verbose=verbose,
+            hooks=hooks,
+        )
+
+    def run_playing_loop(self) -> dict[str, float]:
+        from mjlab.rl import RslRlVecEnvWrapper
+        from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
+
+        environment = cast(MjlabEnvAdapter, self.environment)
+        native_environment = RslRlVecEnvWrapper(environment.wrapped)
+        if environment.wrapped.cfg.viewer_type == "native":
+            viewer = NativeMujocoViewer(native_environment, MjlabPolicy(self))
+        elif environment.wrapped.cfg.viewer_type == "viser":
+            viewer = ViserPlayViewer(native_environment, MjlabPolicy(self))
+        else:
+            raise ValueError(f"Unsupported viewer type: {environment.wrapped.cfg.viewer_type}")
+        viewer.run()
+        metrics = self._get_metrics_report()
+        self._display_metrics(metrics)
+        return metrics
+
+
+class MjlabPolicy:
+    """Wraps a cusrl agent to satisfy the mjlab policy protocol."""
+
+    def __init__(self, mjlab_player: MjlabPlayer):
+        self.player = mjlab_player
+        self.environment = cast(MjlabEnvAdapter, self.player.environment)
+        self.agent = self.player.agent
+        self.is_first_step = True
+
+    def __call__(self, observation_dict):
+        observation = observation_dict.pop("actor")
+        state = observation_dict.pop("critic", None)
+
+        if not self.is_first_step:
+            reward = self.environment.wrapped.reward_buf.clone().unsqueeze(-1)
+            terminated = self.environment.wrapped.termination_manager.terminated.clone().unsqueeze(-1)
+            truncated = self.environment.wrapped.termination_manager.time_outs.clone().unsqueeze(-1)
+            extras = cast(dict, self.environment.wrapped.extras).copy()
+            self.environment.metrics.record(**extras.pop("log", {}))
+            self.player._step_event(observation, state, reward, terminated, truncated, observation_dict)
+            self.agent.step(
+                next_observation=observation,
+                next_state=state,
+                reward=reward,
+                terminated=terminated,
+                truncated=truncated,
+                **observation_dict,
+            )
+
+            if done_indices := get_done_indices(terminated, truncated):
+                self.player._reset_event(done_indices)
+        else:
+            self.is_first_step = False
+
+        action = self.agent.act(observation, state)
+        return action
+
+
 def make_mjlab_env(
     id: str,
+    argv: Sequence[str] = "",
     play: bool = False,
     device: str | torch.device | None = None,
     **kwargs: Any,
 ) -> MjlabEnvAdapter:
-    from mjlab.envs import ManagerBasedRlEnv
+    import mjlab
+    import tyro
+    from mjlab.envs import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
     from mjlab.tasks.registry import load_env_cfg
 
+    @dataclass
+    class ManagerBasedRlEnvPlayCfg(ManagerBasedRlEnvCfg):
+        viewer_type: Literal["native", "viser"] = "viser"
+
+    config_class = ManagerBasedRlEnvPlayCfg if play else ManagerBasedRlEnvCfg
     env_cfg = load_env_cfg(id, play=play)
+    env_cfg = tyro.cli(
+        config_class,
+        args=argv,
+        default=env_cfg,
+        config=mjlab.TYRO_FLAGS,
+    )
+
     env = ManagerBasedRlEnv(env_cfg, device=str(cusrl.utils.device(device)), **kwargs)
     return MjlabEnvAdapter(env)
