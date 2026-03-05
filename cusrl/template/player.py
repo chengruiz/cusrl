@@ -121,7 +121,7 @@ class Player:
         self.deterministic = deterministic
         self.verbose = verbose
 
-        self.step = 0
+        self.step_count = 0
         self.stats = EnvironmentStats(
             self.environment.num_instances,
             self.environment.spec.reward_dim,
@@ -146,7 +146,7 @@ class Player:
 
         try:
             with tqdm(total=self.num_steps, disable=not self.verbose, dynamic_ncols=True) as progress_bar:
-                while (self.num_steps is None or self.step < self.num_steps) and not self.interrupted:
+                while (self.num_steps is None or self.step_count < self.num_steps) and not self.interrupted:
                     action = self.agent.act(observation, state)
                     observation, state, reward, terminated, truncated, info = self.environment.step(action)
                     self.agent.step(observation, reward, terminated, truncated, state, **info)
@@ -179,8 +179,8 @@ class Player:
         metrics = self.environment.get_metrics()
         for key, value in metrics.items():
             self.metrics[key] += value
-        self.hook.step(self.step, self.agent.transition, metrics)
-        self.step += 1
+        self.hook.step(self.step_count, self.agent.transition, metrics)
+        self.step_count += 1
 
     def _reset_event(self, done_indices: list[int]):
         self.stats.track_episode(done_indices)
@@ -191,7 +191,7 @@ class Player:
             "Mean step reward": self.stats.mean_step_reward,
             "Mean episode reward": self.stats.mean_episode_reward,
             "Mean episode length": self.stats.mean_episode_length,
-        } | {key: value / max(self.step, 1) for key, value in self.metrics.items()}
+        } | {key: value / max(self.step_count, 1) for key, value in self.metrics.items()}
 
     def _display_metrics(self, metrics: dict[str, float]):
         formatted_metrics = {key: f"{value:.4f}" for key, value in metrics.items()}

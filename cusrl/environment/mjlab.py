@@ -12,6 +12,8 @@ from cusrl.utils.typing import Slice
 
 __all__ = [
     "MjlabEnvAdapter",
+    "MjlabPlayer",
+    "make_mjlab_env",
 ]
 
 
@@ -123,28 +125,6 @@ class MjlabPlayer(Player):
     """A Player implementation for playing with mjlab environments using the
     mjlab built-in viewers."""
 
-    def __init__(
-        self,
-        environment: Environment | Environment.Factory,
-        agent: Agent | Agent.Factory,
-        checkpoint_path: str | Trial | None = None,
-        num_steps: int | None = None,
-        timestep: float | None = None,
-        deterministic: bool = True,
-        verbose: bool = True,
-        hooks: Iterable[Player.Hook] = (),
-    ):
-        super().__init__(
-            environment=environment,
-            agent=agent,
-            checkpoint_path=checkpoint_path,
-            num_steps=num_steps,
-            timestep=timestep,
-            deterministic=deterministic,
-            verbose=verbose,
-            hooks=hooks,
-        )
-
     def run_playing_loop(self) -> dict[str, float]:
         from mjlab.rl import RslRlVecEnvWrapper
         from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
@@ -152,9 +132,9 @@ class MjlabPlayer(Player):
         environment = cast(MjlabEnvAdapter, self.environment)
         native_environment = RslRlVecEnvWrapper(environment.wrapped)
         if environment.wrapped.cfg.viewer_type == "native":
-            viewer = NativeMujocoViewer(native_environment, MjlabPolicy(self))
+            viewer = NativeMujocoViewer(native_environment, self)
         elif environment.wrapped.cfg.viewer_type == "viser":
-            viewer = ViserPlayViewer(native_environment, MjlabPolicy(self))
+            viewer = ViserPlayViewer(native_environment, self)
         else:
             raise ValueError(f"Unsupported viewer type: {environment.wrapped.cfg.viewer_type}")
         viewer.run()
@@ -162,27 +142,17 @@ class MjlabPlayer(Player):
         self._display_metrics(metrics)
         return metrics
 
-
-class MjlabPolicy:
-    """Wraps a cusrl agent to satisfy the mjlab policy protocol."""
-
-    def __init__(self, mjlab_player: MjlabPlayer):
-        self.player = mjlab_player
-        self.environment = cast(MjlabEnvAdapter, self.player.environment)
-        self.agent = self.player.agent
-        self.is_first_step = True
-
     def __call__(self, observation_dict):
         observation = observation_dict.pop("actor")
         state = observation_dict.pop("critic", None)
 
-        if not self.is_first_step:
+        if self.step_count != 0:
             reward = self.environment.wrapped.reward_buf.clone().unsqueeze(-1)
             terminated = self.environment.wrapped.termination_manager.terminated.clone().unsqueeze(-1)
             truncated = self.environment.wrapped.termination_manager.time_outs.clone().unsqueeze(-1)
             extras = cast(dict, self.environment.wrapped.extras).copy()
             self.environment.metrics.record(**extras.pop("log", {}))
-            self.player._step_event(observation, state, reward, terminated, truncated, observation_dict)
+            self._step_event(observation, state, reward, terminated, truncated, observation_dict)
             self.agent.step(
                 next_observation=observation,
                 next_state=state,
@@ -193,9 +163,7 @@ class MjlabPolicy:
             )
 
             if done_indices := get_done_indices(terminated, truncated):
-                self.player._reset_event(done_indices)
-        else:
-            self.is_first_step = False
+                self._reset_event(done_indices)
 
         action = self.agent.act(observation, state)
         return action
