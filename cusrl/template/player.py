@@ -162,7 +162,6 @@ class Player:
 
                     if rate is not None:
                         rate.tick()
-                    self.step += 1
                     progress_bar.update()
         finally:
             self.hook.close()
@@ -181,6 +180,7 @@ class Player:
         for key, value in metrics.items():
             self.metrics[key] += value
         self.hook.step(self.step, self.agent.transition, metrics)
+        self.step += 1
 
     def _reset_event(self, done_indices: list[int]):
         self.stats.track_episode(done_indices)
@@ -191,7 +191,7 @@ class Player:
             "Mean step reward": self.stats.mean_step_reward,
             "Mean episode reward": self.stats.mean_episode_reward,
             "Mean episode length": self.stats.mean_episode_length,
-        } | {key: value / self.step for key, value in self.metrics.items()}
+        } | {key: value / max(self.step, 1) for key, value in self.metrics.items()}
 
     def _display_metrics(self, metrics: dict[str, float]):
         formatted_metrics = {key: f"{value:.4f}" for key, value in metrics.items()}
