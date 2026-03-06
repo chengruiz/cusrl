@@ -1,5 +1,6 @@
 import argparse
 import importlib
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, fields
 from typing import Any, cast
@@ -142,19 +143,40 @@ class IsaacLabEnvLauncher(IsaacLabEnvAdapter):
         parser = argparse.ArgumentParser(prog="--environment-args", description="IsaacLab environment")
         parser.add_argument("--num_envs", type=int, metavar="N", help="Number of environments to simulate.")
         AppLauncher.add_app_launcher_args(parser)
-        args = parser.parse_args(argv or [])
+        args, hydra_args = parser.parse_known_args(argv or [])
         args.device = str(cusrl.device())
         args.distributed = cusrl.config.distributed
         self.app_launcher = AppLauncher(args)
         self.simulation_app = self.app_launcher.app
 
+        import hydra
+        from hydra.core.config_store import ConfigStore
         from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
+        from isaaclab.envs.utils.spaces import replace_env_cfg_spaces_with_strings, replace_strings_with_env_cfg_spaces
+        from isaaclab.utils import replace_slices_with_strings, replace_strings_with_slices
+        from isaaclab_tasks.utils.hydra import register_task_to_hydra
         from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry
+        from omegaconf import DictConfig, OmegaConf
 
         for extension in extensions:
             importlib.import_module(extension)
 
         env_cfg = load_cfg_from_registry(id, "env_cfg_entry_point")
+        env_cfg = replace_env_cfg_spaces_with_strings(env_cfg)
+        env_cfg, _ = register_task_to_hydra(id, "")
+        cfg_dict = replace_slices_with_strings(env_cfg.to_dict())
+        ConfigStore.instance().store(name=id, node=cfg_dict)
+        sys.argv = [sys.argv[0]] + hydra_args
+
+        @hydra.main(config_path=None, config_name=id, version_base="1.3")
+        def overwrite_config(hydra_env_cfg: DictConfig):
+            hydra_env_cfg = OmegaConf.to_container(hydra_env_cfg, resolve=True)
+            hydra_env_cfg = replace_strings_with_slices(hydra_env_cfg)
+            nonlocal env_cfg
+            env_cfg.from_dict(hydra_env_cfg)
+            env_cfg = replace_strings_with_env_cfg_spaces(env_cfg)
+
+        overwrite_config()
         env_cfg.sim.device = args.device
         if args.num_envs is not None:
             env_cfg.scene.num_envs = args.num_envs
