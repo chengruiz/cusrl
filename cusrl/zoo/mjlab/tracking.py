@@ -5,10 +5,8 @@ from cusrl.zoo.registry import register_experiment
 
 register_experiment(
     environment_name=[
-        "Mjlab-Velocity-Flat-Unitree-G1",
-        "Mjlab-Velocity-Flat-Unitree-Go1",
-        "Mjlab-Velocity-Rough-Unitree-G1",
-        "Mjlab-Velocity-Rough-Unitree-Go1",
+        "Mjlab-Tracking-Flat-Unitree-G1",
+        "Mjlab-Tracking-Flat-Unitree-G1-No-State-Estimation",
     ],
     algorithm_name="ppo",
     agent_factory_cls=ppo.AgentFactory,
@@ -22,12 +20,12 @@ register_experiment(
         sampler_mini_batches=4,
         orthogonal_init=False,
         normalize_observation=True,
-        entropy_loss_weight=0.01,
+        entropy_loss_weight=0.005,
         desired_kl_divergence=0.015,
     ),
     training_env_factory=make_mjlab_env,
     player_class=MjlabPlayer,
     playing_env_kwargs={"play": True},
-    num_iterations=20000,
+    num_iterations=30000,
     save_interval=500,
 )
