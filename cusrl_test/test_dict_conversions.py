@@ -1,8 +1,145 @@
+from dataclasses import dataclass
+
 import torch
 
 import cusrl
 from cusrl.utils import from_dict, to_dict
+from cusrl.utils.misc import MISSING
 from cusrl.utils.scheduler import LessThan
+
+
+def double_value(value: int) -> int:
+    return value * 2
+
+
+def triple_value(value: int) -> int:
+    return value * 3
+
+
+@dataclass
+class InnerConfig:
+    name: str
+    enabled: bool
+    indices: tuple[int, int]
+
+
+@dataclass
+class ExampleConfig:
+    count: int
+    ratio: float
+    active: bool
+    title: str
+    note: str | None
+    shape: tuple[int, int]
+    tags: list[str]
+    metadata: dict[str, int]
+    region: slice
+    device: torch.device
+    optimizer_cls: type[torch.optim.Optimizer]
+    transform: object
+    inner: InnerConfig
+
+
+def test_from_dict_does_not_mutate_input_dict():
+    optimizer_factory = cusrl.OptimizerFactory("AdamW", defaults={"lr": 1e-3})
+    data = to_dict(optimizer_factory)
+
+    restored_once = from_dict(optimizer_factory, data)
+    restored_twice = from_dict(optimizer_factory, data)
+
+    assert isinstance(restored_once, cusrl.OptimizerFactory)
+    assert isinstance(restored_twice, cusrl.OptimizerFactory)
+    assert "__class__" in data
+
+
+def test_from_dict_prefers_dict_values_over_dict_methods():
+    data = {"items": 1, "keys": 2}
+
+    restored = from_dict(data, data)
+
+    assert restored["items"] == 1
+    assert restored["keys"] == 2
+
+
+def test_from_dict_removes_multiple_sequence_items():
+    restored = from_dict([10, 20, 30], [10, MISSING, MISSING])
+
+    assert restored == [10]
+
+
+def create_example_config() -> ExampleConfig:
+    return ExampleConfig(
+        count=3,
+        ratio=1.5,
+        active=True,
+        title="demo",
+        note=None,
+        shape=(2, 4),
+        tags=["alpha", "beta"],
+        metadata={"epochs": 10, "layers": 2},
+        region=slice(1, 5, 2),
+        device=torch.device("cpu"),
+        optimizer_cls=torch.optim.AdamW,
+        transform=double_value,
+        inner=InnerConfig(name="inner", enabled=True, indices=(0, 2)),
+    )
+
+
+def test_from_dict_round_trips_dataclass_fields():
+    config = create_example_config()
+
+    round_trip = from_dict(None, to_dict(config))
+
+    assert isinstance(round_trip, ExampleConfig)
+    assert round_trip.count == config.count
+    assert round_trip.ratio == config.ratio
+    assert round_trip.active is config.active
+    assert round_trip.title == config.title
+    assert round_trip.note is config.note
+    assert round_trip.shape == config.shape
+    assert round_trip.tags == config.tags
+    assert round_trip.metadata == config.metadata
+    assert round_trip.region == config.region
+    assert round_trip.device == config.device
+    assert round_trip.optimizer_cls == config.optimizer_cls
+    assert round_trip.transform == config.transform
+    assert round_trip.inner == config.inner
+
+
+def test_from_dict_updates_dataclass_fields():
+    config = create_example_config()
+    modified = to_dict(config)
+    modified["count"] = 5
+    modified["ratio"] = 2.5
+    modified["active"] = False
+    modified["title"] = "updated"
+    modified["shape"] = (8, 16)
+    modified["tags"] = ["gamma", "delta"]
+    modified["metadata"]["epochs"] = 20
+    modified["region"]["start"] = 2
+    modified["device"]["__str__"] = "cuda:0"
+    modified["optimizer_cls"] = to_dict(torch.optim.SGD)
+    modified["transform"] = to_dict(triple_value)
+    modified["inner"]["name"] = "updated_inner"
+    modified["inner"]["enabled"] = False
+    modified["inner"]["indices"] = (1, 3)
+
+    restored = from_dict(config, modified)
+
+    assert isinstance(restored, ExampleConfig)
+    assert restored.count == 5
+    assert restored.ratio == 2.5
+    assert restored.active is False
+    assert restored.title == "updated"
+    assert restored.note is None
+    assert restored.shape == (8, 16)
+    assert restored.tags == ["gamma", "delta"]
+    assert restored.metadata == {"epochs": 20, "layers": 2}
+    assert restored.region == slice(2, 5, 2)
+    assert restored.device == torch.device("cuda:0")
+    assert restored.optimizer_cls == torch.optim.SGD
+    assert restored.transform == triple_value
+    assert restored.inner == InnerConfig(name="updated_inner", enabled=False, indices=(1, 3))
 
 
 def test_dict_conversions():

@@ -29,8 +29,11 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
     This function converts primitives and recursively reconstructs lists,
     tuples, and dicts. When an existing object is provided, it performs a
     comparison with it to preserve unchanged attributes / items from
-    that object, updating only the parts that differ. A special MISSING sentinel
-    indicates that keys or sequence items should be removed.
+    that object, updating only the parts that differ. When ``obj`` is provided,
+    ``data`` is interpreted as the full target snapshot, and keys or sequence
+    items omitted from ``data`` are treated as missing and removed during
+    reconstruction. A special MISSING sentinel can also be used explicitly、
+    to request removal.
 
     Behavior summary:
     - Primitives (int, float, bool, None) pass through unchanged.
@@ -38,6 +41,8 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
       in which case it is recognized as a class.
     - When obj is None, the entire structure is recursively converted.
     - When obj is provided:
+        - ``data`` should contain the complete desired structure.
+        - Keys / indices absent from ``data`` are treated as deletions.
         - For each top-level key / index, the function compares the flattened
             forms of the current value and the incoming value. If equal, the
             existing value from obj is kept.
@@ -55,6 +60,8 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
         data:
             The description of the value to build. May be a primitive, string,
             dict, list, or tuple. Dicts may include a "__class__" type entry.
+            When ``obj`` is provided, this should be a complete snapshot of the
+            desired result rather than a partial update payload.
 
     Returns:
         The reconstructed value or object.
@@ -71,6 +78,8 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
         if func := parse_function(data):
             return func
         return data
+    if isinstance(data, dict):
+        data = data.copy()
 
     if obj is None or obj is MISSING:
         if isinstance(data, (list, tuple)):
@@ -83,10 +92,10 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
         from cusrl.utils.nest import flatten_nested, zip_nested
 
         for key, (current_value_dict, updated_value_dict) in zip_nested(to_dict(obj), data, max_depth=1):
-            if hasattr(obj, key):
-                current_value = getattr(obj, key)
-            elif isinstance(obj, dict):
+            if isinstance(obj, dict):
                 current_value = obj.get(key)
+            elif hasattr(obj, key):
+                current_value = getattr(obj, key)
             elif isinstance(obj, (list, tuple)):
                 index = int(key)
                 current_value = obj[index] if index < len(obj) else None
@@ -113,13 +122,12 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
                 else:
                     data.pop(key, None)
             elif isinstance(data, (list, tuple)):
-                if updated_value is not MISSING:
-                    data = type(data)([*data[: int(key)], updated_value, *data[int(key) + 1 :]])
-                else:
-                    data = type(data)([*data[: int(key)], *data[int(key) + 1 :]])
+                data = type(data)([*data[: int(key)], updated_value, *data[int(key) + 1 :]])
             else:
                 raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
 
+    if isinstance(data, (tuple, list)):
+        return type(data)(item for item in data if item is not MISSING)
     if isinstance(data, dict) and (cls := data.pop("__class__", None)):
         if not isinstance(cls, type):
             raise ValueError(f"Class '{cls}' is not correctly parsed.")
@@ -159,7 +167,7 @@ def to_dataclass(obj):
     if hasattr(obj, "to_dict"):
         obj_dict = obj.to_dict()
     elif isinstance(obj, (list, tuple)):
-        return type(obj)(to_dict(item) for item in obj)
+        return type(obj)(to_dataclass(item) for item in obj)
     elif inspect.isfunction(obj):
         return get_function_str(obj)
     elif isinstance(obj, (str, int, float, bool, type(None))):

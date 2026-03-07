@@ -1,12 +1,11 @@
-from collections.abc import Iterable
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, cast
-from collections.abc import Sequence
 
 import torch
 
 import cusrl.utils
-from cusrl.template import Agent, Environment, Player, Trial
+from cusrl.template import Environment, Player
 from cusrl.template.environment import get_done_indices
 from cusrl.utils.typing import Slice
 
