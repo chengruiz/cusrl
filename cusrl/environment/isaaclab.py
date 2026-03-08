@@ -158,9 +158,11 @@ class IsaacLabEnvLauncher(IsaacLabEnvAdapter):
         from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry
         from omegaconf import DictConfig, OmegaConf
 
+        # Load user-specified extensions that depends on IsaacLab
         for extension in extensions:
             importlib.import_module(extension)
 
+        # Load the environment configuration and register it to Hydra
         env_cfg = load_cfg_from_registry(id, "env_cfg_entry_point")
         env_cfg = replace_env_cfg_spaces_with_strings(env_cfg)
         env_cfg, _ = register_task_to_hydra(id, "")
@@ -168,6 +170,7 @@ class IsaacLabEnvLauncher(IsaacLabEnvAdapter):
         ConfigStore.instance().store(name=id, node=cfg_dict)
         sys.argv = [sys.argv[0]] + hydra_args
 
+        # Overwrite the environment configuration with Hydra
         @hydra.main(config_path=None, config_name=id, version_base="1.3")
         def overwrite_config(hydra_env_cfg: DictConfig):
             hydra_env_cfg = OmegaConf.to_container(hydra_env_cfg, resolve=True)
@@ -181,6 +184,8 @@ class IsaacLabEnvLauncher(IsaacLabEnvAdapter):
         if args.num_envs is not None:
             env_cfg.scene.num_envs = args.num_envs
         env_cfg.scene.num_envs = max(env_cfg.scene.num_envs // cusrl.utils.distributed.world_size(), 1)
+
+        # Create the environment and wrap with the adapter
         wrapped = gym.make(id, cfg=env_cfg, disable_env_checker=True, **kwargs)
         if isinstance(wrapped, DirectMARLEnv):
             wrapped = multi_agent_to_single_agent(wrapped)

@@ -136,12 +136,13 @@ class MjlabPlayer(Player):
             viewer = ViserPlayViewer(native_environment, self)
         else:
             raise ValueError(f"Unsupported viewer type: {environment.wrapped.cfg.viewer_type}")
-        viewer.run()
+        viewer.run(self.num_steps)
         metrics = self._get_metrics_report()
         self._display_metrics(metrics)
         return metrics
 
     def __call__(self, observation_dict):
+        """Acts like an Mjlab policy."""
         observation = observation_dict.pop("actor")
         state = observation_dict.pop("critic", None)
 
@@ -170,7 +171,7 @@ class MjlabPlayer(Player):
 
 def make_mjlab_env(
     id: str,
-    argv: Sequence[str] = "",
+    argv: Sequence[str] = ("",),
     play: bool = False,
     device: str | torch.device | None = None,
     **kwargs: Any,

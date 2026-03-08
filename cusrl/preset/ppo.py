@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 
@@ -27,6 +27,7 @@ def hook_suite(
     surrogate_clip_ratio: float = 0.2,
     entropy_loss_weight: float = 0.01,
     max_grad_norm: float | None = 1.0,
+    grad_clip_groups: dict[str, float] | None = None,
     desired_kl_divergence: float | None = None,
 ) -> list[cusrl.template.Hook]:
     hooks = [
@@ -48,7 +49,7 @@ def hook_suite(
         cusrl.hook.OnPolicyPreparation(),
         cusrl.hook.PpoSurrogateLoss(clip_ratio=surrogate_clip_ratio),
         cusrl.hook.EntropyLoss(weight=entropy_loss_weight),
-        cusrl.hook.GradientClipping(max_grad_norm) if max_grad_norm is not None else None,
+        cusrl.hook.GradientClipping(max_grad_norm, **(grad_clip_groups or {})) if max_grad_norm is not None else None,
         cusrl.hook.OnPolicyStatistics(sampler=cusrl.AutoMiniBatchSampler()),
         cusrl.hook.AdaptiveLRSchedule(desired_kl_divergence) if desired_kl_divergence is not None else None,
     ]
@@ -86,6 +87,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
     surrogate_clip_ratio: float = 0.2
     entropy_loss_weight: float = 0.01
     max_grad_norm: float | None = 1.0
+    grad_clip_groups: dict[str, float] = field(default_factory=dict)
     desired_kl_divergence: float | None = None
     device: str | torch.device | None = None
     compile: bool = False
@@ -128,6 +130,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
                 surrogate_clip_ratio=self.surrogate_clip_ratio,
                 entropy_loss_weight=self.entropy_loss_weight,
                 max_grad_norm=self.max_grad_norm,
+                grad_clip_groups=self.grad_clip_groups,
                 desired_kl_divergence=self.desired_kl_divergence,
             ),
             device=self.device,
@@ -161,6 +164,7 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
     surrogate_clip_ratio: float = 0.2
     entropy_loss_weight: float = 0.01
     max_grad_norm: float | None = 1.0
+    grad_clip_groups: dict[str, float] = field(default_factory=dict)
     desired_kl_divergence: float | None = None
     device: str | torch.device | None = None
     compile: bool = False
@@ -203,6 +207,7 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
                 surrogate_clip_ratio=self.surrogate_clip_ratio,
                 entropy_loss_weight=self.entropy_loss_weight,
                 max_grad_norm=self.max_grad_norm,
+                grad_clip_groups=self.grad_clip_groups,
                 desired_kl_divergence=self.desired_kl_divergence,
             ),
             device=self.device,
