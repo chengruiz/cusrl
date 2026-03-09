@@ -14,6 +14,7 @@ from .environment_spec import (
     DynamicEnvironmentSpecOverride,
     EnvironmentSpecOverride,
 )
+from .empty_cuda_cache import EmptyCudaCache
 from .estimation import StateEstimation
 from .gae import GeneralizedAdvantageEstimation
 from .gradient import GradientClipping
@@ -67,6 +68,7 @@ __all__ = [
     "AdversarialMotionPrior",
     "ConditionalObjectiveActivation",
     "DynamicEnvironmentSpecOverride",
+    "EmptyCudaCache",
     "EntropyLoss",
     "EnvironmentSpecOverride",
     "GeneralizedAdvantageEstimation",

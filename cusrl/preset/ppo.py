@@ -29,6 +29,7 @@ def hook_suite(
     max_grad_norm: float | None = 1.0,
     grad_clip_groups: dict[str, float] | None = None,
     desired_kl_divergence: float | None = None,
+    empty_cuda_cache: bool = False,
 ) -> list[cusrl.template.Hook]:
     hooks = [
         cusrl.hook.ModuleInitialization(
@@ -52,6 +53,7 @@ def hook_suite(
         cusrl.hook.GradientClipping(max_grad_norm, **(grad_clip_groups or {})) if max_grad_norm is not None else None,
         cusrl.hook.OnPolicyStatistics(sampler=cusrl.AutoMiniBatchSampler()),
         cusrl.hook.AdaptiveLRSchedule(desired_kl_divergence) if desired_kl_divergence is not None else None,
+        cusrl.hook.EmptyCudaCache() if empty_cuda_cache else None,
     ]
     return [hook for hook in hooks if hook is not None]
 
@@ -166,6 +168,7 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
     max_grad_norm: float | None = 1.0
     grad_clip_groups: dict[str, float] = field(default_factory=dict)
     desired_kl_divergence: float | None = None
+    empty_cuda_cache: bool = True
     device: str | torch.device | None = None
     compile: bool = False
     autocast: bool | None | str | torch.dtype = False
@@ -209,6 +212,7 @@ class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
                 max_grad_norm=self.max_grad_norm,
                 grad_clip_groups=self.grad_clip_groups,
                 desired_kl_divergence=self.desired_kl_divergence,
+                empty_cuda_cache=self.empty_cuda_cache,
             ),
             device=self.device,
             compile=self.compile,
