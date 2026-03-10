@@ -129,13 +129,17 @@ class MjlabPlayer(Player):
         from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
 
         environment = cast(MjlabEnvAdapter, self.environment)
+        cfg = environment.wrapped.cfg
+        if cfg.headless or cfg.viewer_type is None:
+            return super().run_playing_loop()
+
         native_environment = RslRlVecEnvWrapper(environment.wrapped)
-        if environment.wrapped.cfg.viewer_type == "native":
+        if cfg.viewer_type == "native":
             viewer = NativeMujocoViewer(native_environment, self)
-        elif environment.wrapped.cfg.viewer_type == "viser":
+        elif cfg.viewer_type == "viser":
             viewer = ViserPlayViewer(native_environment, self)
         else:
-            raise ValueError(f"Unsupported viewer type: {environment.wrapped.cfg.viewer_type}")
+            raise ValueError(f"Unsupported viewer type: {cfg.viewer_type}")
         viewer.run(self.num_steps)
         metrics = self._get_metrics_report()
         self._display_metrics(metrics)
@@ -152,7 +156,6 @@ class MjlabPlayer(Player):
             truncated = self.environment.wrapped.termination_manager.time_outs.clone().unsqueeze(-1)
             extras = cast(dict, self.environment.wrapped.extras).copy()
             self.environment.metrics.record(**extras.pop("log", {}))
-            self._step_event(observation, state, reward, terminated, truncated, observation_dict)
             self.agent.step(
                 next_observation=observation,
                 next_state=state,
@@ -161,6 +164,7 @@ class MjlabPlayer(Player):
                 truncated=truncated,
                 **observation_dict,
             )
+            self._step_event(observation, state, reward, terminated, truncated, observation_dict)
 
             if done_indices := get_done_indices(terminated, truncated):
                 self._reset_event(done_indices)
@@ -183,7 +187,8 @@ def make_mjlab_env(
 
     @dataclass
     class ManagerBasedRlEnvPlayCfg(ManagerBasedRlEnvCfg):
-        viewer_type: Literal["native", "viser"] = "viser"
+        headless: bool = False
+        viewer_type: Literal[None, "native", "viser"] = "viser"
 
     config_class = ManagerBasedRlEnvPlayCfg if play else ManagerBasedRlEnvCfg
     env_cfg = load_env_cfg(id, play=play)

@@ -2,6 +2,7 @@ import signal
 from collections import defaultdict
 from collections.abc import Iterable
 
+import torch
 from tqdm import tqdm
 from typing_extensions import Self
 
@@ -16,26 +17,58 @@ __all__ = ["Player"]
 
 
 class PlayerHook:
+    """Base class for hooks that receive callbacks during the playing loop.
+
+    Subclass this to observe or react to play-time events such as steps, episode
+    resets, and loop completion. All callback methods are no-ops by default so
+    subclasses only need to override the events they care about.
+
+    Attributes:
+        player (Player): The owning player instance, set by :meth:`init`.
+        agent (Agent): Shortcut to ``player.agent``.
+        environment (Environment): Shortcut to ``player.environment``.
+    """
+
     player: "Player"
     agent: Agent
     environment: Environment
 
     def init(self, player: "Player"):
+        """Called once when the hook is registered with a :class:`Player`.
+
+        Stores references to the player, agent, and environment for use in
+        subsequent callbacks.
+
+        Args:
+            player: The player instance that owns this hook.
+        """
         self.player = player
         self.agent = player.agent
         self.environment = player.environment
 
     def step(self, step: int, transition: dict[str, Array], metrics: dict[str, float]):
-        pass
+        """Called after every environment step.
+
+        Args:
+            step: The zero-based step index within the current playing loop.
+            transition: The agent's latest transition dictionary.
+            metrics: Environment metrics collected during this step.
+        """
 
     def reset(self, indices: Slice):
-        pass
+        """Called when one or more environment instances finish an episode.
+
+        Args:
+            indices: Indices of the environment instances that were reset.
+        """
 
     def close(self):
-        pass
+        """Called once when the playing loop ends."""
 
 
 class PlayerHookComposite(PlayerHook, list[PlayerHook]):
+    """Delegates every callback to all contained hooks in order."""
+
     def init(self, player: "Player"):
         for hook in self:
             hook.init(player)
@@ -66,9 +99,15 @@ class Player:
         checkpoint_path (str | Trial | None, optional):
             Path to a saved checkpoint or a :class:`Trial` object. If provided,
             loads the states of the agent and the environment states from the
-            checkpoint.
+            checkpoint. Defaults to ``None`` (no checkpoint loading).
         num_steps (int | None, optional):
-            Maximum number of steps to execute. If ``None``, runs indefinitely.
+            Maximum number of environment steps to execute across all instances.
+            If ``None``, the step count does not limit the loop. Defaults to
+            ``None``.
+        num_episodes (int | None, optional):
+            Minimum number of episodes each environment instance must complete
+            before the loop ends. If ``None``, the episode count does not limit
+            the loop. Defaults to ``None``.
         timestep (float | None, optional):
             Time interval between steps in seconds. Defaults to
             ``environment.spec.timestep`` if not provided.
@@ -81,17 +120,16 @@ class Player:
             A sequence of PlayerHook classes or instances to be initialized and
             called at each step and reset event.
 
-    Methods:
-        register_hook(hook: PlayerHook) -> Self
-            Register and initialize an additional hook to be called during play.
-        run_playing_loop() -> dict[str, float]
-            Reset the environment, then repeatedly:
-            - Query the agent for an action;
-            - Step the environment;
-            - Update the agent with the transition;
-            - Invoke step callbacks on all hooks;
-            - Handle episode completions and invoke reset callbacks;
-            - Sleep to respect the timestep (if configured).
+    Example::
+
+        player = Player(
+            environment=env_factory,
+            agent=agent_factory,
+            checkpoint_path="logs/trial_01",
+            num_episodes=10,
+            hooks=[MyRecordingHook()],
+        )
+        metrics = player.run_playing_loop()
     """
 
     Hook = PlayerHook
@@ -102,6 +140,7 @@ class Player:
         agent: Agent | Agent.Factory,
         checkpoint_path: str | Trial | None = None,
         num_steps: int | None = None,
+        num_episodes: int | None = None,
         timestep: float | None = None,
         deterministic: bool = True,
         verbose: bool = True,
@@ -117,6 +156,7 @@ class Player:
             self.environment.load_state_dict(checkpoint["environment"])
         self.agent.set_inference_mode(deterministic=deterministic)
         self.num_steps = num_steps
+        self.num_episodes = num_episodes
         self.timestep = self.environment.spec.timestep if timestep is None else timestep
         self.deterministic = deterministic
         self.verbose = verbose
@@ -128,6 +168,7 @@ class Player:
             buffer_size=self.environment.num_instances,
         )
         self.metrics: dict[str, float] = defaultdict(float)
+        self.episode_count = torch.zeros(self.environment.num_instances, dtype=torch.long)
         self.interrupted = False
 
         self.hook = PlayerHookComposite()
@@ -135,16 +176,41 @@ class Player:
             self.register_hook(hook)
 
     def register_hook(self, hook: Hook) -> Self:
+        """Register and initialize a hook to receive callbacks during play.
+
+        Args:
+            hook: The hook instance to register.
+
+        Returns:
+            This player instance, allowing method chaining.
+        """
         hook.init(self)
         self.hook.append(hook)
         return self
 
     def run_playing_loop(self) -> dict[str, float]:
+        """Execute the main playing loop.
+
+        Resets the environment, then repeatedly queries the agent for actions,
+        steps the environment, invokes hook callbacks, and handles episode
+        completions. The loop terminates when ``num_steps`` is exhausted,
+        every instance has completed ``num_episodes`` episodes, or the process
+        receives *SIGINT*. If both limits are ``None``, the loop runs until
+        interrupted.
+
+        Returns:
+            A dictionary of aggregated metrics (mean rewards, episode length,
+            and any environment-specific metrics).
+        """
         observation, state, _ = self.environment.reset()
         rate = utils.Rate(1 / self.timestep) if self.timestep is not None and self.timestep > 0 else None
-        signal.signal(signal.SIGINT, self._sigint_handler)
 
         try:
+            try:
+                prev_handler = signal.signal(signal.SIGINT, self._sigint_handler)
+            except ValueError:
+                prev_handler = None
+
             with tqdm(total=self.num_steps, disable=not self.verbose, dynamic_ncols=True) as progress_bar:
                 while (self.num_steps is None or self.step_count < self.num_steps) and not self.interrupted:
                     action = self.agent.act(observation, state)
@@ -153,6 +219,7 @@ class Player:
                     self._step_event(observation, state, reward, terminated, truncated, info)
 
                     if done_indices := get_done_indices(terminated, truncated):
+                        self.episode_count[done_indices] += 1
                         if not self.environment.spec.autoreset:
                             init_observation, init_state, _ = self.environment.reset(indices=done_indices)
                             observation, state = update_observation_and_state(
@@ -163,9 +230,14 @@ class Player:
                     if rate is not None:
                         rate.tick()
                     progress_bar.update()
+
+                    if self.num_episodes is not None and (self.episode_count >= self.num_episodes).all():
+                        break
         finally:
             self.hook.close()
             self.environment.close()
+            if prev_handler is not None:
+                signal.signal(signal.SIGINT, prev_handler)
 
         metrics = self._get_metrics_report()
         self._display_metrics(metrics)
@@ -173,6 +245,8 @@ class Player:
 
     def _sigint_handler(self, signum, frame):
         self.interrupted = True
+        # Restore default so a second Ctrl+C kills immediately.
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     def _step_event(self, observation, state, reward, terminated, truncated, info):
         self.stats.track_step(reward)

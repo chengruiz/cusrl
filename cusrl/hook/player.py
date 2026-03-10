@@ -64,14 +64,14 @@ class SaveTransition(PlayerHook):
     def step(self, step: int, transition: dict[str, Array], metrics: dict[str, float]):
         for key in self.keys:
             self.buffer[key].append(to_numpy(transition[key]))
-        if self.save_interval is not None and self.player.step_count % self.save_interval == 0:
+        if self.save_interval is not None and (step + 1) % self.save_interval == 0:
             self.flush()
 
     def close(self):
         self.flush()
 
     def flush(self):
-        if self.player.step_count == 0:
+        if not self.buffer:
             return
 
         arrays = {key: np.stack(value, axis=0) for key, value in self.buffer.items()}

@@ -11,13 +11,13 @@ def configure_parser(parser):
     parser.add_argument("-env", "--environment", type=str, metavar="NAME",
                         help="Name of the environment for playing")
     parser.add_argument("-alg", "--algorithm", type=str, metavar="NAME",
-                        help="Name of the algorithm to use")
+                        help="Name of the algorithm used during training")
     parser.add_argument("--checkpoint", type=str, metavar="PATH",
-                        help="Path to the checkpoint file or directory")
+                        help="Path to a checkpoint to play")
     parser.add_argument("--load-experiment-spec", action='store_true',
-                        help="Whether to load experiment spec from the checkpoint directory")
+                        help="Whether to load experiment spec from checkpoint directory")
     parser.add_argument("--seed", type=int, metavar="N",
-                        help="Random seed (default: random)")
+                        help="Seed for reproducibility (default: random)")
     parser.add_argument("--device", type=str,
                         help="Device to use for playing")
     parser.add_argument("--autocast", nargs="?", const=True, metavar="DTYPE",
@@ -25,13 +25,15 @@ def configure_parser(parser):
     parser.add_argument("--compile", action="store_true",
                         help="Whether to use `torch.compile`")
     parser.add_argument("--num-steps", type=int, metavar="N",
-                        help="Number of steps to run the player for (default: infinite)")
+                        help="Maximum number of steps to play (default: infinite)")
+    parser.add_argument("--num-episodes", type=int, metavar="N",
+                        help="Maximum number of episodes to play (default: infinite)")
     parser.add_argument("--timestep", type=float, metavar="T",
                         help="Override the timestep of the environment")
     parser.add_argument("--stochastic", action='store_true',
-                        help="Whether to use stochastic actions instead of deterministic")
+                        help="Use stochastic actions instead of deterministic")
     parser.add_argument("--quiet", action='store_true',
-                        help="Whether to suppress output during playing")
+                        help="Whether to suppress output messages")
     parser.add_argument("--environment-args", type=str, metavar="ARG",
                         help="Additional arguments for the environment")
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, metavar="MODULE [ARG ...]",
@@ -51,6 +53,7 @@ def main(args):
         agent_factory_kwargs={"device": args.device, "autocast": args.autocast, "compile": args.compile},
         checkpoint_path=trial,
         num_steps=args.num_steps,
+        num_episodes=args.num_episodes,
         timestep=args.timestep,
         deterministic=not args.stochastic,
         verbose=not args.quiet,
