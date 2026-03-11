@@ -61,7 +61,7 @@ class SaveTransition(PlayerHook):
         self.shard_index = 0
         self.buffer.clear()
 
-    def step(self, step: int, transition: dict[str, Array], metrics: dict[str, float]):
+    def step(self, step: int, transition: dict[str, Array]):
         for key in self.keys:
             self.buffer[key].append(to_numpy(transition[key]))
         if self.save_interval is not None and (step + 1) % self.save_interval == 0:

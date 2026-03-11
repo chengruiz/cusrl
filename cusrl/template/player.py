@@ -46,13 +46,12 @@ class PlayerHook:
         self.agent = player.agent
         self.environment = player.environment
 
-    def step(self, step: int, transition: dict[str, Array], metrics: dict[str, float]):
+    def step(self, step: int, transition: dict[str, Array]):
         """Called after every environment step.
 
         Args:
             step: The zero-based step index within the current playing loop.
             transition: The agent's latest transition dictionary.
-            metrics: Environment metrics collected during this step.
         """
 
     def reset(self, indices: Slice):
@@ -73,9 +72,9 @@ class PlayerHookComposite(PlayerHook, list[PlayerHook]):
         for hook in self:
             hook.init(player)
 
-    def step(self, step: int, transition, metrics):
+    def step(self, step: int, transition):
         for hook in self:
-            hook.step(step, transition, metrics)
+            hook.step(step, transition)
 
     def reset(self, indices: Slice):
         for hook in self:
@@ -167,7 +166,6 @@ class Player:
             self.environment.spec.reward_dim,
             buffer_size=self.environment.num_instances,
         )
-        self.metrics: dict[str, float] = defaultdict(float)
         self.episode_count = torch.zeros(self.environment.num_instances, dtype=torch.long)
         self.interrupted = False
 
@@ -250,10 +248,7 @@ class Player:
 
     def _step_event(self, observation, state, reward, terminated, truncated, info):
         self.stats.track_step(reward)
-        metrics = self.environment.get_metrics()
-        for key, value in metrics.items():
-            self.metrics[key] += value
-        self.hook.step(self.step_count, self.agent.transition, metrics)
+        self.hook.step(self.step_count, self.agent.transition)
         self.step_count += 1
 
     def _reset_event(self, done_indices: list[int]):
@@ -265,10 +260,13 @@ class Player:
             "Mean step reward": self.stats.mean_step_reward,
             "Mean episode reward": self.stats.mean_episode_reward,
             "Mean episode length": self.stats.mean_episode_length,
-        } | {key: value / max(self.step_count, 1) for key, value in self.metrics.items()}
+        } | self.environment.get_metrics()
 
     def _display_metrics(self, metrics: dict[str, float]):
-        formatted_metrics = {key: f"{value:.4f}" for key, value in metrics.items()}
+        if not metrics:
+            return
+
+        formatted_metrics = {key: f"{value: .6g}" for key, value in metrics.items()}
         max_key_length = max(len(key) for key in formatted_metrics.keys())
         max_value_length = max(len(value) for value in formatted_metrics.values())
         print("┌" + "─" * (max_key_length + 2) + "┬" + "─" * (max_value_length + 2) + "┐")

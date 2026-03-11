@@ -111,7 +111,17 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
         terminated = cast(torch.Tensor, terminated).unsqueeze(-1)
         truncated = cast(torch.Tensor, truncated).unsqueeze(-1)
         extras = cast(dict, extras).copy()
-        self.metrics.record(**extras.pop("log", {}))
+
+        log = extras.pop("log", {}).copy()
+        num_finished_episodes = (terminated | truncated).sum().cpu().item()
+        for key, value in tuple(log.items()):
+            if key.startswith("Episode_Reward/"):
+                log[key] = value.repeat(num_finished_episodes)
+            elif key.startswith("Episode_Termination/"):
+                termination_flags = torch.zeros(num_finished_episodes)
+                termination_flags[:value] = 1.0
+                log[key] = termination_flags
+        self.metrics.update(log)
         return observation, state, reward, terminated, truncated, observation_dict | extras
 
     def get_metrics(self):
