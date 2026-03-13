@@ -9,46 +9,70 @@ __all__ = ["OptimizerFactory"]
 
 
 class OptimizerFactory:
-    """A factory for creating PyTorch optimizers with parameter-specific
-    settings.
+    """Builds a PyTorch optimizer with per-prefix parameter overrides.
 
-    This class allows for the flexible configuration of an optimizer where
-    different groups of parameters can have different hyperparameters (e.g.,
-    learning rate). Parameter groups are defined by their name prefixes.
+    ``defaults`` defines the base optimizer kwargs. They are passed to the
+    optimizer constructor and also used for parameters that do not match any
+    configured prefix. Prefix groups can be supplied through ``optim_groups``
+    or ``**kwargs``; the two mappings are merged and keyword arguments win on
+    duplicate prefixes. Prefixes are sorted by length so the most specific
+    match is applied first.
 
-    The factory is configured with an optimizer class, default hyperparameters,
-    and any number of parameter groups specified by a prefix and their
-    corresponding hyperparameters. When called with a model's named parameters,
-    it groups them according to the longest matching prefix and constructs the
-    optimizer.
+    A parameter matches a prefix when its name is exactly that prefix or begins
+    with ``"{prefix}."``. Empty prefix is not allowed. Unmatched parameters use
+    ``defaults`` directly. Parameters with ``requires_grad=False`` are skipped.
 
     Args:
         cls (str | type[Optimizer]):
-            The optimizer class (e.g., `torch.optim.Adam`) or its name as a
-            string (e.g., "Adam").
+            Optimizer class (for example, ``torch.optim.Adam``) or the name of
+            a class exposed from ``torch.optim``.
         defaults (dict[str, Any] | None, optional):
-            A dictionary of default hyperparameters for the optimizer. These are
-            used for any parameter that doesn't match a specific group.
-        **optim_groups (dict[str, Any]):
-            Keyword arguments where each key is a parameter name prefix and the
-            value is a dictionary of hyperparameters for parameters matching
-            that prefix.
+            Base optimizer keyword arguments. These are passed to the optimizer
+            constructor and reused for unmatched parameters.
+        optim_groups (dict[str, Any] | None, optional):
+            Mapping from parameter-name prefix to optimizer keyword arguments
+            for that group. Use this when a prefix is not a valid Python
+            keyword argument name.
+        **kwargs (dict[str, Any]):
+            Additional prefix groups provided as keyword arguments. These are
+            merged with ``optim_groups`` and override duplicate prefixes.
     """
 
     def __init__(
         self,
         cls: str | type[Optimizer],
         defaults: dict[str, Any] | None = None,
-        **optim_groups: dict[str, Any],
+        optim_groups: dict[str, Any] | None = None,
+        **kwargs: dict[str, Any],
     ):
         self.cls = cls
         self.defaults = defaults or {}
 
-        optim_groups[""] = self.defaults
+        optim_groups = (optim_groups or {}) | kwargs
+        for prefix in optim_groups.keys():
+            if not prefix:
+                raise ValueError("Empty prefix is not allowed; use defaults instead.")
         # Sort by length of prefix
         self.optim_groups = dict(sorted(optim_groups.items(), key=lambda x: len(x[0]), reverse=True))
 
     def __call__(self, named_parameters: Iterable[tuple[str, nn.Parameter]]) -> Optimizer:
+        """Instantiates the configured optimizer from named parameters.
+
+        Trainable parameters are grouped by their most specific matching
+        prefix. Each emitted parameter group contains ``params`` and
+        ``param_names`` alongside the resolved optimizer kwargs for that group.
+        Groups with no trainable parameters are omitted.
+
+        Args:
+            named_parameters (Iterable[tuple[str, nn.Parameter]]):
+                Iterable of ``(name, parameter)`` pairs, typically from
+                ``module.named_parameters()``.
+
+        Returns:
+            Optimizer:
+                An initialized optimizer built from the resolved parameter
+                groups and ``defaults``.
+        """
         optim_cls: type[Optimizer] = getattr(torch.optim, self.cls) if isinstance(self.cls, str) else self.cls
         param_groups = {}
         for name, param in named_parameters:
@@ -57,25 +81,18 @@ class OptimizerFactory:
             prefix = self._match_prefix(name)
             param_group = param_groups.get(prefix)
             if param_group is None:
-                param_group = {"param_names": [], "params": [], **self.optim_groups[prefix]}
+                params = self.optim_groups.get(prefix, self.defaults)
+                param_group = {"param_names": [], "params": [], **params}
                 param_groups[prefix] = param_group
             param_group["param_names"].append(name)
             param_group["params"].append(param)
         return optim_cls(param_groups.values(), **self.defaults)
 
     def _match_prefix(self, name):
+        """Returns the most specific configured prefix for ``name``."""
         matched_prefix = ""
         for prefix in self.optim_groups:
             if name == prefix or name.startswith(f"{prefix}.") or not prefix:
                 matched_prefix = prefix
                 break
         return matched_prefix
-
-    def to_dict(self) -> dict[str, Any]:
-        optim_groups = self.optim_groups.copy()
-        optim_groups.pop("")
-        return {
-            "cls": self.cls,
-            "defaults": self.defaults,
-            **optim_groups,
-        }
