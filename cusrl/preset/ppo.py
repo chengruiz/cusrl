@@ -50,7 +50,7 @@ def hook_suite(
         cusrl.hook.OnPolicyPreparation(),
         cusrl.hook.PpoSurrogateLoss(clip_ratio=surrogate_clip_ratio),
         cusrl.hook.EntropyLoss(weight=entropy_loss_weight),
-        cusrl.hook.GradientClipping(max_grad_norm, **(grad_clip_groups or {})) if max_grad_norm is not None else None,
+        cusrl.hook.GradientClipping(max_grad_norm, grad_clip_groups),
         cusrl.hook.OnPolicyStatistics(sampler=cusrl.AutoMiniBatchSampler()),
         cusrl.hook.AdaptiveLRSchedule(desired_kl_divergence) if desired_kl_divergence is not None else None,
         cusrl.hook.EmptyCudaCache() if empty_cuda_cache else None,
