@@ -7,7 +7,7 @@ from cusrl.template import Agent
 __all__ = ["configure_parser", "main"]
 
 
-def configure_parser(parser):
+def configure_parser(parser: argparse.ArgumentParser):
     # fmt: off
     parser.add_argument("-env", "--environment", type=str, metavar="NAME",
                         help="Name of the environment used during training")
@@ -40,7 +40,7 @@ def configure_parser(parser):
     # fmt: on
 
 
-def main(args):
+def main(args: argparse.Namespace):
     cusrl.config.enable_flash_attention(False)
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)

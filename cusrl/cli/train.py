@@ -6,7 +6,7 @@ from cusrl.cli import utils as cli_utils
 __all__ = ["configure_parser", "main"]
 
 
-def configure_parser(parser):
+def configure_parser(parser: argparse.ArgumentParser):
     # fmt: off
     parser.add_argument("-env", "--environment", type=str, required=True, metavar="NAME",
                         help="Name of the environment for training")
@@ -46,7 +46,7 @@ def configure_parser(parser):
     # fmt: on
 
 
-def main(args):
+def main(args: argparse.Namespace):
     cusrl.set_global_seed(args.seed)
     cli_utils.import_module_from_args(args)
     experiment = cusrl.zoo.get_experiment(args.environment, args.algorithm)

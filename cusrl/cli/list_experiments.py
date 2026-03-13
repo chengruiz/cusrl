@@ -6,7 +6,7 @@ from cusrl.zoo import load_experiment_modules, registry
 __all__ = ["configure_parser", "main"]
 
 
-def configure_parser(parser):
+def configure_parser(parser: argparse.ArgumentParser):
     # fmt: off
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, metavar="MODULE [ARG ...]",
                         help="Run library module as a script, with its arguments")
@@ -15,7 +15,7 @@ def configure_parser(parser):
     # fmt: on
 
 
-def main(args):
+def main(args: argparse.Namespace):
     cli_utils.import_module_from_args(args)
     load_experiment_modules()
     print("Available experiments:", end="")

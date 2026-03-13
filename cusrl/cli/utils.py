@@ -1,5 +1,6 @@
 import argparse
 import pickle
+import shlex
 from typing import Optional
 
 import cusrl
@@ -56,4 +57,4 @@ def load_experiment_spec_from_args(args: argparse.Namespace, trial: Optional["cu
 def process_environment_args(args: argparse.Namespace):
     if args.environment_args is None:
         return None
-    return {"argv": args.environment_args.strip().split()}
+    return {"argv": shlex.split(args.environment_args)}
