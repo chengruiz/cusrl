@@ -4,6 +4,7 @@ import subprocess
 import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, fields
+from pathlib import Path
 from typing import Any, Literal
 
 import git
@@ -94,30 +95,33 @@ class EnvironmentStats:
     def load_state_dict(self, state_dict: dict):
         if not state_dict:
             return
+
+        # Training resumes from a fresh environment reset, so per-episode
+        # accumulators and rolling episode buffers are not restored to avoid
+        # mismatch in episode progress.
         self.total_steps = state_dict["total_steps"]
 
 
-def save_version_info(output_dir: str, workspace: str | None = None):
-    workspace_str: str = os.getcwd() if workspace is None else os.path.abspath(workspace)
+def save_version_info(output_dir: str | os.PathLike, workspace: str | os.PathLike | None = None):
+    workspace_path = Path.cwd() if workspace is None else Path(workspace).absolute()
     try:
-        repo = git.Repo(workspace_str, search_parent_directories=True)
+        repo = git.Repo(workspace_path, search_parent_directories=True)
     except git.InvalidGitRepositoryError:
-        print(f"'{workspace_str}' is not a git repository.")
+        print(f"'{workspace_path}' is not a git repository.")
         return
 
-    repo_dir = repo.working_tree_dir
-    os.makedirs(output_dir, exist_ok=True)
-    with open(f"{output_dir}/workspace.txt", "w") as f:
+    output_dir = Path(output_dir)
+    repo_dir = Path(repo.working_tree_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with open(output_dir / "workspace.txt", "w") as f:
         f.write(str(repo_dir))
-    with open(f"{output_dir}/git_log.txt", "w") as f:
+    with open(output_dir / "git_log.txt", "w") as f:
         f.write(repo.git.log("-3"))
-    # Unexpectedly error may occur with gitpython
-    # with open(f"{output_dir}/git_diff.patch", "w") as f:
-    #     f.write(repo.git.diff("HEAD"))
-    subprocess.run(f"git diff HEAD > {output_dir}/git_diff.patch", shell=True, cwd=repo_dir)
-    with open(f"{output_dir}/git_status.txt", "w") as f:
+    with open(output_dir / "git_diff.patch", "w") as f:
+        subprocess.run(["git", "diff", "HEAD"], cwd=repo_dir, stdout=f, check=False)
+    with open(output_dir / "git_status.txt", "w") as f:
         f.write(repo.git.status())
-    with open(f"{output_dir}/version.txt", "w") as f:
+    with open(output_dir / "version.txt", "w") as f:
         try:
             version = repo.git.describe("--tags")
         except git.GitError:
@@ -281,6 +285,7 @@ class Trainer:
             callback(self)
 
         self.timer = Timer()
+        self._last_checkpoint_iteration: int | None = None
         self._save_trial_info()
 
     def dump_object(self, obj: object, filename: str):
@@ -315,6 +320,8 @@ class Trainer:
                 self.iteration += 1
                 if self.iteration % self.save_interval == 0:
                     self._save_checkpoint()
+            if self.iteration != self._last_checkpoint_iteration:
+                self._save_checkpoint()
         finally:
             self.environment.close()
 
@@ -358,6 +365,7 @@ class Trainer:
             },
             iteration=self.iteration,
         )
+        self._last_checkpoint_iteration = self.iteration
         if self.verbose:
             print(f"\033[F\033[0K\rIteration {self.iteration}: Checkpoint saved.")
 

@@ -98,3 +98,16 @@ def test_trainer_save_state_dict():
     trainer.run_training_loop()
     trial = cusrl.Trial(trainer.logger.log_dir)
     assert trial.all_iterations == [0, 5, 10]
+
+
+def test_trainer_saves_final_checkpoint(tmp_path):
+    trainer = cusrl.Trainer(
+        create_dummy_env(with_state=True),
+        agent_factory,
+        logger_factory=cusrl.Logger.Factory(tmp_path / "trainer"),
+        num_iterations=7,
+        save_interval=5,
+    )
+    trainer.run_training_loop()
+    trial = cusrl.Trial(trainer.logger.log_dir)
+    assert trial.all_iterations == [0, 5, 7]

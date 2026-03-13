@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import datetime
@@ -20,7 +21,7 @@ class SaveTransition(PlayerHook):
     `numpy.savez`.
 
     Args:
-        output_path (str | None, optional):
+        output_path (str | os.PathLike | None, optional):
             The target file path. If ``None``, a timestamped filename is
             generated. Defaults to ``None``.
         keys (Iterable[str], optional):
@@ -37,16 +38,18 @@ class SaveTransition(PlayerHook):
 
     def __init__(
         self,
-        output_path: str | None = None,
+        output_path: str | os.PathLike | None = None,
         keys: Iterable[str] = DEFAULT_KEYS,
         save_interval: int | None = None,
     ):
         if output_path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_path = f"transition_{timestamp}.npz"
-        elif not output_path.endswith(".npz"):
-            output_path += ".npz"
-        self.output_path: str = output_path
+            output_path = Path(f"transition_{timestamp}.npz")
+        else:
+            output_path = Path(output_path)
+            if output_path.suffix != ".npz":
+                output_path = Path(f"{output_path}.npz")
+        self.output_path: Path = output_path
         self.keys: tuple[str, ...] = tuple(keys)
         self.save_interval: int | None = save_interval
 
@@ -75,9 +78,10 @@ class SaveTransition(PlayerHook):
             return
 
         arrays = {key: np.stack(value, axis=0) for key, value in self.buffer.items()}
-        output_path = Path(self.output_path)
+        output_path = self.output_path
         if self.save_interval is not None:
             output_path = output_path.with_name(f"{output_path.stem}_{self.shard_index:06d}.npz")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         np.savez(output_path, **arrays)
         self.shard_index += 1
         self.buffer.clear()

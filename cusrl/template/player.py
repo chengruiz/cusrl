@@ -1,5 +1,4 @@
 import signal
-from collections import defaultdict
 from collections.abc import Iterable
 
 import torch
@@ -217,7 +216,6 @@ class Player:
                     self._step_event(observation, state, reward, terminated, truncated, info)
 
                     if done_indices := get_done_indices(terminated, truncated):
-                        self.episode_count[done_indices] += 1
                         if not self.environment.spec.autoreset:
                             init_observation, init_state, _ = self.environment.reset(indices=done_indices)
                             observation, state = update_observation_and_state(
@@ -252,6 +250,7 @@ class Player:
         self.step_count += 1
 
     def _reset_event(self, done_indices: list[int]):
+        self.episode_count[done_indices] += 1
         self.stats.track_episode(done_indices)
         self.hook.reset(done_indices)
 
