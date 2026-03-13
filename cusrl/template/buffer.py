@@ -21,72 +21,23 @@ _T = TypeVar("_T")
 
 
 class Buffer(MutableMapping[str, NestedTensor]):
-    """A circular, step-based storage for time-series or batched data with
-    flexible, nested fields. Implements the Mapping[str, NestedTensor] interface
-    to allow intuitive indexing, iteration, and membership checks over stored
-    fields.
+    """Circular storage for nested tensors keyed by top-level field name.
 
-    Args:
-        capacity (int):
-            Maximum number of time steps the buffer can hold before wrapping
-            around.
-        parallelism (int | None):
-            Expected size of the penultimate dimension (e.g. number of agents or
-            batch size). If None, this is inferred from the first pushed data.
-        device (str | torch.device):
-            The torch device on which all tensors will be allocated.
+    `push()` appends one time step per field. Each leaf is expected to have
+    shape `[..., parallelism, channels]`; the shared `parallelism` dimension is
+    either provided up front or inferred from the first value written. Temporal
+    fields are stored with a leading capacity axis and wrap around once the
+    buffer is full.
 
-    Attributes:
-        capacity (int):
-            Current buffer capacity.
-        parallelism (int):
-            Fixed size of the parallel dimension once set or inferred.
-        device (torch.device):
-            Device for all internal tensors.
-        cursor (int):
-            Next write index within [0, capacity).
-        full (bool):
-            True if the buffer has been filled at least once.
-        schema (dict[str, Nested[str]]):
-            Describes the nested layout of each named field.
-        spec (dict[str, FieldSpec]):
-            Metadata for each top-level field (temporal/custom flags).
-        storage (dict[str, torch.Tensor]):
-            Flat mapping from nested keys to their tensor storage.
+    Fields registered through `add_field()` are marked as custom. Custom fields
+    may be temporal, in which case the caller supplies the full
+    `[capacity, ..., parallelism, channels]` tensor, or static, in which case
+    the data is stored without a capacity axis. `push()` only writes non-custom
+    temporal fields.
 
-    Methods:
-        __len__() -> int:
-            Number of top-level fields in the buffer.
-        __iter__():
-            Iterate over top-level field names.
-        __contains__(key: str) -> bool:
-            Check existence of a top-level field.
-        __getitem__(key: str) -> NestedTensor:
-            Retrieve a field's data as a nested tensor schema.
-        __setitem__(name: str, data: NestedArray) -> None:
-            Set or update a top-level field with a nested array-like schema.
-        get(key: str, default=None) -> NestedTensor | None:
-            Like dict.get, returns default if key is not present.
-        clear() -> None:
-            Reset buffer state, clearing all data and metadata.
-        reset_cursor() -> None:
-            Reset the write cursor to zero without clearing stored values.
-        resize(capacity: int) -> None:
-            Change capacity (clears existing data if changed).
-        push(data: dict[str, NestedArray]) -> None:
-            Append a new time step; wraps around when capacity is reached.
-        add_field(name: str, data: NestedArray, temporal: bool = True) -> None:
-            Add or overwrite a custom field (temporal or static).
-        sample(sampler: Callable[[str, FieldSpec, torch.Tensor], torch.Tensor])
-            -> dict[str, NestedTensor]:
-            Apply a sampling function to each stored tensor and return a batch
-            with original nesting.
-
-        ValueError:
-            On shape mismatches, capacity violations, or schema inconsistencies.
-        KeyError:
-            When attempting to push data into a custom-flagged field, or vice
-            versa.
+    The mapping interface operates on top-level field names. Nested leaves are
+    flattened internally into `storage` and reconstructed on access and
+    sampling.
     """
 
     FieldSpec = FieldSpec
@@ -171,22 +122,19 @@ class Buffer(MutableMapping[str, NestedTensor]):
         return reconstruct_nested(self.storage, struct)
 
     def push(self, data: dict[str, NestedArray]):
-        """Adds data of a step to the buffer.
+        """Append one step for each temporal field in `data`.
 
-        Parameters:
-            data (dict[str, NestedArray]):
-                A dictionary containing named arrays to be added to the buffer.
+        Each leaf must have shape `[..., parallelism, channels]`. The first
+        write for a field fixes its nested schema and allocates storage of shape
+        `[capacity, *leaf.shape]`. Once `capacity` steps have been written, the
+        next call wraps around to index `0`.
 
         Raises:
+            KeyError:
+                If `data` includes a field previously registered via
+                `add_field()`.
             ValueError:
-                If the passed data does not match the expected shape
-                ( ..., parallelism, num_channels ).
-
-        Notes:
-            - If the buffer reaches its capacity, it wraps around and starts
-              overwriting from the beginning.
-            - The buffer's `full` attribute is set to True when the buffer
-              reaches its capacity for the first time.
+                If a leaf shape is incompatible or the nested schema changes.
         """
         if self.cursor == self.capacity:
             self.cursor = 0
@@ -213,6 +161,25 @@ class Buffer(MutableMapping[str, NestedTensor]):
             self.full = True
 
     def add_field(self, name: str, data: NestedArray, temporal: bool = True):
+        """Register or overwrite a custom field.
+
+        Args:
+            name (str):
+                Top-level field name.
+            data (NestedArray):
+                Nested array-like payload for the field.
+            temporal (bool, optional):
+                Whether `data` includes a leading time axis of length
+                `capacity`. Static fields are stored without a capacity axis.
+                Defaults to ``True``.
+
+        Raises:
+            ValueError:
+                If the schema changes, the temporal flag conflicts with a
+                previous registration, the field does not match the buffer
+                capacity, or `name` already belongs to a field populated by
+                `push()`.
+        """
         if data is None:
             return
 
@@ -231,18 +198,11 @@ class Buffer(MutableMapping[str, NestedTensor]):
             storage.copy_(self._as_tensor(value))
 
     def sample(self, sampler: Callable[[str, FieldSpec, torch.Tensor], torch.Tensor]) -> dict[str, NestedTensor]:
-        """Samples a batch of data from the storage using the provided sampler
-        function.
+        """Apply `sampler` to every stored leaf and rebuild the nested result.
 
-        Args:
-            sampler (Callable[[str, FieldSpec, torch.Tensor], torch.Tensor]):
-                A function that takes a name, a spec and a tensor, and returns a
-                sampled tensor.
-
-        Returns:
-            dict[str, NestedTensor]:
-                A dictionary mapping string keys to NestedTensor objects,
-                containing the sampled data from the storage.
+        The callback receives the flattened leaf name, the top-level `FieldSpec`
+        for that field, and the backing storage tensor. Its return value
+        replaces the stored tensor in the sampled batch.
         """
 
         batch = {key: sampler(key, self.spec[key.split(".", 1)[0]], self.storage[key]) for key in self.storage}
@@ -281,7 +241,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
 
 
 class Sampler:
-    """Base class for samplers which samples data from a buffer."""
+    """Base class for iterators that yield samples from a `Buffer`."""
 
     def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
         yield buffer.sample(lambda _1, _2, x: x)
