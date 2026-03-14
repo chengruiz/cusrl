@@ -114,9 +114,9 @@ class ValueLoss(Hook[ActorCritic]):
 
     def __init__(self, weight: float = 0.5, loss_clip: float | None = None):
         if weight <= 0:
-            raise ValueError("'weight' must be positive.")
+            raise ValueError("'weight' must be positive")
         if loss_clip is not None and loss_clip <= 0:
-            raise ValueError("'loss_clip' must be positive or None.")
+            raise ValueError("'loss_clip' must be positive or None")
         super().__init__()
 
         # Mutable attributes

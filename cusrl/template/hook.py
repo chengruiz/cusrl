@@ -109,7 +109,7 @@ class Hook(Generic[AgentType]):
             ValueError: If the attribute is not mutable.
         """
         if name not in self._mutable:
-            raise ValueError(f"Attribute '{name}' is not mutable for hook {self.name}.")
+            raise ValueError(f"Attribute '{name}' is not mutable on hook '{self.name}'")
         setattr(self, name, value)
 
     def named_parameters(self, prefix: str = "") -> Iterator[tuple[str, nn.Parameter]]:
@@ -150,13 +150,13 @@ class Hook(Generic[AgentType]):
             if module is None:
                 continue
             if module_name not in keys:
-                self.warn(f"Missing state_dict for '{module_name}'.")
+                self.warn(f"No state_dict entry was found for '{module_name}'.")
                 continue
             keys.discard(module_name)
             try:
                 module.load_state_dict(state_dict[module_name])
             except RuntimeError as error:
-                self.warn(f"Mismatched state_dict for '{module_name}': {error}")
+                self.warn(f"State dict for '{module_name}' is incompatible: {error}")
                 continue
 
         if keys:
@@ -298,9 +298,9 @@ class HookComposite(Hook):
         self._named_hooks = {}
         for hook in self.hooks:
             if not isinstance(hook, Hook):
-                raise TypeError(f"Expected 'Hook', got '{type(hook).__name__}'")
+                raise TypeError(f"Expected a Hook instance, but got '{type(hook).__name__}'")
             if hook.name in self._named_hooks:
-                raise RuntimeError(f"Hook '{hook.name}' already exists.")
+                raise RuntimeError(f"Hook '{hook.name}' already exists")
             self._named_hooks[hook.name] = hook
 
     def __getitem__(self, name: str) -> Hook:
@@ -331,7 +331,7 @@ class HookComposite(Hook):
             elif state := state_dict.get(hook_name := hook.__class__.__name__):  # For compatibility
                 hook.load_state_dict(state)
             elif hook.state_dict():
-                self.warn(f"Missing state_dict for '{hook.name}'.")
+                self.warn(f"No state_dict entry was found for '{hook.name}'.")
             keys.discard(hook_name)
         if keys:
             self.warn(f"Unused state_dict keys: {keys}.")

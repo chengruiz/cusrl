@@ -87,7 +87,7 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
         elif isinstance(data, dict):
             data = {key: from_dict(None, value) for key, value in data.items()}
         else:
-            raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+            raise NotImplementedError(f"Unsupported data type: {type(data)!r}")
     else:
         from cusrl.utils.nest import flatten_nested, zip_nested
 
@@ -112,7 +112,7 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
                 elif isinstance(data, (list, tuple)):
                     data = type(data)([*data[: int(key)], current_value, *data[int(key) + 1 :]])
                 else:
-                    raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+                    raise NotImplementedError(f"Unsupported data type: {type(data)!r}")
                 continue
 
             updated_value = from_dict(current_value, updated_value_dict)
@@ -124,13 +124,13 @@ def from_dict(obj, data: dict[str, Any] | Any) -> Any:
             elif isinstance(data, (list, tuple)):
                 data = type(data)([*data[: int(key)], updated_value, *data[int(key) + 1 :]])
             else:
-                raise NotImplementedError(f"Unexpected data type '{type(data)}'.")
+                raise NotImplementedError(f"Unsupported data type: {type(data)!r}")
 
     if isinstance(data, (tuple, list)):
         return type(data)(item for item in data if item is not MISSING)
     if isinstance(data, dict) and (cls := data.pop("__class__", None)):
         if not isinstance(cls, type):
-            raise ValueError(f"Class '{cls}' is not correctly parsed.")
+            raise ValueError(f"Expected '__class__' to resolve to a type, but got {cls!r}")
         if cls is slice:
             return slice(data["start"], data["stop"], data["step"])
         if cls is torch.device:
@@ -153,7 +153,7 @@ def get_first(data: Mapping[_K, _V], *keys, default: _V | _D = MISSING) -> _V | 
             return value
     if default is not MISSING:
         return default
-    raise KeyError(str(keys))
+    raise KeyError(f"None of the requested keys were found: {keys!r}")
 
 
 def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:

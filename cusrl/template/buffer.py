@@ -56,7 +56,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
 
     def get_parallelism(self) -> int:
         if self.parallelism is None:
-            raise ValueError("Parallelism is not set.")
+            raise ValueError("Buffer parallelism has not been set")
         return self.parallelism
 
     def clear(self):
@@ -95,7 +95,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
         self._check_data_schema(name, data)
         for key, value in iterate_nested(data, name):
             if value.size(0) != self.capacity:
-                raise ValueError(f"Capacity mismatch: expected {self.capacity}, got {value.size(0)}.")
+                raise ValueError(f"Capacity mismatch: expected {self.capacity}, got {value.size(0)}")
             if (storage := self.storage.get(key)) is None:
                 # If the field is not custom, it should be temporal
                 storage = self._create_storage(value, temporal=True, sequential=True)
@@ -105,7 +105,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
     def __delitem__(self, name: str) -> None:
         # Remove a top-level field and its nested storage
         if name not in self.schema:
-            raise KeyError(f"Field '{name}' not found.")
+            raise KeyError(f"Field '{name}' was not found")
         # Remove nested storage entries
         for _, key in iterate_nested(self.schema[name]):
             del self.storage[key]
@@ -146,14 +146,14 @@ class Buffer(MutableMapping[str, NestedTensor]):
             if (spec := self.spec.get(name)) is None:
                 self.spec[name] = FieldSpec(temporal=True, custom=False)
             elif spec.custom:
-                raise KeyError(f"Field '{name}' already added by 'add_field'.")
+                raise KeyError(f"Field '{name}' was already added with 'add_field'")
             for key, value in iterate_nested(nested_value, name):
                 if (storage := self.storage.get(key)) is None:
                     try:
                         storage = self._create_storage(value)
                         self.storage[key] = storage
                     except ValueError as error:
-                        raise ValueError(f"Failed to push field '{key}' of shape '{value.shape}'.") from error
+                        raise ValueError(f"Failed to push field '{key}' with shape {tuple(value.shape)}") from error
                 storage[self.cursor] = self._as_tensor(value)
 
         self.cursor += 1
@@ -187,9 +187,9 @@ class Buffer(MutableMapping[str, NestedTensor]):
         if (spec := self.spec.get(name)) is None:
             self.spec[name] = FieldSpec(temporal=temporal, custom=True)
         elif spec.temporal != temporal:
-            raise ValueError(f"Field '{name}' already added with different temporal setting.")
+            raise ValueError(f"Field '{name}' was already added with a different temporal setting")
         elif not spec.custom:
-            raise ValueError(f"Field '{name}' already added by 'push'.")
+            raise ValueError(f"Field '{name}' was already added by 'push'")
 
         for key, value in iterate_nested(data, name):
             if (storage := self.storage.get(key)) is None:
@@ -221,23 +221,23 @@ class Buffer(MutableMapping[str, NestedTensor]):
             data = self._as_tensor(data)
         # Each tensor / array should be in shape of [ [..., ] parallelism, num_channels ]
         if len(data.shape) < 2:
-            raise ValueError("Shape of arrays must be [ [..., ] parallelism, num_channels ]")
+            raise ValueError("Arrays must have shape [..., parallelism, num_channels]")
         if self.parallelism is None:
             self.parallelism = data.size(-2)
         elif data.size(-2) != self.parallelism:
-            raise ValueError("Shape of arrays must be [ [..., ] parallelism, num_channels ]")
+            raise ValueError("Arrays must have shape [..., parallelism, num_channels]")
         if not sequential:
             # shape: [ capacity, [..., ] parallelism, num_channels ]
             return data.new_zeros(self.capacity, *data.shape)
         if temporal and data.size(0) != self.capacity:
-            raise ValueError(f"Capacity mismatch: expected {self.capacity}, got {data.size(0)}.")
+            raise ValueError(f"Capacity mismatch: expected {self.capacity}, got {data.size(0)}")
         return torch.zeros_like(data)
 
     def _check_data_schema(self, name: str, data: NestedArray):
         if (schema := self.schema.get(name)) is None:
             self.schema[name] = get_schema(data, name)
         elif schema != (curr_schema := get_schema(data, name)):
-            raise ValueError(f"Schema mismatch for field '{name}': expected '{schema}', got '{curr_schema}'.")
+            raise ValueError(f"Schema mismatch for field '{name}': expected '{schema}', got '{curr_schema}'")
 
 
 class Sampler:

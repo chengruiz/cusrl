@@ -37,7 +37,7 @@ class RnnFactory(ModuleFactory["Rnn"]):
     def __getattr__(self, item):
         if item in (kwargs := super().__getattribute__("kwargs")):
             return kwargs[item]
-        raise AttributeError(f"Object '{type(self).__name__}' has no attribute '{item}'.")
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{item}'")
 
     def to_dict(self):
         return {"module_cls": self.module_cls, **self.kwargs}
@@ -70,9 +70,9 @@ class Rnn(Module):
         if isinstance(rnn, type):
             rnn = rnn(**kwargs)
         if getattr(rnn, "batch_first", False):
-            raise ValueError("RNNs with `batch_first=True` are not supported.")
+            raise ValueError("RNNs with 'batch_first=True' are not supported")
         if getattr(rnn, "bidirectional", False):
-            raise ValueError("RNNs with `bidirectional=True` are not supported.")
+            raise ValueError("RNNs with 'bidirectional=True' are not supported")
         super().__init__(rnn.input_size, output_dim or rnn.hidden_size, is_recurrent=True)
         self.rnn = rnn
         self.output_proj = nn.Linear(rnn.hidden_size, output_dim) if output_dim else nn.Identity()
@@ -124,7 +124,7 @@ class Rnn(Module):
         """
         if done is not None:
             if not sequential:
-                raise ValueError("`done` can only be provided when `sequential` is True.")
+                raise ValueError("'done' can be provided only when 'sequential' is True")
             latent, memory = self._forward_rnn_sequence(input, memory, done, pack_sequence=pack_sequence)
         else:
             latent, memory = self._forward_rnn_tensor(input, memory, sequential=sequential)
@@ -151,7 +151,7 @@ class Rnn(Module):
         scattered_memory = scatter_memory(memory, done)
         if pack_sequence:
             if input.dim() != 3:
-                raise ValueError(f"Input of RNNs must be 3D to be packed, got {input.dim()}.")
+                raise ValueError(f"Packed RNN input must be 3D, but got {input.dim()} dimensions")
             sequence_lens = compute_sequence_lengths(done)
             reshaped_padded_input, reshaped_scattered_memory = self._reshape_input(padded_input, scattered_memory)
             reshaped_packed_input = nn.utils.rnn.pack_padded_sequence(
@@ -293,7 +293,7 @@ class Gru(Rnn):
 def concat_memory(memory1: Memory, memory2: Memory) -> Memory:
     """Concatenates two memory tensors along the batch dimension."""
     if type(memory1) is not type(memory2):
-        raise TypeError("Memories must be of the same type to concatenate.")
+        raise TypeError("Memory values must have the same type to be concatenated")
     if memory1 is None:
         return None
     if isinstance(memory1, Tensor):

@@ -54,7 +54,7 @@ class Trial:
     def __init__(self, path: str | os.PathLike, verbose: bool = True):
         trial_path: Path = Path(path)
         if not trial_path.exists():
-            raise FileNotFoundError(f"'{trial_path}' not found.")
+            raise FileNotFoundError(f"Path '{trial_path}' does not exist")
 
         if trial_path.is_dir():
             self.home: Path = trial_path.absolute()
@@ -64,7 +64,7 @@ class Trial:
             self.iteration: int = max(self.all_iterations)
         else:
             if not trial_path.name.startswith("ckpt_") or trial_path.suffix != ".pt":
-                raise ValueError(f"'{trial_path}' is not a valid directory or checkpoint file.")
+                raise ValueError(f"'{trial_path}' is not a valid trial directory or checkpoint file")
 
             self.home: Path = trial_path.parent.parent.absolute()
             self.all_iterations = self._search_ckpt(self.home / "ckpt")

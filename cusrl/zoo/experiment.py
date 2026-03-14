@@ -29,9 +29,9 @@ class ExperimentSpec:
 
     def __post_init__(self):
         if ":" in self.environment_name or "/" in self.environment_name or "\\" in self.environment_name:
-            raise ValueError(f"environment_name '{self.environment_name}' cannot contain ':', '/', or '\\'.")
+            raise ValueError(f"'environment_name' cannot contain ':', '/', or '\\'; got '{self.environment_name}'")
         if ":" in self.algorithm_name or "/" in self.algorithm_name or "\\" in self.algorithm_name:
-            raise ValueError(f"algorithm_name '{self.algorithm_name}' cannot contain ':', '/', or '\\'.")
+            raise ValueError(f"'algorithm_name' cannot contain ':', '/', or '\\'; got '{self.algorithm_name}'")
         if self.training_env_args is None:
             self.training_env_args = (self.environment_name,)
         if self.playing_env_factory is None:
@@ -72,7 +72,7 @@ class ExperimentSpec:
             serialized = pickle.dumps(self)
         except Exception as error:
             serialized = None
-            print(f"Failed to pickle experiment spec due to: {error}")
+            print(f"Failed to pickle the experiment spec: {error}")
         trainer = Trainer(
             environment=partial(self.make_training_env, environment_kwargs),
             agent_factory=self.make_agent_factory(agent_factory_kwargs),

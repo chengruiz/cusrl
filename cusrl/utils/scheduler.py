@@ -60,7 +60,7 @@ class StepScheduler:
         self.initial_value = initial_value
         self.points = points
         if any(x0 >= x1 for (x0, _), (x1, _) in zip(self.points, self.points[1:])):
-            raise ValueError("X coordinates must be strictly increasing")
+            raise ValueError("x coordinates must be strictly increasing")
 
     def __call__(self, iteration: int) -> Any:
         value = self.initial_value
@@ -91,7 +91,7 @@ class PiecewiseLinearScheduler:
     def __init__(self, point1: tuple[int, float], point2: tuple[int, float], *points: tuple[int, float]):
         self.points = (point1, point2, *points)
         if any(x0 >= x1 for (x0, _), (x1, _) in zip(self.points, self.points[1:])):
-            raise ValueError("X coordinates must be strictly increasing")
+            raise ValueError("x coordinates must be strictly increasing")
 
     def __call__(self, iteration: int) -> float:
         # Left of first point
@@ -126,9 +126,9 @@ class TanhScheduler:
         self.eps0 = self._get_epsilon(self.x0)
         self.eps1 = self._get_epsilon(self.x1)
         if self.x0 >= self.x1:
-            raise ValueError("X coordinates must be strictly increasing")
+            raise ValueError("x coordinates must be strictly increasing")
         if self.eta <= 0:
-            raise ValueError("eta must be positive")
+            raise ValueError("'eta' must be positive")
 
     def _get_epsilon(self, iteration: int) -> float:
         return 0.5 + 0.5 * math.tanh(self.eta * 2 * (iteration - self.mid) / (self.x1 - self.x0))

@@ -29,7 +29,7 @@ def sinusoidal_positional_encoding_2d(
     """Create 2D sinusoidal positional encodings (H, W, C)."""
 
     if num_channels % 4 != 0:
-        raise ValueError(f"num_channels must be divisible by 4 for 2D sinusoidal encoding, got {num_channels}")
+        raise ValueError(f"'num_channels' must be divisible by 4 for 2D sinusoidal encoding; got {num_channels}")
 
     half_channels = num_channels // 2
     h_positions = torch.arange(height, device=device, dtype=dtype).unsqueeze(1)  # (H, 1)
@@ -159,7 +159,7 @@ class RotaryEmbedding(nn.Module):
     def __init__(self, head_dim: int, max_seq_len: int = 2048, base: float = 10000.0):
         super().__init__()
         if head_dim % 2 != 0:
-            raise ValueError("'head_dim' must be even for RotaryEmbedding.")
+            raise ValueError("'head_dim' must be even to use rotary embeddings")
         self.head_dim = head_dim
         self.max_seq_len = int(max_seq_len)
         self.base = float(base)

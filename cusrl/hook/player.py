@@ -59,7 +59,7 @@ class SaveTransition(PlayerHook):
     def init(self, player: Player):
         super().init(player)
         if self.save_interval is not None and self.save_interval <= 0:
-            raise ValueError("'save_interval' must be a positive integer or None.")
+            raise ValueError("'save_interval' must be a positive integer or None")
 
         self.shard_index = 0
         self.buffer.clear()

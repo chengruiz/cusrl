@@ -95,9 +95,9 @@ class NormalNllLoss(nn.Module):
         reduction: Literal["none", "mean", "sum"] = "mean",
     ) -> None:
         if eps <= 0:
-            raise ValueError("'eps' must be greater than zero.")
+            raise ValueError("'eps' must be greater than zero")
         if mode not in {"log_var", "log_std", "var", "std"}:
-            raise ValueError(f"Invalid mode '{mode}'. Must be one of 'log_var', 'log_std', 'var', or 'std'.")
+            raise ValueError(f"Unsupported mode '{mode}'; expected one of 'log_var', 'log_std', 'var', or 'std'")
 
         super().__init__()
         self.mode = mode
@@ -128,7 +128,7 @@ class NormalNllLoss(nn.Module):
             var = std.square()
             log_var = std.log() * 2
         else:
-            raise ValueError(f"Invalid mode '{self.mode}'.")
+            raise ValueError(f"Unsupported mode '{self.mode}'")
 
         nll = 0.5 * (log_var + (target - mean).square() / var)
         if self.full:

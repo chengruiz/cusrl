@@ -62,7 +62,7 @@ def register_experiment(
             save_interval=save_interval,
         )
         if spec.name in registry:
-            raise ValueError(f"Experiment '{spec.name}' is already registered.")
+            raise ValueError(f"Experiment '{spec.name}' is already registered")
         registry[spec.name] = spec
 
 
@@ -76,7 +76,7 @@ def load_experiment_modules():
         try:
             importlib.import_module(module)
         except ImportError as error:
-            raise ImportError(f"Failed to import experiment module '{module}'.") from error
+            raise ImportError(f"Failed to import experiment module '{module}'") from error
     experiment_modules.clear()
 
 
@@ -86,5 +86,5 @@ def get_experiment(environment_name: str, algorithm_name: str) -> ExperimentSpec
     key = f"{environment_name}:{algorithm_name}"
     if key not in registry:
         all_experiments = "".join([f"\n  - {experiment_name}" for experiment_name in sorted(registry.keys())])
-        raise ValueError(f"Experiment '{key}' is not registered. Available experiments are: {all_experiments}.")
+        raise ValueError(f"Experiment '{key}' is not registered. Available experiments:{all_experiments}")
     return registry[key]

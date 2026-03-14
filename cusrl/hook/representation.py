@@ -100,7 +100,7 @@ class StatePrediction(Hook[ActorCritic]):
 
     def init(self):
         if not self.agent.has_state:
-            raise ValueError("StatePrediction: State is not defined for the agent.")
+            raise ValueError("StatePrediction requires the state space defined")
         self.agent.actor(torch.zeros(1, self.agent.observation_dim))
         latent_dim = self.agent.actor.intermediate_repr[self.latent_name].numel()
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
@@ -160,7 +160,7 @@ class NextStatePrediction(Hook[ActorCritic]):
 
     def init(self):
         if not self.agent.has_state:
-            raise ValueError("NextStatePrediction: State is not defined for the agent.")
+            raise ValueError("NextStatePrediction requires the agent to define a state space")
         self.agent.actor(torch.zeros(1, self.agent.observation_dim))
         latent_dim = self.agent.actor.intermediate_repr[self.latent_name].numel()
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()

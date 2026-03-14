@@ -148,5 +148,6 @@ gate_map = {
 
 def get_gate_cls(gate_type: str | None) -> type[Gate]:
     if (gate_cls := gate_map.get(gate_type)) is None:
-        raise ValueError(f"Invalid gate_type '{gate_type}'. Available: {list(gate_map.keys())}")
+        available = ", ".join(repr(name) for name in gate_map.keys())
+        raise ValueError(f"Unsupported gate type '{gate_type}'; available gate types: {available}")
     return gate_cls

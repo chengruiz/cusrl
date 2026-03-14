@@ -41,15 +41,15 @@ def load_checkpoint_from_args(args: argparse.Namespace):
 def load_experiment_spec_from_args(args: argparse.Namespace, trial: Optional["cusrl.Trial"] = None):
     if args.load_experiment_spec:
         if trial is None:
-            raise ValueError("A checkpoint path should be provided if '--load-experiment-spec' is specified.")
+            raise ValueError("'--load-experiment-spec' requires a checkpoint path")
         spec_path = trial.home / "info" / "experiment_spec.pkl"
         with open(spec_path, "rb") as f:
             experiment = pickle.load(f)
     else:
         if args.environment is None:
-            raise ValueError("'--environment' should be specified if it cannot be inferred from the checkpoint path.")
+            raise ValueError("Specify '--environment' when it cannot be inferred from the checkpoint path")
         if args.algorithm is None:
-            raise ValueError("'--algorithm' should be specified if it cannot be inferred from the checkpoint path.")
+            raise ValueError("Specify '--algorithm' when it cannot be inferred from the checkpoint path")
         experiment = cusrl.zoo.get_experiment(args.environment, args.algorithm)
     return experiment
 

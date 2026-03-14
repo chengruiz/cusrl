@@ -40,15 +40,15 @@ class GradientClipping(Hook):
         super().__init__()
 
         if max_grad_norm is not None and max_grad_norm < 0:
-            raise ValueError("'max_grad_norm' must be non-negative.")
+            raise ValueError("'max_grad_norm' must be non-negative")
 
         self.max_grad_norm = max_grad_norm
         groups = (groups or {}) | kwargs
         for prefix, group_max_grad_norm in groups.items():
             if not prefix:
-                raise ValueError("Empty prefix is not allowed; use 'max_grad_norm' instead.")
+                raise ValueError("Empty prefixes are not allowed; use 'max_grad_norm' for the default group")
             if group_max_grad_norm is not None and group_max_grad_norm < 0:
-                raise ValueError(f"'max_grad_norm' for prefix '{prefix}' must be non-negative.")
+                raise ValueError(f"'max_grad_norm' for prefix '{prefix}' must be non-negative")
 
         # Sort by length of prefix (longest first for more specific matching)
         self.groups = dict(sorted(groups.items(), key=lambda x: len(x[0]), reverse=True))

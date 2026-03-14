@@ -99,7 +99,7 @@ class ObservationNormalization(Hook[ActorCritic]):
         renormalize: bool = False,
     ):
         if max_count is not None and max_count <= 0:
-            raise ValueError("'max_count' must be positive or None.")
+            raise ValueError("'max_count' must be positive or None")
         super().__init__()
         self.max_count = max_count
         self.defer_synchronization = defer_synchronization
@@ -130,7 +130,7 @@ class ObservationNormalization(Hook[ActorCritic]):
 
         if (observation_is_subset_of_state := spec.observation_is_subset_of_state) is not None:
             if not self.agent.has_state:
-                raise ValueError("'observation_is_subset_of_state' is set but state is not defined.")
+                raise ValueError("'observation_is_subset_of_state' is set without defining the state")
             # Convert numpy or list indices to a tensor for consistent indexing
             if isinstance(observation_is_subset_of_state, (np.ndarray, Sequence)):
                 observation_is_subset_of_state = self.agent.to_tensor(np.asarray(observation_is_subset_of_state))

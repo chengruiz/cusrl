@@ -76,7 +76,7 @@ class Logger:
         self.name = name
         if self.name is not None:
             if "/" in self.name or "\\" in self.name:
-                raise ValueError("'name' should not contain '/' or '\\' characters.")
+                raise ValueError("'name' must not contain '/' or '\\' characters")
             if add_datetime_prefix:
                 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
                 self.name = f"{timestamp}:{self.name}" if self.name else timestamp

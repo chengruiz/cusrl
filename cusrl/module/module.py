@@ -57,11 +57,12 @@ class ModuleFactory(Generic[ModuleType]):
     @staticmethod
     def _resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:
         if isinstance(activation_fn, str):
-            activation_fn = getattr(nn, activation_fn, None)
+            activation_name = activation_fn
+            activation_fn = getattr(nn, activation_name, None)
             if activation_fn is None:
-                raise ValueError(f"Activation function '{activation_fn}' not found in nn module.")
+                raise ValueError(f"No activation function named '{activation_name}' was found in torch.nn")
         if not issubclass(activation_fn, nn.Module):
-            raise TypeError(f"Activation function must be a subclass of nn.Module, got {activation_fn}.")
+            raise TypeError(f"Activation functions must be subclasses of nn.Module; got {activation_fn}")
         return activation_fn
 
 
@@ -112,11 +113,11 @@ class Module(nn.Module):
             is_recurrent = like.is_recurrent
         else:
             if input_dim is None or output_dim is None:
-                raise ValueError("'input_dim' and 'output_dim' should be specified if 'like' is not provided.")
+                raise ValueError("'input_dim' and 'output_dim' must be specified when 'like' is not provided")
             if input_dim <= 0:
-                raise ValueError("'input_dim' should be positive integers.")
+                raise ValueError("'input_dim' must be a positive integer")
             if output_dim <= 0:
-                raise ValueError("'output_dim' should be a positive integer.")
+                raise ValueError("'output_dim' must be a positive integer")
         self.input_dim: int = input_dim
         self.output_dim: int = output_dim
         self.is_recurrent: bool = is_recurrent

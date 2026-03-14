@@ -27,9 +27,9 @@ class FlashAttention(nn.Module):
 
     def __init__(self):
         if flash_attn is None:
-            raise ImportError("FlashAttention is not installed. See https://github.com/Dao-AILab/flash-attention.")
+            raise ImportError("FlashAttention is not installed; see https://github.com/Dao-AILab/flash-attention")
         if not torch.cuda.is_available():
-            raise RuntimeError("FlashAttention requires a CUDA-capable device.")
+            raise RuntimeError("FlashAttention requires a CUDA-capable device")
         super().__init__()
 
 
@@ -81,7 +81,7 @@ class MultiheadAttention(nn.Module):
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
-            raise ValueError(f"embed_dim ({embed_dim}) must be divisible by num_heads ({num_heads})")
+            raise ValueError(f"'embed_dim' ({embed_dim}) must be divisible by 'num_heads' ({num_heads})")
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.head_dim = embed_dim // num_heads
@@ -199,7 +199,7 @@ class MultiheadCrossAttention(nn.Module):
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
-            raise ValueError(f"embed_dim ({embed_dim}) must be divisible by num_heads ({num_heads})")
+            raise ValueError(f"'embed_dim' ({embed_dim}) must be divisible by 'num_heads' ({num_heads})")
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.head_dim = embed_dim // num_heads
@@ -315,7 +315,7 @@ class MultiheadSelfAttention(nn.Module):
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
-            raise ValueError(f"embed_dim ({embed_dim}) must be divisible by num_heads ({num_heads})")
+            raise ValueError(f"'embed_dim' ({embed_dim}) must be divisible by 'num_heads' ({num_heads})")
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.head_dim = embed_dim // num_heads

@@ -88,7 +88,7 @@ class Value(Module):
     ) -> tuple[torch.Tensor, Memory]:
         if self.action_aware:
             if action is None:
-                raise ValueError("Action must be provided when 'action_aware' is True.")
+                raise ValueError("Action must be provided when 'action_aware' is True")
             state = torch.cat([state, action], dim=-1)
         kwargs.update(self.backbone_kwargs)
         latent, memory = self.backbone(state, memory=memory, done=done, **kwargs)

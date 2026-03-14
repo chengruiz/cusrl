@@ -23,7 +23,7 @@ class ToyModel(nn.Module):
 
 
 def test_optimizer_factory_rejects_empty_prefix():
-    with pytest.raises(ValueError, match="Empty prefix"):
+    with pytest.raises(ValueError, match="Empty prefixes"):
         OptimizerFactory("SGD", defaults={"lr": 0.1}, optim_groups={"": {"lr": 0.2}})
 
 

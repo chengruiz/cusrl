@@ -63,7 +63,7 @@ def get_distribution_factory(action_space_type: str):
         return cusrl.NormalDist.Factory()
     if action_space_type == "discrete":
         return cusrl.OneHotCategoricalDist.Factory()
-    raise ValueError(f"Unsupported action space type '{action_space_type}'.")
+    raise ValueError(f"Unsupported action space type '{action_space_type}'")
 
 
 @dataclass

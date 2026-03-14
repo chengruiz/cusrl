@@ -18,9 +18,9 @@ class NormalizationFactory(ModuleFactory["Normalization"]):
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         module = Normalization(torch.as_tensor(self.mean), torch.as_tensor(self.std))
         if input_dim is not None and module.input_dim != input_dim:
-            raise ValueError(f"Input dimension mismatch: {module.input_dim} != {input_dim}.")
+            raise ValueError(f"Input dimension mismatch: expected {module.input_dim}, got {input_dim}")
         if output_dim is not None and module.output_dim != output_dim:
-            raise ValueError(f"Output dimension mismatch: {module.output_dim} != {output_dim}.")
+            raise ValueError(f"Output dimension mismatch: expected {module.output_dim}, got {output_dim}")
         return module
 
 
@@ -60,9 +60,9 @@ class DenormalizationFactory(ModuleFactory["Denormalization"]):
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         module = Denormalization(torch.as_tensor(self.mean), torch.as_tensor(self.std))
         if input_dim is not None and module.input_dim != input_dim:
-            raise ValueError(f"Input dimension mismatch: {module.input_dim} != {input_dim}.")
+            raise ValueError(f"Input dimension mismatch: expected {module.input_dim}, got {input_dim}")
         if output_dim is not None and module.output_dim != output_dim:
-            raise ValueError(f"Output dimension mismatch: {module.output_dim} != {output_dim}.")
+            raise ValueError(f"Output dimension mismatch: expected {module.output_dim}, got {output_dim}")
         return module
 
 

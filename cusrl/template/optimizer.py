@@ -19,7 +19,7 @@ class OptimizerFactory:
     match is applied first.
 
     A parameter matches a prefix when its name is exactly that prefix or begins
-    with ``"{prefix}."``. Empty prefix is not allowed. Unmatched parameters use
+    with ``"{prefix}."``. Empty prefixes are not allowed. Unmatched parameters use
     ``defaults`` directly. Parameters with ``requires_grad=False`` are skipped.
 
     Args:
@@ -51,7 +51,7 @@ class OptimizerFactory:
         optim_groups = (optim_groups or {}) | kwargs
         for prefix in optim_groups.keys():
             if not prefix:
-                raise ValueError("Empty prefix is not allowed; use defaults instead.")
+                raise ValueError("Empty prefixes are not allowed; use the default group instead")
         # Sort by length of prefix
         self.optim_groups = dict(sorted(optim_groups.items(), key=lambda x: len(x[0]), reverse=True))
 

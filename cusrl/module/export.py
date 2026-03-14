@@ -96,7 +96,7 @@ class FlowGraph(nn.Module):
         if isinstance(output_names, str):
             output_names = (output_names,)
         if module_name in self.named_nodes:
-            raise ValueError(f"Module with name '{module_name}' already exists in the graph.")
+            raise ValueError(f"Module name '{module_name}' is already used in the graph")
         self.named_nodes[module_name] = module
         self.add_module(module_name, module)
 
@@ -231,7 +231,7 @@ class FlowGraph(nn.Module):
 def _get_onnx_tensor_shape(tensor_type: Any) -> tuple[int | str, ...]:
     """Extracts the shape of an ONNX tensor type."""
     if not tensor_type.HasField("shape"):
-        raise ValueError("Tensor type does not have a shape defined.")
+        raise ValueError("This tensor type does not define a shape")
     shape = []
     for dim in tensor_type.shape.dim:
         if dim.HasField("dim_value"):
@@ -282,8 +282,8 @@ def _optimize_onnx_model(model, output_path: str, verbose: bool = True) -> bool:
         pass
 
     print_if_verbose(
-        "\033[1;33mFailed to optimize ONNX model. Run `pip install onnxoptimizer`"
-        "or `pip install onnxslim` to install an optimizer.\033[0m"
+        "\033[1;33mFailed to optimize the ONNX model. Install an optimizer with "
+        "`pip install onnxoptimizer` or `pip install onnxslim`.\033[0m"
     )
     return False
 

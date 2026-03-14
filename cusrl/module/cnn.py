@@ -26,7 +26,7 @@ class CnnFactory(ModuleFactory["Cnn"]):
             output_dim=output_dim,
         )
         if input_dim is not None and module.input_dim != input_dim:
-            raise ValueError(f"Input dimension mismatch ({module.input_dim} != {input_dim}).")
+            raise ValueError(f"Input dimension mismatch: expected {module.input_dim}, got {input_dim}")
         return module
 
 
@@ -74,7 +74,7 @@ class Cnn(Module):
     ):
         layers = nn.Sequential(*layers)
         if len(input_shape) not in (2, 3):
-            raise ValueError("'input_shape' should be 2- or 3-dimensional.")
+            raise ValueError("'input_shape' must be 2D or 3D")
         if len(input_shape) == 2:
             # add channel dimension if missing
             input_shape = (1, *input_shape)
@@ -87,7 +87,7 @@ class Cnn(Module):
         self.input_flattened = input_flattened
         if output_dim is not None:
             if not flatten_output:
-                raise ValueError("'flatten_output' must be True if 'output_dim' is set.")
+                raise ValueError("'flatten_output' must be True if 'output_dim' is set")
             self.layers.append(nn.Flatten(-3))  # flatten [channel, y, x]
             self.layers.append(nn.Linear(self.output_dim, output_dim))
             self.output_dim = output_dim

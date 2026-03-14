@@ -96,7 +96,7 @@ class Configurations:
 
     def enable_flash_attention(self, enabled: bool = True):
         if enabled and not self._flash_attention_found:
-            raise RuntimeError("'flash_attn' cannot be enabled as it is not installed.")
+            raise RuntimeError("Cannot enable 'flash_attn' because it is not installed")
         self._flash_attention_enabled = enabled
 
 

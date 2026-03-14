@@ -15,14 +15,14 @@ class Timer:
 
     def start(self, name):
         if name in self.start_time:
-            raise RuntimeError(f"Timer '{name}' already started.")
+            raise RuntimeError(f"Timer '{name}' has already been started")
         self.start_time[name] = time.time()
 
     def stop(self, name):
         try:
             start_time = self.start_time.pop(name)
         except KeyError as error:
-            raise RuntimeError(f"Timer '{name}' not started.") from error
+            raise RuntimeError(f"Timer '{name}' has not been started") from error
         self.total_time[name] += time.time() - start_time
 
     def __getitem__(self, item):
@@ -71,9 +71,9 @@ class Rate:
 
     def __init__(self, fps: float, threshold: float = 0.05):
         if fps <= 0:
-            raise ValueError("fps must be > 0.")
+            raise ValueError("'fps' must be greater than 0")
         if threshold < 0:
-            raise ValueError("threshold must be >= 0.")
+            raise ValueError("'threshold' must be greater than or equal to 0")
         self.dt = 1.0 / fps
         self.last_time = time.perf_counter()
         self.threshold = threshold

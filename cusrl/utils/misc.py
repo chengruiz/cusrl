@@ -71,7 +71,7 @@ def import_module(
     """
 
     if module_name and path:
-        raise ValueError("'module_name' and 'path' cannot be both specified.")
+        raise ValueError("'module_name' and 'path' cannot be specified together")
 
     if module_name is not None:
         # Check if module is already imported to avoid re-import conflicts
@@ -80,17 +80,17 @@ def import_module(
 
         module_spec = find_spec(module_name, package=package)
         if module_spec is None:
-            raise ImportError(f"Module '{module_name}' not found.")
+            raise ImportError(f"Module '{module_name}' was not found")
     elif path is not None:
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Path '{path}' does not exist.")
+            raise FileNotFoundError(f"Path '{path}' does not exist")
         module_name = os.path.basename(path).removesuffix(".py")
         if module_name in sys.modules:
             return sys.modules[module_name]
 
         module_spec = spec_from_file_location(module_name, path)
         if module_spec is None:
-            raise ImportError(f"Module '{path}' not found.")
+            raise ImportError(f"Could not load a module from '{path}'")
     else:  # do nothing if no module is specified
         return None
 
@@ -126,12 +126,12 @@ def import_obj(module_name: str, obj_qualname: str) -> Any:
     """
     module = importlib.import_module(module_name)
     if module is None:
-        raise ImportError(f"Module '{module_name}' not found.")
+        raise ImportError(f"Module '{module_name}' was not found")
     cls = module
     for part in obj_qualname.split("."):
         cls = getattr(cls, part, None)
     if cls is None:
-        raise ImportError(f"'{obj_qualname}' not found in module '{module_name}'.")
+        raise ImportError(f"Object '{obj_qualname}' was not found in module '{module_name}'")
     return cls
 
 

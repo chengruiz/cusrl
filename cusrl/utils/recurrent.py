@@ -165,9 +165,9 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
             elements of ``padded_sequences``.
     """
     if compact_sequences.dim() < 3:
-        raise ValueError(f"'compact_sequences' must be at least 3D, but got shape {compact_sequences.shape}.")
+        raise ValueError(f"'compact_sequences' must be at least 3D; got shape {compact_sequences.shape}")
     if done.dim() != 3 or done.size(-1) != 1:
-        raise ValueError(f"'done' must be 3D with the last dimension of 1, but got shape {done.shape}.")
+        raise ValueError(f"'done' must be a 3D tensor with a last dimension of 1; got shape {done.shape}")
 
     max_sequence_len = compact_sequences.size(0)
     sequence_lens = compute_sequence_lengths(done)

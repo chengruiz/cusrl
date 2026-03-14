@@ -57,7 +57,7 @@ class Metrics(defaultdict[str, Metric]):
                     continue
                 self[name].update(value.mean(), numel)
             except Exception as error:
-                raise ValueError(f"Error updating metric '{name}'.") from error
+                raise ValueError(f"Failed to update metric '{name}'") from error
 
     def summary(self, prefix: str = "") -> dict[str, float]:
         """Generates summary statistics with optional prefix.

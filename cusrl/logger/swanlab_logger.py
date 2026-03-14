@@ -75,7 +75,7 @@ class Swanlab(Logger):
         try:
             import swanlab
         except ImportError:
-            raise ImportError("Please run 'pip install swanlab' to use swanlab logger.")
+            raise ImportError("Install SwanLab with 'pip install swanlab' to use the SwanLab logger")
         self.run = swanlab.init(experiment_name=name, **kwargs)
         self.provider = swanlab
 

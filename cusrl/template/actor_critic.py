@@ -39,7 +39,7 @@ class HookList(list[Hook]):
         for hook in self:
             if hook.name == name:
                 return hook
-        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'.")
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
 
 class ActorCriticFactory(AgentFactory["ActorCritic"]):
@@ -121,7 +121,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
                 to ``None``.
         """
         if (index is not None) + (before is not None) + (after is not None) > 1:
-            raise ValueError("Only one of index, before, or after can be specified.")
+            raise ValueError("Only one of index, before, or after can be specified")
 
         if before is not None:
             index = self.get_hook_index(before)
@@ -141,7 +141,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         for i, hook in enumerate(self.hooks):
             if hook.name == hook_name:
                 return i
-        raise ValueError(f"Hook '{hook_name}' not found.")
+        raise ValueError(f"No hook named '{hook_name}' is registered")
 
 
 class ActorCritic(Agent):
@@ -274,9 +274,9 @@ class ActorCritic(Agent):
             **kwargs,
         )
         if self.transition["terminated"].dtype != torch.bool:
-            raise TypeError("'terminated' should be of boolean type.")
+            raise TypeError("'terminated' must have dtype bool")
         if self.transition["truncated"].dtype != torch.bool:
-            raise TypeError("'truncated' should be of boolean type.")
+            raise TypeError("'truncated' must have dtype bool")
 
         # enable hook to preprocess the next_observation, next_state, etc.
         self.hook.post_step(self.transition)
@@ -405,7 +405,7 @@ class ActorCritic(Agent):
         elif target_format == "jit":
             graph.export_jit(inputs, output_dir, optimize=optimize)
         else:
-            raise ValueError(f"Unsupported export format '{target_format}'.")
+            raise ValueError(f"Unsupported export format '{target_format}'")
         if verbose:
             print(f"Agent exported to \033[4m{output_dir}\033[0m in '{target_format}' format.")
 
@@ -416,4 +416,4 @@ class ActorCritic(Agent):
             try:
                 self.transition[key] = self.to_nested_tensor(value)
             except Exception as error:
-                raise ValueError(f"Failed to convert '{key}' to tensor.") from error
+                raise ValueError(f"Failed to convert transition field '{key}' to a tensor") from error

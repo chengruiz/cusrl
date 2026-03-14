@@ -95,13 +95,13 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             elif self.dataset_source.endswith(".pt"):
                 self.dataset = torch.load(self.dataset_source, map_location=self.agent.device)
             else:
-                raise ValueError(f"Unsupported dataset file format: {self.dataset_source}")
+                raise ValueError(f"Unsupported dataset file format for '{self.dataset_source}'")
         elif isinstance(self.dataset_source, (Tensor, np.ndarray)):
             self.dataset = self.agent.to_tensor(self.dataset_source)
         elif callable(self.dataset_source):
             self.dataset = self.agent.to_tensor(self.dataset_source())
         elif self.dataset_source is not None:
-            raise ValueError(f"Unsupported dataset_path type: {type(self.dataset_source)}.")
+            raise ValueError(f"Unsupported 'dataset_source' type: {type(self.dataset_source)}")
 
         self.transition_dim = self._sample_demonstration(1).size(-1)
         self.register_module("discriminator", self.discriminator_factory(self.transition_dim, 1))
@@ -113,7 +113,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
     def post_step(self, transition):
         if (agent_transition := cast(Tensor, transition.pop("amp_obs", None))) is None:
             if self.state_indices is None:
-                raise ValueError("AMP observation is not provided and indices are not specified.")
+                raise ValueError("AMP observations were not provided, and 'state_indices' is not set")
 
             state = cast(Tensor, get_first(transition, "state", "observation"))
             next_state = cast(Tensor, get_first(transition, "next_state", "next_observation"))
@@ -167,5 +167,5 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             dataset_indices = torch.randint(self.dataset.size(0), (num_samples,), device=self.agent.device)
             return self.dataset[dataset_indices]
         if self.agent.environment_spec.demonstration_sampler is None:
-            raise ValueError("Either 'dataset_source' or 'environment_spec.demonstration_sampler' should be provided.")
+            raise ValueError("Provide either 'dataset_source' or 'environment_spec.demonstration_sampler'")
         return self.agent.to_tensor(self.agent.environment_spec.demonstration_sampler(num_samples))

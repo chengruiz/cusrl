@@ -34,7 +34,7 @@ class AdvantageReduction(Hook):
         weight: Sequence[float] | None = None,
     ):
         if reduction not in ("sum", "mean"):
-            raise ValueError(f"Unknown reduction: '{reduction}'.")
+            raise ValueError(f"Unsupported reduction '{reduction}'")
         super().__init__()
 
         self.reduction = reduction
@@ -58,7 +58,7 @@ class AdvantageReduction(Hook):
         elif self.reduction == "mean":
             advantage = advantage.mean(-1, keepdim=True)
         else:
-            raise ValueError(f"Unknown reduction: '{self.reduction}'.")
+            raise ValueError(f"Unsupported reduction '{self.reduction}'")
         batch["advantage"] = advantage
 
     def update_attribute(self, name: str, value: Any):

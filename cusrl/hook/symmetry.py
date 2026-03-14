@@ -60,18 +60,18 @@ class SymmetryHook(Hook[ActorCritic]):
     def init(self):
         num_symmetry_hooks = sum(isinstance(hook, SymmetryHook) for hook in self.agent.hook)
         if num_symmetry_hooks > 1:
-            raise ValueError("At most one symmetry hook should be registered.")
+            raise ValueError("At most one symmetry hook may be registered")
 
         if self.agent.environment_spec.mirror_observation is None:
-            raise ValueError("'mirror_observation' should be defined for symmetry hooks.")
+            raise ValueError("'mirror_observation' must be defined for symmetry hooks")
         self.mirror_observation = self.agent.environment_spec.mirror_observation
 
         if self.agent.has_state and self.agent.environment_spec.mirror_state is None:
-            raise ValueError("'mirror_state' should be defined for symmetry hooks.")
+            raise ValueError("'mirror_state' must be defined for symmetry hooks")
         self.mirror_state = self.agent.environment_spec.mirror_state
 
         if self.agent.environment_spec.mirror_action is None:
-            raise ValueError("'mirror_action' should be defined for symmetry hooks.")
+            raise ValueError("'mirror_action' must be defined for symmetry hooks")
         self.mirror_action = self.agent.environment_spec.mirror_action
 
 
@@ -93,7 +93,7 @@ class SymmetryLoss(SymmetryHook):
 
     def __init__(self, weight: float | None, symmetrize_action_std: bool = False):
         if weight is not None and weight < 0:
-            raise ValueError("'weight' must be None or non-negative.")
+            raise ValueError("'weight' must be None or non-negative")
         super().__init__()
         self.symmetrize_action_std = symmetrize_action_std
 
@@ -304,8 +304,8 @@ class SymmetricActorFactory(Actor.Factory):
 
     def __call__(self, input_dim: int | None, output_dim: int) -> Actor:
         actor = super().__call__(input_dim, output_dim)
-        assert self.mirror_observation is not None, "mirror_observation must be defined."
-        assert self.mirror_action is not None, "mirror_action must be defined."
+        assert self.mirror_observation is not None, "'mirror_observation' must be defined"
+        assert self.mirror_action is not None, "'mirror_action' must be defined"
         return SymmetricActor(
             actor,
             mirror_observation=self.mirror_observation,
@@ -322,7 +322,7 @@ class SymmetricActor(Actor):
     ):
         super().__init__(wrapped.backbone, wrapped.distribution)
         if not isinstance(self.distribution, (NormalDist, AdaptiveNormalDist)):
-            raise ValueError("SymmetricActor can only be used with Normal distributions.")
+            raise ValueError("SymmetricActor can only be used with Normal distributions")
 
         self.wrapped = wrapped
         self.mirror_observation = mirror_observation

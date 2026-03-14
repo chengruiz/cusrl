@@ -43,7 +43,7 @@ class AgentFactory(ABC, Generic[AgentType]):
     def override(self, **kwargs: Any) -> Self:
         for key, value in kwargs.items():
             if not hasattr(self, key):
-                raise ValueError(f"Invalid argument '{key}' for {self.__class__.__name__}.")
+                raise ValueError(f"Unsupported override argument '{key}' for {self.__class__.__name__}")
             setattr(self, key, value)
         return self
 
@@ -130,7 +130,7 @@ class Agent(ABC):
         if isinstance(autocast, str):
             self.dtype = getattr(torch, autocast, None)
             if self.dtype is None or not isinstance(self.dtype, torch.dtype):
-                raise ValueError(f"Invalid autocast dtype '{autocast}'.")
+                raise ValueError(f"Unsupported autocast dtype '{autocast}'")
             self.autocast_enabled = True
         elif isinstance(autocast, torch.dtype):
             self.autocast_enabled = True
@@ -233,7 +233,7 @@ class Agent(ABC):
 
     def set_iteration(self, iteration: int):
         if iteration < 0:
-            raise ValueError("Iteration must be non-negative.")
+            raise ValueError("Iteration must be non-negative")
         self.iteration = iteration
 
     def to_tensor(self, input: Any) -> torch.Tensor:
@@ -285,7 +285,7 @@ class Agent(ABC):
             if module is None:
                 continue
             if (state := state_dict.get(name)) is None:
-                self.warn(f"Missing state_dict for '{name}'.")
+                self.warn(f"No state_dict entry was found for '{name}'")
                 continue
             keys.discard(name)
             try:

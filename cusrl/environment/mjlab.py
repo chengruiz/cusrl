@@ -46,7 +46,7 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
             shape = self.wrapped.single_observation_space["actor"].shape
 
         if not len(shape) == 1:
-            raise ValueError("Only 1D observation space is supported. ")
+            raise ValueError("Only 1D observation spaces are supported")
         return shape[0]
 
     def _get_action_dim(self) -> int:
@@ -54,7 +54,7 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
             return self.wrapped.action_manager.total_action_dim
         space = self.wrapped.single_action_space
         if not len(space.shape) == 1:
-            raise ValueError("Only 1D action space is supported. ")
+            raise ValueError("Only 1D action spaces are supported")
         return space.shape[0]
 
     def _get_state_dim(self) -> int | None:
@@ -69,7 +69,7 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
         if shape is None:
             return None
         if not len(shape) == 1:
-            raise ValueError("Only 1D state space is supported.")
+            raise ValueError("Only 1D state spaces are supported")
         return shape[0]
 
     def reset(
@@ -149,7 +149,7 @@ class MjlabPlayer(Player):
         elif cfg.viewer_type == "viser":
             viewer = ViserPlayViewer(native_environment, self)
         else:
-            raise ValueError(f"Unsupported viewer type: {cfg.viewer_type}")
+            raise ValueError(f"Unsupported viewer type '{cfg.viewer_type}'")
         viewer.run(self.num_steps)
         metrics = self._get_metrics_report()
         self._display_metrics(metrics)

@@ -56,7 +56,7 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
             shape = self.unwrapped.single_observation_space["policy"].shape
 
         if not len(shape) == 1:
-            raise ValueError("Only 1D observation space is supported. ")
+            raise ValueError("Only 1D observation spaces are supported")
         return shape[0]
 
     def _get_action_dim(self) -> int:
@@ -64,7 +64,7 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
             return self.unwrapped.action_manager.total_action_dim
         space = self.unwrapped.single_action_space
         if not len(space.shape) == 1:
-            raise ValueError("Only 1D action space is supported. ")
+            raise ValueError("Only 1D action spaces are supported")
         return space.shape[0]
 
     def _get_state_dim(self) -> int | None:
@@ -79,7 +79,7 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
         if shape is None:
             return None
         if not len(shape) == 1:
-            raise ValueError("Only 1D state space is supported.")
+            raise ValueError("Only 1D state spaces are supported")
         return shape[0]
 
     def reset(

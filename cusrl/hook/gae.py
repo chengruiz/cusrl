@@ -68,11 +68,11 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         popart_alpha: float | None = None,
     ):
         if gamma < 0 or gamma >= 1:
-            raise ValueError(f"Invalid gamma value {gamma}, which should be in [0, 1).")
+            raise ValueError(f"'gamma' must be in [0, 1); got {gamma}")
         if lamda < 0 or lamda > 1:
-            raise ValueError(f"Invalid lambda value {lamda}, which should be in [0, 1].")
+            raise ValueError(f"'lamda' must be in [0, 1]; got {lamda}")
         if lamda_value is not None and (lamda_value < 0 or lamda_value > 1):
-            raise ValueError(f"Invalid lambda value for value function {lamda_value}, which should be in [0, 1].")
+            raise ValueError(f"'lamda_value' must be in [0, 1]; got {lamda_value}")
 
         super().__init__()
         self.recompute = recompute

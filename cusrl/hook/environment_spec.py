@@ -52,8 +52,8 @@ class DynamicEnvironmentSpecOverride(Hook):
 
     def pre_init(self, agent: Agent):
         super().pre_init(agent)
-        if not agent.environment_spec.environment_instance:
-            raise ValueError("Environment instance is not set in the agent's environment_spec.")
+        if agent.environment_spec.environment_instance is None:
+            raise ValueError("'environment_instance' is not set in the environment_spec")
         overrides = self.overrides_factory(agent.environment_spec.environment_instance)
         for key, value in overrides.items():
             agent.environment_spec.override(key, value)

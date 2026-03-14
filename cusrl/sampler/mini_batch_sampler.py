@@ -19,15 +19,15 @@ class MiniBatchSampler(Sampler):
             self.num_mini_batches = tuple(num_mini_batches)
             if len(self.num_mini_batches) != self.num_epochs:
                 raise ValueError(
-                    "'num_mini_batches' must be a single integer or a sequence of integers with length "
-                    f"equal to 'num_epochs' ({self.num_epochs}), but got {len(self.num_mini_batches)}."
+                    "'num_mini_batches' must be an integer or a sequence of integers with length "
+                    f"equal to 'num_epochs' ({self.num_epochs}); got {len(self.num_mini_batches)} values"
                 )
 
         self.shuffle = shuffle
 
     def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
         if not buffer.full:
-            raise RuntimeError("MiniBatchSampler requires a full buffer to sample from.")
+            raise RuntimeError("MiniBatchSampler can sample only from a full buffer")
         num_samples = self._get_num_samples(buffer)
         epoch_indices = torch.randperm(num_samples, device=buffer.device)
         for epoch in range(self.num_epochs):

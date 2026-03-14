@@ -36,7 +36,7 @@ class PpoSurrogateLoss(Hook):
 
     def __init__(self, clip_ratio: float = 0.2):
         if clip_ratio <= 0:
-            raise ValueError("'clip_ratio' must be positive.")
+            raise ValueError("'clip_ratio' must be positive")
         super().__init__()
 
         # Mutable attributes
@@ -45,7 +45,7 @@ class PpoSurrogateLoss(Hook):
 
     def objective(self, batch):
         if (advantage := cast(torch.Tensor, batch["advantage"])).size(-1) != 1:
-            raise ValueError(f"Expected advantage to have shape [..., 1], got {advantage.shape}.")
+            raise ValueError(f"Expected advantage to have shape [..., 1], got {advantage.shape}")
         action_prob_ratio = cast(torch.Tensor, batch["action_prob_ratio"])
         with self.agent.autocast():
             surrogate_loss = _ppo_surrogate_loss(advantage, action_prob_ratio, self.clip_ratio)
@@ -70,7 +70,7 @@ class EntropyLoss(Hook):
 
     def __init__(self, weight: float = 0.01):
         if weight < 0:
-            raise ValueError("'weight' must be non-negative.")
+            raise ValueError("'weight' must be non-negative")
         super().__init__()
 
         # Mutable attributes

@@ -77,20 +77,20 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         self.rope_base = rope_base  # Rotary Positional Embedding
         self.head_dim = embed_dim // num_heads
         if self.head_dim * num_heads != embed_dim:
-            raise ValueError("embed_dim must be divisible by num_heads.")
+            raise ValueError("'embed_dim' must be divisible by 'num_heads'")
         if self.rope_base is not None:
             if self.rope_base <= 0:
-                raise ValueError("rope_base must be a positive float.")
+                raise ValueError("'rope_base' must be a positive number")
             if self.head_dim // 2 == 0:
-                raise ValueError("head_dim must be even for RoPE.")
+                raise ValueError("'head_dim' must be even when RoPE is enabled")
         if self.alibi_slopes is not None and self.alibi_slopes.ndim != 1:
-            raise ValueError("alibi_slopes must be a 1D tensor.")
+            raise ValueError("'alibi_slopes' must be a 1D tensor")
         if self.alibi_slopes is not None and self.alibi_slopes.size(0) != num_heads:
-            raise ValueError(f"alibi_slopes must have {num_heads=} elements.")
+            raise ValueError(f"'alibi_slopes' must contain {num_heads} elements")
         if self.window_size <= 0:
-            raise ValueError("window_size must be a non-negative integer.")
+            raise ValueError("'window_size' must be a positive integer")
         if self.dtype not in (torch.float16, torch.bfloat16):
-            raise ValueError("FlashAttention only supports float16 or bfloat16 dtypes.")
+            raise ValueError("FlashAttention supports only 'torch.float16' and 'torch.bfloat16'")
         super().__init__(
             input_dim=input_dim or embed_dim,
             output_dim=output_dim or embed_dim,

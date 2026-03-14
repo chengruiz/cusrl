@@ -132,4 +132,4 @@ def make_bijector(bijector: str | Bijector | None) -> Bijector:
         return SigmoidBijector(*params)
     if bijector_type == "softplus":
         return SoftplusBijector(*params)
-    raise ValueError(f"Unknown bijector '{bijector}'.")
+    raise ValueError(f"Unsupported bijector specification '{bijector}'")

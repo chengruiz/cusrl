@@ -65,7 +65,7 @@ class PolicyDistillation(PolicyDistillationLoss):
     def init(self):
         super().init()
         if not self.expert_path:
-            raise ValueError("'expert_path' cannot be empty.")
+            raise ValueError("'expert_path' cannot be empty")
 
         self.expert = torch.jit.load(self.expert_path, map_location=self.agent.device)
 

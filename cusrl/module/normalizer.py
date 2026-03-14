@@ -46,7 +46,7 @@ def mean_var_count(input: ArrayType, *, uncentered: bool = False) -> tuple[Array
         return mean.numpy(), var.numpy(), count
 
     if input.ndim < 2:
-        raise ValueError("Input tensor must be at least 2-dimensional.")
+        raise ValueError("Input tensor must be at least 2-dimensional")
     input = input.flatten(0, -2)
     count = int(input.size(0))
     if count == 0:
@@ -96,7 +96,7 @@ def merge_mean_var_(
 ):
     w_sum = w_old + w_new
     if w_sum <= 0:
-        raise ValueError(f"Weight sum must be positive, got {w_sum}.")
+        raise ValueError(f"Weight sum must be positive; got {w_sum}")
     w_old = w_old / w_sum
     w_new = w_new / w_sum
     delta = new_mean - old_mean
@@ -159,9 +159,9 @@ class RunningMeanStd(nn.Module):
         epsilon: float = 1e-8,
     ):
         if clamp is not None and clamp <= 0:
-            raise ValueError("'clamp' should be None or positive.")
+            raise ValueError("'clamp' must be None or a positive value")
         if max_count is not None and max_count <= 0:
-            raise ValueError("'max_count' should be None or positive.")
+            raise ValueError("'max_count' must be None or a positive value")
         self.groups = tuple(groups)
         self.excluded_indices = excluded_indices
         self.clamp = clamp
@@ -172,7 +172,7 @@ class RunningMeanStd(nn.Module):
         for indices in self.groups:
             dummy_input[indices,] += 1
         if torch.any(dummy_input > 1):
-            raise ValueError("Overlapping indices in 'groups' are not allowed.")
+            raise ValueError("Indices in 'groups' must not overlap")
 
         super().__init__()
         self.mean: Tensor
@@ -306,7 +306,7 @@ class RunningMeanStd(nn.Module):
 
     def set_extra_state(self, state: Any):
         if state < 0:
-            raise ValueError("State must be non-negative.")
+            raise ValueError("The normalizer state count must be non-negative")
         self.count = int(state.item() if isinstance(state, Tensor) else state)
         self._synchronized_state = (self.mean.clone(), self.var.clone(), self.count)
 
@@ -324,7 +324,7 @@ class ExponentialMovingNormalizer(RunningMeanStd):
         epsilon: float = 1e-8,
     ):
         if not (0 < alpha <= 1):
-            raise ValueError("'alpha' must be in the range (0, 1].")
+            raise ValueError("'alpha' must be in the range (0, 1]")
         super().__init__(
             num_channels,
             groups=groups,

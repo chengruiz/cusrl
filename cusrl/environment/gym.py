@@ -17,17 +17,17 @@ __all__ = ["GymEnvAdapter", "GymVectorEnvAdapter", "make_gym_env", "make_gym_vec
 class GymEnvAdapter(Environment[np.ndarray]):
     def __init__(self, wrapped: gym.Env):
         if not isinstance(wrapped.observation_space, gym.spaces.Box):
-            raise ValueError("Only Box observation space is supported.")
+            raise ValueError("Only Box observation spaces are supported")
         if not len(wrapped.observation_space.shape) == 1:
-            raise ValueError("Only 1D observation space is supported.")
+            raise ValueError("Only 1D observation spaces are supported")
         if isinstance(wrapped.action_space, gym.spaces.Box):
             if not len(wrapped.action_space.shape) == 1:
-                raise ValueError("For Box action space, only 1D action space is supported.")
+                raise ValueError("Box action spaces must be 1D")
             action_dim = wrapped.action_space.shape[0]
         elif isinstance(wrapped.action_space, gym.spaces.Discrete):
             action_dim = int(wrapped.action_space.n)
         else:
-            raise ValueError(f"Unsupported action space type: {wrapped.action_space}.")
+            raise ValueError(f"Unsupported action space type: {wrapped.action_space!r}")
 
         super().__init__(
             action_dim=action_dim,
@@ -75,23 +75,23 @@ class GymEnvAdapter(Environment[np.ndarray]):
 class GymVectorEnvAdapter(Environment[np.ndarray]):
     def __init__(self, wrapped: gym.vector.VectorEnv):
         if not isinstance(wrapped.single_observation_space, gym.spaces.Box):
-            raise ValueError("Only Box observation space is supported.")
+            raise ValueError("Only Box observation spaces are supported")
         if not len(wrapped.single_observation_space.shape) == 1:
-            raise ValueError("Only 1D observation space is supported.")
+            raise ValueError("Only 1D observation spaces are supported")
         if isinstance(wrapped.single_action_space, gym.spaces.Box):
             if not len(wrapped.single_action_space.shape) == 1:
-                raise ValueError("For Box action space, only 1D action space is supported.")
+                raise ValueError("Box action spaces must be 1D")
             action_dim = wrapped.single_action_space.shape[0]
         elif isinstance(wrapped.single_action_space, gym.spaces.Discrete):
             action_dim = int(wrapped.single_action_space.n)
         else:
-            raise ValueError(f"Unsupported action space type: {wrapped.single_action_space}.")
+            raise ValueError(f"Unsupported action space type: {wrapped.single_action_space!r}")
 
         if (autoreset_mode := wrapped.metadata.get("autoreset_mode")) is None:
             if cusrl.utils.is_main_process():
-                warnings.warn("GymVectorEnvAdapter: make sure 'autoreset_mode' is 'DISABLED'.")
+                warnings.warn("GymVectorEnvAdapter expects 'autoreset_mode' to be 'DISABLED'.")
         elif autoreset_mode != gym.vector.AutoresetMode.DISABLED:
-            raise ValueError("'autoreset_mode' of vector environments must be 'DISABLED'.")
+            raise ValueError("Vector environments require 'autoreset_mode' to be 'DISABLED'")
 
         super().__init__(
             action_dim=action_dim,

@@ -17,7 +17,7 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
         scale_all_params: bool = False,
     ):
         if desired_kl_divergence <= 0:
-            raise ValueError("'desired_kl_divergence' must be positive.")
+            raise ValueError("'desired_kl_divergence' must be positive")
 
         super().__init__()
         self.scale_all_params = scale_all_params
@@ -79,9 +79,9 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
     ):
         super().__init__(desired_kl_divergence, scale_all_params)
         if threshold <= 1:
-            raise ValueError("'threshold' must be greater than 1.")
+            raise ValueError("'threshold' must be greater than 1")
         if scale_factor <= 1:
-            raise ValueError("'scale_factor' must be greater than 1.")
+            raise ValueError("'scale_factor' must be greater than 1")
 
         self.threshold = threshold
         self.scale_factor = scale_factor
@@ -121,9 +121,9 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
     ):
         super().__init__(desired_kl_divergence, scale_all_params)
         if threshold <= 0:
-            raise ValueError("'threshold' must be positive.")
+            raise ValueError("'threshold' must be positive")
         if scale_factor <= 0:
-            raise ValueError("'scale_factor' must be positive.")
+            raise ValueError("'scale_factor' must be positive")
 
         self.threshold = threshold
         self.scale_factor = scale_factor

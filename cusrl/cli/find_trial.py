@@ -41,7 +41,7 @@ def main(args: argparse.Namespace):
     else:
         experiment_home = (Path(args.log_dir) / query).absolute()
         if not experiment_home.exists():
-            raise FileNotFoundError(f"Experiment directory not found: '{query}' or '{experiment_home}'.")
+            raise FileNotFoundError(f"No experiment directory was found at '{query}' or '{experiment_home}'")
 
     # Find trial directories under the experiment home
     trial_dirs: list[Path] = [
@@ -54,7 +54,7 @@ def main(args: argparse.Namespace):
         trial_dirs = [path for path in trial_dirs if args.name in path.name]
     if not trial_dirs:
         name_hint = f" with name containing '{args.name}'" if args.name else ""
-        raise FileNotFoundError(f"No trial directories found under '{experiment_home}'{name_hint}.")
+        raise FileNotFoundError(f"No trial directories were found under '{experiment_home}'{name_hint}")
 
     if args.list:
         for path in trial_dirs:
