@@ -1,11 +1,11 @@
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
 import torch
 
 import cusrl.utils
-from cusrl.template import Environment, Player
+from cusrl.template import Agent, Environment, Player, Trial
 from cusrl.template.environment import get_done_indices
 from cusrl.utils.typing import Slice
 
@@ -134,6 +134,31 @@ class MjlabPlayer(Player):
     """A Player implementation for playing with mjlab environments using the
     mjlab built-in viewers."""
 
+    def __init__(
+        self,
+        environment: Environment | Environment.Factory,
+        agent: Agent | Agent.Factory,
+        checkpoint_path: str | Trial | None = None,
+        num_steps: int | None = None,
+        num_episodes: int | None = None,
+        timestep: float | None = None,
+        deterministic: bool = True,
+        verbose: bool = True,
+        hooks: Iterable[Player.Hook] = (),
+    ):
+        super().__init__(
+            environment=environment,
+            agent=agent,
+            checkpoint_path=checkpoint_path,
+            num_steps=num_steps,
+            num_episodes=num_episodes,
+            timestep=timestep,
+            deterministic=deterministic,
+            verbose=verbose,
+            hooks=hooks,
+        )
+        self.is_first_step = True
+
     def run_playing_loop(self) -> dict[str, float]:
         from mjlab.rl import RslRlVecEnvWrapper
         from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
@@ -160,7 +185,7 @@ class MjlabPlayer(Player):
         observation = observation_dict.pop("actor")
         state = observation_dict.pop("critic", None)
 
-        if self.step_count != 0:
+        if not self.is_first_step:
             reward = self.environment.wrapped.reward_buf.clone().unsqueeze(-1)
             terminated = self.environment.wrapped.termination_manager.terminated.clone().unsqueeze(-1)
             truncated = self.environment.wrapped.termination_manager.time_outs.clone().unsqueeze(-1)
@@ -178,6 +203,8 @@ class MjlabPlayer(Player):
 
             if done_indices := get_done_indices(terminated, truncated):
                 self._reset_event(done_indices)
+        else:
+            self.is_first_step = False
 
         action = self.agent.act(observation, state)
         return action
