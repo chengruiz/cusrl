@@ -212,7 +212,7 @@ class MjlabPlayer(Player):
 
 def make_mjlab_env(
     id: str,
-    argv: Sequence[str] = ("",),
+    argv: Sequence[str] = (),
     play: bool = False,
     device: str | torch.device | None = None,
     **kwargs: Any,
