@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from cusrl.module.module import Module, ModuleFactory
+from cusrl.module.module import Module, ModuleFactory, resolve_activation_fn
 
 __all__ = ["Mlp"]
 
@@ -12,7 +12,7 @@ __all__ = ["Mlp"]
 @dataclass(slots=True)
 class MlpFactory(ModuleFactory["Mlp"]):
     hidden_dims: Iterable[int]
-    activation_fn: str | type[nn.Module] = nn.ReLU
+    activation_fn: str | type[nn.Module] = "ReLU"
     ends_with_activation: bool = False
     dropout: float = 0.0
 
@@ -22,7 +22,7 @@ class MlpFactory(ModuleFactory["Mlp"]):
             input_dim=input_dim,
             output_dim=output_dim,
             hidden_dims=self.hidden_dims,
-            activation_fn=self._resolve_activation_fn(self.activation_fn),
+            activation_fn=self.activation_fn,
             ends_with_activation=self.ends_with_activation,
             dropout=self.dropout,
         )
@@ -45,9 +45,10 @@ class Mlp(Module):
             The dimension of the output. If ``None``, the last element of
             ``hidden_dims`` is used as the output dimension, and the preceding
             elements define the hidden layers. Defaults to ``None``.
-        activation_fn (type[nn.Module], optional):
-            The activation function class to be used after each hidden layer.
-            Defaults to :class:`nn.ReLU`.
+        activation_fn (str | type[nn.Module], optional):
+            The activation function to be applied after each linear layer. This
+            can be specified as a string or a class derived from ``nn.Module``.
+            Defaults to ``"ReLU"``.
         ends_with_activation (bool, optional):
             If ``True``, an activation function and a dropout are applied to the
             final output layer. Defaults to ``False``.
@@ -63,13 +64,14 @@ class Mlp(Module):
         input_dim: int,
         hidden_dims: Iterable[int],
         output_dim: int | None = None,
-        activation_fn: type[nn.Module] = nn.ReLU,
+        activation_fn: str | type[nn.Module] = "ReLU",
         ends_with_activation: bool = False,
         dropout: float = 0.0,
     ):
         hidden_dims = list(hidden_dims)
         if output_dim is not None:
             hidden_dims.append(output_dim)
+        activation_fn = resolve_activation_fn(activation_fn)
 
         original_input_dim = input_dim
         layers = nn.Sequential()

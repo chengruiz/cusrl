@@ -9,6 +9,7 @@ from cusrl.utils.config import configure_distributed
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = [
+    "resolve_activation_fn",
     "DistributedDataParallel",
     "Module",
     "ModuleType",
@@ -54,16 +55,16 @@ class ModuleFactory(Generic[ModuleType]):
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None) -> ModuleType:
         raise NotImplementedError
 
-    @staticmethod
-    def _resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:
-        if isinstance(activation_fn, str):
-            activation_name = activation_fn
-            activation_fn = getattr(nn, activation_name, None)
-            if activation_fn is None:
-                raise ValueError(f"No activation function named '{activation_name}' was found in torch.nn")
-        if not issubclass(activation_fn, nn.Module):
-            raise TypeError(f"Activation functions must be subclasses of nn.Module; got {activation_fn}")
-        return activation_fn
+
+def resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:
+    if isinstance(activation_fn, str):
+        activation_name = activation_fn
+        activation_fn = getattr(nn, activation_name, None)
+        if activation_fn is None:
+            raise ValueError(f"No activation function named '{activation_name}' was found in torch.nn")
+    if not issubclass(activation_fn, nn.Module):
+        raise TypeError(f"Activation functions must be subclasses of nn.Module; got {activation_fn}")
+    return activation_fn
 
 
 ModuleFactoryLike: TypeAlias = Callable[[int | None, int | None], "Module"] | ModuleFactory
@@ -87,7 +88,7 @@ class Module(nn.Module):
             provided. Defaults to ``None``.
         is_recurrent (bool, optional):
             Whether the module is recurrent. Defaults to ``False``.
-        like (Optional[Module optional):
+        like (Optional[Module], optional):
             Another module instance from which to copy ``input_dim``,
             ``output_dim``, and ``is_recurrent`` attributes. Defaults to
             ``None``.

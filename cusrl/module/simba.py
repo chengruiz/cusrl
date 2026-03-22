@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from cusrl.module.module import Module, ModuleFactory
+from cusrl.module.module import Module, ModuleFactory, resolve_activation_fn
 
 __all__ = ["Simba"]
 
@@ -12,7 +12,7 @@ __all__ = ["Simba"]
 class SimbaFactory(ModuleFactory["Simba"]):
     hidden_dim: int | None = None
     num_blocks: int = 1
-    activation_fn: str | type[nn.Module] = nn.ReLU
+    activation_fn: str | type[nn.Module] = "ReLU"
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         assert input_dim is not None
@@ -21,12 +21,13 @@ class SimbaFactory(ModuleFactory["Simba"]):
             hidden_dim=self.hidden_dim,
             num_blocks=self.num_blocks,
             output_dim=output_dim,
-            activation_fn=self._resolve_activation_fn(self.activation_fn),
+            activation_fn=self.activation_fn,
         )
 
 
 class SimbaBlock(nn.Sequential):
-    def __init__(self, hidden_dim: int, activation_fn: type[nn.Module] = nn.ReLU):
+    def __init__(self, hidden_dim: int, activation_fn: str | type[nn.Module] = "ReLU"):
+        activation_fn = resolve_activation_fn(activation_fn)
         super().__init__(
             nn.LayerNorm(hidden_dim),
             nn.Linear(hidden_dim, hidden_dim * 4),
@@ -53,7 +54,7 @@ class Simba(Module):
         hidden_dim: int | None = None,
         num_blocks: int = 1,
         output_dim: int | None = None,
-        activation_fn: type[nn.Module] = nn.ReLU,
+        activation_fn: str | type[nn.Module] = "ReLU",
     ):
         self.hidden_dim = hidden_dim or input_dim
         super().__init__(input_dim, output_dim or self.hidden_dim)
