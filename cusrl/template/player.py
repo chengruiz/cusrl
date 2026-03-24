@@ -203,11 +203,11 @@ class Player:
         rate = utils.Rate(1 / self.timestep) if self.timestep is not None and self.timestep > 0 else None
 
         try:
-            try:
-                prev_handler = signal.signal(signal.SIGINT, self._sigint_handler)
-            except ValueError:
-                prev_handler = None
+            prev_handler = signal.signal(signal.SIGINT, self._sigint_handler)
+        except ValueError:
+            prev_handler = None
 
+        try:
             with tqdm(total=self.num_steps, disable=not self.verbose, dynamic_ncols=True) as progress_bar:
                 while (self.num_steps is None or self.step_count < self.num_steps) and not self.interrupted:
                     action = self.agent.act(observation, state)
