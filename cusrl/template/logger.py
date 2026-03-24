@@ -95,9 +95,8 @@ class Logger:
 
     def log(self, data: dict[str, float], iteration: int):
         if self.interval > 1:
-            if iteration % self.interval != 0:
-                self.data_list.append(data)
-            else:
+            self.data_list.append(data)
+            if iteration % self.interval == 0:
                 data = self._collect_data()
                 self.data_list.clear()
 
