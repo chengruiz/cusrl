@@ -42,9 +42,10 @@ class Logger:
     implement specific logging backends (e.g., TensorBoard, Weights & Biases)
     by overriding the `_log_impl` method.
 
-    The logger creates a directory structure as follows:
+    When ``name`` is not ``None``, the logger creates a directory structure as
+    follows:
     `[log_dir]/`
-        `[timestamp]:[name]/`
+        `[timestamp:][name]/`
             `info/` - For storing text-based information.
             `ckpt/` - For storing model checkpoints.
         `latest` -> symlink to `[timestamp]:[name]/`
@@ -54,7 +55,8 @@ class Logger:
             The root directory where logs will be stored.
         name (str | None, optional):
             A specific name for the experiment run. If ``None``, logs are stored
-            directly under ``log_dir``. Defaults to "".
+            directly under ``log_dir`` and no ``latest`` symlink is created.
+            Defaults to "".
         interval (int, optional):
             The interval at which to log data. If greater than ``1``, data is
             averaged over the interval before logging. Defaults to ``1``.
@@ -82,9 +84,10 @@ class Logger:
                 self.name = f"{timestamp}:{self.name}" if self.name else timestamp
             self.log_dir /= self.name
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        symlink_path = self.log_dir / ".." / "latest"
-        symlink_path.unlink(missing_ok=True)
-        symlink_path.symlink_to(self.log_dir.name, target_is_directory=True)
+        if self.name is not None:
+            symlink_path = self.log_dir.parent / "latest"
+            symlink_path.unlink(missing_ok=True)
+            symlink_path.symlink_to(self.log_dir.name, target_is_directory=True)
         self.info_dir = self.log_dir / "info"
         self.info_dir.mkdir(exist_ok=True)
         self.ckpt_dir = self.log_dir / "ckpt"
@@ -96,9 +99,10 @@ class Logger:
     def log(self, data: dict[str, float], iteration: int):
         if self.interval > 1:
             self.data_list.append(data)
-            if iteration % self.interval == 0:
-                data = self._collect_data()
-                self.data_list.clear()
+            if len(self.data_list) < self.interval:
+                return
+            data = self._collect_data()
+            self.data_list.clear()
 
         self._log_impl(data, iteration)
 
@@ -132,10 +136,13 @@ def make_logger_factory(
 ) -> LoggerFactoryLike | None:
     if log_dir is None:
         return None
+
     if logger_type is None or logger_type.lower() == "none":
-        return Logger.Factory(log_dir=log_dir, name=name, interval=interval, **kwargs)
-    logger_cls_dict = {cls.__name__.lower(): cls for cls in Logger.__subclasses__()}
-    logger_cls = logger_cls_dict[logger_type.lower()]
+        logger_cls = Logger
+    else:
+        logger_cls_dict = {cls.__name__.lower(): cls for cls in Logger.__subclasses__()}
+        logger_cls = logger_cls_dict[logger_type.lower()]
+
     return logger_cls.Factory(
         log_dir=log_dir,
         name=name,
