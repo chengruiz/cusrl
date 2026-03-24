@@ -3,7 +3,7 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias
 
 import gymnasium as gym
-from objprint import objstr
+from objprint import add_objprint
 
 from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
 
@@ -19,6 +19,7 @@ __all__ = [
 ]
 
 
+@add_objprint(exclude=["environment_instance"], color=False)
 class EnvironmentSpec:
     """A class encapsulates environment-specific specifications and properties.
 
@@ -179,9 +180,6 @@ class EnvironmentSpec:
             setattr(self, key, value)
         else:
             self.extras[key] = value
-
-    def __str__(self):
-        return objstr(self, exclude=["environment_instance"], honor_existing=False)
 
 
 EnvironmentFactory: TypeAlias = Callable[[], "Environment"]
