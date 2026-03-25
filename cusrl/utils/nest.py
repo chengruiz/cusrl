@@ -80,8 +80,8 @@ def get_schema(
             )
             for key, val in value.items()
         }
-    if isinstance(value, (tuple, list)):
-        return type(value)(
+    if isinstance(value, tuple):
+        return tuple(
             get_schema(
                 item,
                 concat_key(prefix, separator, i),
@@ -90,30 +90,34 @@ def get_schema(
             )
             for i, item in enumerate(value)
         )
+    if isinstance(value, list):
+        return [
+            get_schema(
+                item,
+                concat_key(prefix, separator, i),
+                max_depth=max_depth,
+                separator=separator,
+            )
+            for i, item in enumerate(value)
+        ]
     return prefix
 
 
 @overload
-def iterate_nested(data: Nested[_T], prefix: str = "", *, separator: str = ".") -> Iterator[tuple[str, _T]]: ...
-@overload
-def iterate_nested(data: Nested[_T], *, max_depth: None, separator: str = ".") -> Iterator[tuple[str, _T]]: ...
-@overload
-def iterate_nested(data: Nested[_T], *, max_depth: int, separator: str = ".") -> Iterator[tuple[str, Nested[_T]]]: ...
-@overload
 def iterate_nested(
-    data: Nested[_T], prefix: str, max_depth: None, *, separator: str = "."
+    data: Nested[_T], prefix: str = "", *, max_depth: None = None, separator: str = "."
 ) -> Iterator[tuple[str, _T]]: ...
 @overload
 def iterate_nested(
-    data: Nested[_T], prefix: str, max_depth: int, *, separator: str = "."
+    data: Nested[_T], prefix: str = "", *, max_depth: int | None, separator: str = "."
 ) -> Iterator[tuple[str, Nested[_T]]]: ...
 
 
 def iterate_nested(
     data: Nested[_T],
     prefix: str = "",
-    max_depth: int | None = None,
     *,
+    max_depth: int | None = None,
     separator: str = ".",
 ) -> Iterator[tuple[str, Nested[_T]]]:
     """Generated a flattened view of the nested data.
@@ -179,22 +183,20 @@ def iterate_nested(
 
 
 @overload
-def flatten_nested(data: Nested[_T], prefix: str = "", *, separator: str = ".") -> dict[str, _T]: ...
+def flatten_nested(
+    data: Nested[_T], prefix: str = "", *, max_depth: None = None, separator: str = "."
+) -> dict[str, _T]: ...
 @overload
-def flatten_nested(data: Nested[_T], *, max_depth: None, separator: str = ".") -> dict[str, _T]: ...
-@overload
-def flatten_nested(data: Nested[_T], *, max_depth: int, separator: str = ".") -> dict[str, Nested[_T]]: ...
-@overload
-def flatten_nested(data: Nested[_T], prefix: str, max_depth: None, *, separator: str = ".") -> dict[str, _T]: ...
-@overload
-def flatten_nested(data: Nested[_T], prefix: str, max_depth: int, *, separator: str = ".") -> dict[str, Nested[_T]]: ...
+def flatten_nested(
+    data: Nested[_T], prefix: str = "", *, max_depth: int | None, separator: str = "."
+) -> dict[str, Nested[_T]]: ...
 
 
 def flatten_nested(
     data: Nested[_T],
     prefix: str = "",
-    max_depth: int | None = None,
     *,
+    max_depth: int | None = None,
     separator: str = ".",
 ) -> dict[str, _T] | dict[str, Nested[_T]]:
     """Flattens a nested data structure into a flat dictionary.
@@ -257,6 +259,8 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: Mapping[str, Neste
 def reconstruct_nested(flattened_data: dict[str, _T], schema: list[Nested[str]]) -> list[Nested[_T]]: ...
 @overload
 def reconstruct_nested(flattened_data: dict[str, _T], schema: tuple[Nested[str], ...]) -> tuple[Nested[_T], ...]: ...
+@overload
+def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Nested[_T]: ...
 
 
 def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Nested[_T]:
@@ -291,8 +295,10 @@ def reconstruct_nested(flattened_data: dict[str, _T], schema: Nested[str]) -> Ne
     """
     if isinstance(schema, Mapping):
         return {key: reconstruct_nested(flattened_data, name) for key, name in schema.items()}
-    if isinstance(schema, (tuple, list)):
-        return type(schema)(reconstruct_nested(flattened_data, name) for name in schema)
+    if isinstance(schema, tuple):
+        return tuple(reconstruct_nested(flattened_data, name) for name in schema)
+    if isinstance(schema, list):
+        return [reconstruct_nested(flattened_data, name) for name in schema]
     return flattened_data[schema]
 
 
