@@ -1,9 +1,8 @@
 import os
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TypeAlias
+from typing import ClassVar, TypeAlias
 
 import torch
 
@@ -15,14 +14,20 @@ __all__ = [
 ]
 
 
-@dataclass(slots=True)
 class LoggerFactory:
-    log_dir: str | os.PathLike
-    name: str | None = ""
-    interval: int = 1
-    add_datetime_prefix: bool = True
+    def __init__(
+        self,
+        log_dir: str | os.PathLike,
+        name: str | None = "",
+        interval: int = 1,
+        add_datetime_prefix: bool = True,
+    ):
+        self.log_dir = log_dir
+        self.name = name
+        self.interval = interval
+        self.add_datetime_prefix = add_datetime_prefix
 
-    def __call__(self):
+    def __call__(self) -> "Logger":
         return Logger(
             log_dir=self.log_dir,
             name=self.name,
@@ -65,7 +70,7 @@ class Logger:
             the experiment directory name. Defaults to ``True``.
     """
 
-    Factory = LoggerFactory
+    Factory: ClassVar[type[LoggerFactory]] = LoggerFactory
 
     def __init__(
         self,

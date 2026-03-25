@@ -59,12 +59,14 @@ class ModuleFactory(Generic[ModuleType]):
 def resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:
     if isinstance(activation_fn, str):
         activation_name = activation_fn
-        activation_fn = getattr(nn, activation_name, None)
-        if activation_fn is None:
+        resolved_activation_fn = getattr(nn, activation_name, None)
+        if resolved_activation_fn is None:
             raise ValueError(f"No activation function named '{activation_name}' was found in torch.nn")
-    if not issubclass(activation_fn, nn.Module):
-        raise TypeError(f"Activation functions must be subclasses of nn.Module; got {activation_fn}")
-    return activation_fn
+    else:
+        resolved_activation_fn = activation_fn
+    if not isinstance(resolved_activation_fn, type) or not issubclass(resolved_activation_fn, nn.Module):
+        raise TypeError(f"Activation functions must be subclasses of nn.Module; got {resolved_activation_fn}")
+    return resolved_activation_fn
 
 
 ModuleFactoryLike: TypeAlias = Callable[[int | None, int | None], "Module"] | ModuleFactory

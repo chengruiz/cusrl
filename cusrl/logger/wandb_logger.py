@@ -1,12 +1,12 @@
 import os
 from typing import Literal
 
-from cusrl.template.logger import Logger
+from cusrl.template.logger import Logger, LoggerFactory
 
 __all__ = ["Wandb"]
 
 
-class WandbFactory:
+class WandbFactory(LoggerFactory):
     def __init__(
         self,
         log_dir: str | os.PathLike,
@@ -23,10 +23,12 @@ class WandbFactory:
         sync_tensorboard: bool | None = None,
         **kwargs,
     ):
-        self.log_dir = log_dir
-        self.name = name
-        self.interval = interval
-        self.add_datetime_prefix = add_datetime_prefix
+        super().__init__(
+            log_dir=log_dir,
+            name=name,
+            interval=interval,
+            add_datetime_prefix=add_datetime_prefix,
+        )
         self.project = project
         self.dir = dir
         self.id = id

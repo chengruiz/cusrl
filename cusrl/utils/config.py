@@ -36,7 +36,7 @@ class Configurations:
             self._local_world_size = 1
 
         try:
-            import flash_attn
+            import flash_attn  # noqa: F401
 
             self._flash_attention_found = True
         except ImportError:

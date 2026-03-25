@@ -316,7 +316,7 @@ class StatelessWrapper(nn.Module):
         )
 
     @torch.no_grad()
-    def _forward_impl(self, **kwargs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    def _forward_impl(self, **kwargs: torch.Tensor) -> dict[str, torch.Tensor]:
         reconstructed_inputs = cast(dict[str, Any], reconstruct_nested(kwargs, self.input_schema))
         # Convert outputs to a flatten dictionary keyed by corresponding output names
         return flatten_nested(dict(zip(self.output_names, self.wrapped(**reconstructed_inputs))), separator="__")

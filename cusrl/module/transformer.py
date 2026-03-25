@@ -161,7 +161,7 @@ class TransformerEncoderLayer(Module):
         self.gate2 = gate_cls(self.embed_dim)
 
         if self.output_dim != self.embed_dim:
-            self.out_proj = nn.Linear(self.embed_dim, self.output_dim)
+            self.out_proj: nn.Module = nn.Linear(self.embed_dim, self.output_dim)
         else:
             self.out_proj = nn.Identity()
 

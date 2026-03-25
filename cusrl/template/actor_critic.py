@@ -330,7 +330,7 @@ class ActorCritic(Agent):
         target_format: Literal["onnx", "jit"] = "onnx",
         with_environment_normalization: bool = True,
         optimize: bool = True,
-        sequence_len: int | None = 1,
+        sequence_len: int = 1,
         batch_size: int = 1,
         opset_version: int | None = None,
         dynamo: bool = False,
