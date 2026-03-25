@@ -66,9 +66,9 @@ class Trial:
             if not trial_path.name.startswith("ckpt_") or trial_path.suffix != ".pt":
                 raise ValueError(f"'{trial_path}' is not a valid trial directory or checkpoint file")
 
-            self.home: Path = trial_path.parent.parent.absolute()
+            self.home = trial_path.parent.parent.absolute()
             self.all_iterations = self._search_ckpt(self.home / "ckpt")
-            self.iteration: int = self._get_ckpt_iteration(trial_path)
+            self.iteration = self._get_ckpt_iteration(trial_path)
 
         self.name: str = self.home.name
         self.experiment_name: str | None

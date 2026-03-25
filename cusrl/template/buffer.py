@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterator, MutableMapping
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any, TypeAlias, TypeVar
 
 import numpy as np
 import torch
@@ -40,7 +40,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
     sampling.
     """
 
-    FieldSpec = FieldSpec
+    FieldSpec: TypeAlias = FieldSpec
 
     def __init__(self, capacity: int, parallelism: int | None, device: str | torch.device):
         self.capacity = capacity

@@ -9,7 +9,7 @@ from torch import nn
 from typing_extensions import Self
 
 import cusrl
-from cusrl.template.environment import Environment
+from cusrl.template.environment import Environment, EnvironmentSpec
 from cusrl.utils import Metrics, distributed
 from cusrl.utils.typing import Array, ArrayType, ListOrTuple, Nested, NestedArray, NestedTensor
 
@@ -48,7 +48,7 @@ class AgentFactory(ABC, Generic[AgentType]):
         return self
 
     @abstractmethod
-    def __call__(self, environment_spec: Environment.Spec) -> AgentType:
+    def __call__(self, environment_spec: EnvironmentSpec) -> AgentType:
         raise NotImplementedError
 
     def from_environment(self, environment: Environment) -> AgentType:
@@ -109,7 +109,7 @@ class Agent(ABC):
 
     def __init__(
         self,
-        environment_spec: Environment.Spec,
+        environment_spec: EnvironmentSpec,
         num_steps_per_update: int,
         name: str = "Agent",
         device: torch.device | str | None = None,

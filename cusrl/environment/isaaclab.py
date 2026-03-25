@@ -9,7 +9,8 @@ import gymnasium as gym
 import torch
 
 import cusrl.utils
-from cusrl.template import Environment, Trainer
+from cusrl.template import Environment
+from cusrl.template.trainer import TrainerFactory
 from cusrl.utils import from_dict, to_dict
 from cusrl.utils.typing import Slice
 
@@ -211,7 +212,7 @@ def make_isaaclab_env(
 
 
 @dataclass
-class TrainerCfg(Trainer.Factory):
+class TrainerCfg(TrainerFactory):
     def __post_init__(self):
         # Manually set the serialization methods to each instance
         self.to_dict = self._to_dict

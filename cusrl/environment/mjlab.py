@@ -6,7 +6,9 @@ import torch
 
 import cusrl.utils
 from cusrl.template import Agent, Environment, Player, Trial
-from cusrl.template.environment import get_done_indices
+from cusrl.template.agent import AgentFactory
+from cusrl.template.environment import EnvironmentFactory, get_done_indices
+from cusrl.template.player import PlayerHook
 from cusrl.utils.typing import Slice
 
 __all__ = [
@@ -136,15 +138,15 @@ class MjlabPlayer(Player):
 
     def __init__(
         self,
-        environment: Environment | Environment.Factory,
-        agent: Agent | Agent.Factory,
+        environment: Environment | EnvironmentFactory,
+        agent: Agent | AgentFactory,
         checkpoint_path: str | Trial | None = None,
         num_steps: int | None = None,
         num_episodes: int | None = None,
         timestep: float | None = None,
         deterministic: bool = True,
         verbose: bool = True,
-        hooks: Iterable[Player.Hook] = (),
+        hooks: Iterable[PlayerHook] = (),
     ):
         super().__init__(
             environment=environment,

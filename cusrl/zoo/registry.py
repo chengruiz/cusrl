@@ -2,7 +2,9 @@ import importlib
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
-from cusrl.template import Agent, Environment, Player, Trainer
+from cusrl.template import Environment, Trainer
+from cusrl.template.agent import AgentFactory
+from cusrl.template.player import PlayerHook
 from cusrl.zoo.experiment import ExperimentSpec
 
 __all__ = [
@@ -27,7 +29,7 @@ experiment_modules = [
 def register_experiment(
     environment_name: str | Sequence[str],
     algorithm_name: str,
-    agent_factory_cls: type[Agent.Factory],
+    agent_factory_cls: type[AgentFactory],
     agent_factory_kwargs: dict[str, Any],
     training_env_factory: Callable[..., Environment],
     training_env_args: tuple[Any, ...] | None = None,
@@ -37,7 +39,7 @@ def register_experiment(
     playing_env_factory: Callable[..., Environment] | None = None,
     playing_env_args: tuple[Any, ...] | None = None,
     playing_env_kwargs: dict[str, Any] | None = None,
-    player_hooks: Iterable[Player.Hook] = (),
+    player_hooks: Iterable[PlayerHook] = (),
     num_iterations: int = 1000,
     save_interval: int = 50,
 ):

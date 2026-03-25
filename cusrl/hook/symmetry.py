@@ -6,6 +6,7 @@ import torch
 from torch import Tensor, nn
 
 from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
+from cusrl.module.actor import ActorFactory
 from cusrl.module.distribution import MeanStdDict
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.dict_utils import prefix_dict_keys
@@ -51,11 +52,9 @@ SymmetryDefLike: TypeAlias = Callable[[Tensor], Tensor]
 
 
 class SymmetryHook(Hook[ActorCritic]):
-    def __init__(self):
-        super().__init__()
-        self.mirror_observation: SymmetryDefLike
-        self.mirror_state: SymmetryDefLike | None
-        self.mirror_action: SymmetryDefLike
+    mirror_observation: SymmetryDefLike
+    mirror_state: SymmetryDefLike | None
+    mirror_action: SymmetryDefLike
 
     def init(self):
         num_symmetry_hooks = sum(isinstance(hook, SymmetryHook) for hook in self.agent.hook)
@@ -298,7 +297,7 @@ class SymmetricArchitecture(SymmetryHook):
 
 
 @dataclass
-class SymmetricActorFactory(Actor.Factory):
+class SymmetricActorFactory(ActorFactory):
     mirror_observation: SymmetryDefLike | None = None
     mirror_action: SymmetryDefLike | None = None
 

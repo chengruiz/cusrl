@@ -5,6 +5,7 @@ import torch
 
 import cusrl
 from cusrl.preset.optimizer import AdamFactory
+from cusrl.template.actor_critic import ActorCriticFactory
 
 __all__ = [
     "AgentFactory",
@@ -67,7 +68,7 @@ def get_distribution_factory(action_space_type: str):
 
 
 @dataclass
-class AgentFactory(cusrl.template.ActorCritic.Factory):
+class AgentFactory(ActorCriticFactory):
     num_steps_per_update: int = 24
     actor_hidden_dims: Iterable[int] = (256, 128)
     critic_hidden_dims: Iterable[int] = (256, 128)
@@ -142,7 +143,7 @@ class AgentFactory(cusrl.template.ActorCritic.Factory):
 
 
 @dataclass
-class RecurrentAgentFactory(cusrl.template.ActorCritic.Factory):
+class RecurrentAgentFactory(ActorCriticFactory):
     num_steps_per_update: int = 24
     rnn_type: str = "LSTM"
     actor_num_layers: int = 2

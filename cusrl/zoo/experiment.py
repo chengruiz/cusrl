@@ -4,7 +4,9 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import Any
 
-from cusrl.template import Agent, Environment, LoggerFactoryLike, Player, Trainer, Trial
+from cusrl.template import Environment, LoggerFactoryLike, Player, Trainer, Trial
+from cusrl.template.agent import AgentFactory
+from cusrl.template.player import PlayerHook
 
 __all__ = ["ExperimentSpec"]
 
@@ -13,7 +15,7 @@ __all__ = ["ExperimentSpec"]
 class ExperimentSpec:
     environment_name: str
     algorithm_name: str
-    agent_factory_cls: type[Agent.Factory]
+    agent_factory_cls: type[AgentFactory]
     agent_factory_kwargs: dict[str, Any]
     training_env_factory: Callable[..., Environment]
     training_env_args: tuple[Any, ...] = None
@@ -23,7 +25,7 @@ class ExperimentSpec:
     playing_env_factory: Callable[..., Environment] = None
     playing_env_args: tuple[Any, ...] = None
     playing_env_kwargs: dict[str, Any] = None
-    player_hooks: Iterable[Player.Hook] = ()
+    player_hooks: Iterable[PlayerHook] = ()
     num_iterations: int = 1000
     save_interval: int = 50
 
@@ -45,7 +47,7 @@ class ExperimentSpec:
     def name(self) -> str:
         return f"{self.environment_name}:{self.algorithm_name}"
 
-    def make_agent_factory(self, override_kwargs: dict[str, Any] | None = None, **kwargs) -> Agent.Factory:
+    def make_agent_factory(self, override_kwargs: dict[str, Any] | None = None, **kwargs) -> AgentFactory:
         agent_factory_kwargs = self.agent_factory_kwargs | (override_kwargs or {}) | kwargs
         return self.agent_factory_cls(**agent_factory_kwargs)
 

@@ -5,6 +5,7 @@ import torch
 
 import cusrl
 from cusrl.preset.optimizer import AdamFactory
+from cusrl.template.actor_critic import ActorCriticFactory
 
 __all__ = [
     "AgentFactory",
@@ -34,7 +35,7 @@ def hook_suite(
 
 
 @dataclass
-class AgentFactory(cusrl.template.ActorCritic.Factory):
+class AgentFactory(ActorCriticFactory):
     num_steps_per_update: int = 24
     actor_hidden_dims: Iterable[int] = (256, 128)
     critic_hidden_dims: Iterable[int] = (256, 128)

@@ -203,7 +203,7 @@ class Environment(ABC, Generic[ArrayType]):
     """
 
     Factory = EnvironmentFactory
-    Spec = EnvironmentSpec
+    Spec: TypeAlias = EnvironmentSpec
 
     def __init__(
         self,

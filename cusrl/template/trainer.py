@@ -13,8 +13,8 @@ import objprint
 import torch
 
 import cusrl
-from cusrl.template.agent import Agent
-from cusrl.template.environment import Environment, get_done_indices, update_observation_and_state
+from cusrl.template.agent import Agent, AgentFactory
+from cusrl.template.environment import Environment, EnvironmentFactory, get_done_indices, update_observation_and_state
 from cusrl.template.logger import LoggerFactoryLike
 from cusrl.template.trial import Trial
 from cusrl.utils import CONFIG, Timer, distributed, is_main_process
@@ -131,8 +131,8 @@ def save_version_info(output_dir: str | os.PathLike, workspace: str | os.PathLik
 
 @dataclass
 class TrainerFactory:
-    environment_factory: Environment.Factory | None = None
-    agent_factory: Agent.Factory | None = None
+    environment_factory: EnvironmentFactory | None = None
+    agent_factory: AgentFactory | None = None
     num_iterations: int | None = None
     save_interval: int | None = None
     checkpoint_path: str | None = None
@@ -159,8 +159,8 @@ class TrainerFactory:
 
     def __call__(
         self,
-        environment: Environment | Environment.Factory | None = None,
-        agent_factory: Agent.Factory | None = None,
+        environment: Environment | EnvironmentFactory | None = None,
+        agent_factory: AgentFactory | None = None,
         logger_factory: LoggerFactoryLike | None = None,
         num_iterations: int | None = None,
         init_iteration: int | None = None,
@@ -258,8 +258,8 @@ class Trainer:
 
     def __init__(
         self,
-        environment: Environment | Environment.Factory,
-        agent_factory: Agent.Factory,
+        environment: Environment | EnvironmentFactory,
+        agent_factory: AgentFactory,
         logger_factory: LoggerFactoryLike | None = None,
         num_iterations: int = 1000,
         init_iteration: int | None = None,

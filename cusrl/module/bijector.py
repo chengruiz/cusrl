@@ -30,6 +30,13 @@ class Bijector(nn.Module):
             Computes the inverse transformation, :math:`f^{-1}(y)`.
     """
 
+    @classmethod
+    def from_str(cls, spec: str) -> "Bijector":
+        if not spec:
+            return cls()
+        params = [float(param) for param in spec.split("_")]
+        return cls(*params)
+
     def forward(self, input: FloatOrTensor) -> FloatOrTensor:
         raise NotImplementedError
 
@@ -121,15 +128,16 @@ def make_bijector(bijector: str | Bijector | None) -> Bijector:
         return bijector
     if bijector is None:
         return IdentityBijector()
-    bijector_type, *params = bijector.split("_")
+    bijector_type, _, params = bijector.partition("_")
     bijector_type = bijector_type.lower()
-    params = [float(param) for param in params]
     if not bijector_type or bijector_type == "identity":
-        return IdentityBijector(*params)
-    if bijector_type == "exp" or bijector_type == "exponential":
-        return ExponentialBijector(*params)
-    if bijector_type == "sigmoid":
-        return SigmoidBijector(*params)
-    if bijector_type == "softplus":
-        return SoftplusBijector(*params)
-    raise ValueError(f"Unsupported bijector specification '{bijector}'")
+        cls: type[Bijector] = IdentityBijector
+    elif bijector_type == "exp" or bijector_type == "exponential":
+        cls = ExponentialBijector
+    elif bijector_type == "sigmoid":
+        cls = SigmoidBijector
+    elif bijector_type == "softplus":
+        cls = SoftplusBijector
+    else:
+        raise ValueError(f"Unsupported bijector specification '{bijector}'")
+    return cls.from_str(params)

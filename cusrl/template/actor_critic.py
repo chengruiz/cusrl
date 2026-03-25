@@ -7,6 +7,8 @@ import torch
 from typing_extensions import Self
 
 from cusrl.module import Actor, Denormalization, FlowGraph, Normalization, Value
+from cusrl.module.actor import ActorFactory
+from cusrl.module.critic import ValueFactory
 from cusrl.template.agent import Agent, AgentFactory
 from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
@@ -43,16 +45,16 @@ class HookList(list[Hook]):
 
 
 class ActorCriticFactory(AgentFactory["ActorCritic"]):
-    actor_factory: Actor.Factory
-    critic_factory: Value.Factory
+    actor_factory: ActorFactory
+    critic_factory: ValueFactory
     optimizer_factory: OptimizerFactory
     sampler: Sampler
     hooks: HookList
 
     def __init__(
         self,
-        actor_factory: Actor.Factory,
-        critic_factory: Value.Factory,
+        actor_factory: ActorFactory,
+        critic_factory: ValueFactory,
         optimizer_factory: OptimizerFactory,
         sampler: Sampler,
         hooks: Iterable[Hook],
@@ -169,8 +171,8 @@ class ActorCritic(Agent):
     def __init__(
         self,
         environment_spec: EnvironmentSpec,
-        actor_factory: Actor.Factory,
-        critic_factory: Value.Factory,
+        actor_factory: ActorFactory,
+        critic_factory: ValueFactory,
         optimizer_factory: OptimizerFactory,
         sampler: Sampler,
         hooks: Iterable[Hook],

@@ -6,8 +6,8 @@ from tqdm import tqdm
 from typing_extensions import Self
 
 from cusrl import utils
-from cusrl.template.agent import Agent
-from cusrl.template.environment import Environment, get_done_indices, update_observation_and_state
+from cusrl.template.agent import Agent, AgentFactory
+from cusrl.template.environment import Environment, EnvironmentFactory, get_done_indices, update_observation_and_state
 from cusrl.template.trainer import EnvironmentStats
 from cusrl.template.trial import Trial
 from cusrl.utils.typing import Array, Slice
@@ -134,8 +134,8 @@ class Player:
 
     def __init__(
         self,
-        environment: Environment | Environment.Factory,
-        agent: Agent | Agent.Factory,
+        environment: Environment | EnvironmentFactory,
+        agent: Agent | AgentFactory,
         checkpoint_path: str | Trial | None = None,
         num_steps: int | None = None,
         num_episodes: int | None = None,
@@ -172,7 +172,7 @@ class Player:
         for hook in hooks:
             self.register_hook(hook)
 
-    def register_hook(self, hook: Hook) -> Self:
+    def register_hook(self, hook: PlayerHook) -> Self:
         """Register and initialize a hook to receive callbacks during play.
 
         Args:

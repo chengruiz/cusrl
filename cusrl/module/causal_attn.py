@@ -367,7 +367,7 @@ class CausalTransformerEncoderLayer(Module):
 
         # modules
         if self.input_dim != self.embed_dim:
-            self.in_proj = nn.Linear(self.input_dim, self.embed_dim)
+            self.in_proj: nn.Module = nn.Linear(self.input_dim, self.embed_dim)
         else:
             self.in_proj = nn.Identity()
 
