@@ -27,7 +27,7 @@ class OnPolicyBufferCapacitySchedule(Hook[ActorCritic]):
     """
 
     def __init__(self, schedule: Callable[[int], int]):
-        super().__init__()
+        super().__init__(training_only=True)
         self.schedule = schedule
 
     def apply_schedule(self, iteration: int):
@@ -50,7 +50,7 @@ class OnPolicyPreparation(Hook[ActorCritic]):
     """
 
     def __init__(self, calculate_kl_divergence: bool = False):
-        super().__init__()
+        super().__init__(training_only=True)
         self.calculate_kl_divergence = calculate_kl_divergence
 
     def objective(self, batch):
@@ -88,7 +88,7 @@ class OnPolicyStatistics(Hook[ActorCritic]):
     """
 
     def __init__(self, sampler: Sampler | None = None):
-        super().__init__()
+        super().__init__(training_only=True)
         self.sampler = sampler if sampler is not None else Sampler()
 
     @torch.no_grad()

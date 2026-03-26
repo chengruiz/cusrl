@@ -37,7 +37,7 @@ class PpoSurrogateLoss(Hook):
     def __init__(self, clip_ratio: float = 0.2):
         if clip_ratio <= 0:
             raise ValueError("'clip_ratio' must be positive")
-        super().__init__()
+        super().__init__(training_only=True)
 
         # Mutable attributes
         self.clip_ratio: float = clip_ratio
@@ -71,7 +71,7 @@ class EntropyLoss(Hook):
     def __init__(self, weight: float = 0.01):
         if weight < 0:
             raise ValueError("'weight' must be non-negative")
-        super().__init__()
+        super().__init__(training_only=True)
 
         # Mutable attributes
         self.weight: float = weight

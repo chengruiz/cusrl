@@ -74,7 +74,7 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         if lamda_value is not None and (lamda_value < 0 or lamda_value > 1):
             raise ValueError(f"'lamda_value' must be in [0, 1]; got {lamda_value}")
 
-        super().__init__()
+        super().__init__(training_only=True)
         self.recompute = recompute
         self.popart_alpha = popart_alpha
 

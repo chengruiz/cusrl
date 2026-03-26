@@ -37,7 +37,7 @@ class GradientClipping(Hook):
         groups: dict[str, float | None] | None = None,
         **kwargs: float | None,
     ):
-        super().__init__()
+        super().__init__(training_only=True)
 
         if max_grad_norm is not None and max_grad_norm < 0:
             raise ValueError("'max_grad_norm' must be non-negative")

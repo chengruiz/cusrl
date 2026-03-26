@@ -27,12 +27,13 @@ class Hook(Generic[AgentType]):
 
     agent: AgentType
 
-    def __init__(self):
+    def __init__(self, training_only: bool = False):
         """Initializes the hook."""
         self._modules: dict[str, nn.Module | None] = {}
         self._mutable: set[str] = set()
         self._name: str = camel_to_snake(self.__class__.__name__)
         self._active: bool = True
+        self._training_only: bool = training_only
 
     @property
     def name(self) -> str:
@@ -44,6 +45,11 @@ class Hook(Generic[AgentType]):
     def active(self) -> bool:
         """Returns whether the hook is active."""
         return self._active
+
+    @property
+    def training_only(self) -> bool:
+        """Returns whether the hook is only active during training."""
+        return self._training_only
 
     def name_(self, name: str) -> Self:
         """Overrides the default name of the hook.
@@ -410,5 +416,5 @@ class HookComposite(Hook):
     def active_hooks(self) -> Iterator[Hook]:
         """Returns an iterator over the active hooks in the composite."""
         for hook in self:
-            if hook.active:
+            if hook.active and not (self.agent.inference_mode and hook.training_only):
                 yield hook

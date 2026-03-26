@@ -35,7 +35,7 @@ class AdvantageReduction(Hook):
     ):
         if reduction not in ("sum", "mean"):
             raise ValueError(f"Unsupported reduction '{reduction}'")
-        super().__init__()
+        super().__init__(training_only=True)
 
         self.reduction = reduction
 
@@ -93,7 +93,7 @@ class AdvantageNormalization(Hook[ActorCritic]):
     """
 
     def __init__(self, mini_batch_wise: bool = False, synchronize: bool = True):
-        super().__init__()
+        super().__init__(training_only=True)
         self.mini_batch_wise = mini_batch_wise
         self.synchronize = synchronize
 

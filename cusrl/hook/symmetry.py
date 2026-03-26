@@ -177,7 +177,7 @@ class SymmetricDataAugmentation(SymmetryHook):
 
     def __init__(self, augments_value: bool = True):
         self.augments_value = augments_value
-        super().__init__()
+        super().__init__(training_only=True)
 
         # Runtime attributes
         self.mirrored_actor_memory: Memory

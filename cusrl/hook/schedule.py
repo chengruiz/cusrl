@@ -29,7 +29,7 @@ class HookParameterSchedule(Hook[ActorCritic]):
         parameter: str,
         scheduler: Callable[[int], Any],
     ):
-        super().__init__()
+        super().__init__(training_only=True)
         self.hook_name = hook_name
         self.parameter = parameter
         self.scheduler = scheduler
@@ -56,7 +56,7 @@ class HookActivationSchedule(Hook[ActorCritic]):
     """
 
     def __init__(self, hook_name: str, scheduler: Callable[[int], bool]):
-        super().__init__()
+        super().__init__(training_only=True)
         self.hook_name = hook_name
         self.scheduler = scheduler
         self.name_(f"{hook_name}_activation_schedule")
