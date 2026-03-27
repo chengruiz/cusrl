@@ -2,7 +2,7 @@ import os
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, TypeAlias
+from typing import TypeAlias
 
 import torch
 
@@ -70,7 +70,7 @@ class Logger:
             the experiment directory name. Defaults to ``True``.
     """
 
-    Factory: ClassVar[type[LoggerFactory]] = LoggerFactory
+    Factory = LoggerFactory
 
     def __init__(
         self,

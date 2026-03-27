@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Any, ClassVar, Generic, Optional, TypeAlias, TypeVar
+from typing import Any, Generic, Optional, TypeAlias, TypeVar
 
 import torch
 from torch import nn
@@ -99,7 +99,7 @@ class Module(nn.Module):
             ``None``.
     """
 
-    Factory: ClassVar[type[ModuleFactory[Any]]] = ModuleFactory
+    Factory = ModuleFactory
 
     def __init__(
         self,

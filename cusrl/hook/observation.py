@@ -21,8 +21,8 @@ class ObservationNanToNum(Hook[ActorCritic]):
     through the pipeline. It operates in-place on the following fields when
     present:
 
-    - ``"observation"`` and ``"state"`` during :func:`pre_act`;
-    - ``"next_observation"`` and ``"next_state"`` during :func:`post_step`.
+    - ``"observation"`` and ``"state"`` during :meth:`pre_act`;
+    - ``"next_observation"`` and ``"next_state"`` during :meth:`post_step`.
 
     Args:
         nan (float, optional):

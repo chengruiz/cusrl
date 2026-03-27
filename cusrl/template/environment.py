@@ -46,7 +46,7 @@ class EnvironmentSpec:
             the valid actions that can be taken in the environment.
         autoreset (bool):
             Whether the environment automatically resets itself on terminal
-            states inside :func:`Environment.step`.
+            states inside :meth:`Environment.step`.
         environment_instance (Environment | None):
             The environment instance associated with the specification. It is
             recommended to define environment specifications in this class as

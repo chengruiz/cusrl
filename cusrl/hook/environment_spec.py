@@ -13,7 +13,7 @@ class EnvironmentSpecOverride(Hook):
     This hook allows for modifying the :attr:`environment_spec` of an agent
     before its initialization. The desired overrides are provided as keyword
     arguments during the hook's instantiation. These overrides are applied
-    during the :func:`pre_init` phase of the agent's lifecycle.
+    during the :meth:`pre_init` phase of the agent's lifecycle.
 
     Args:
         **kwargs:

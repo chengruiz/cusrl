@@ -76,13 +76,13 @@ class Agent(ABC):
         MODULES (list[str]):
             A list of attribute names that correspond to :cls:`torch.nn.Module`
             instances. These modules will be automatically handled by methods
-            like :func:`state_dict`, :func:`load_state_dict`, and
-            :func:`_set_training_mode`.
+            like :meth:`state_dict`, :meth:`load_state_dict`, and
+            :meth:`_set_training_mode`.
         OPTIMIZERS (list[str]):
             A list of attribute names that correspond to
             :cls:`torch.optim.Optimizer` instances. These optimizers will be
-            automatically handled by :func:`state_dict` and
-            :func:`load_state_dict`.
+            automatically handled by :meth:`state_dict` and
+            :meth:`load_state_dict`.
 
     Args:
         environment_spec (EnvironmentSpec):

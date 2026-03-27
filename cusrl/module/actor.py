@@ -32,8 +32,8 @@ class Actor(Module):
     module that defines the action distribution based on this latent
     representation.
 
-    The class provides different forward methods for training (:func:`forward`),
-    exploration (:func:`explore`), and deployment (:func:`act`).
+    The class provides different forward methods for training (:meth:`forward`),
+    exploration (:meth:`explore`), and deployment (:meth:`act`).
 
     Args:
         backbone (Module):
@@ -82,7 +82,7 @@ class Actor(Module):
         """Main forward pass for the actor, dispatching to specific
         implementations.
 
-        This method acts as a router to different functionalities based on the
+        This method acts as a router to different methtionalities based on the
         ``forward_type`` argument.
         """
         if forward_type == "forward":
@@ -151,7 +151,7 @@ class Actor(Module):
     ) -> tuple[Tensor, Memory]:
         """Generates an action for interacting with the environment.
 
-        This is a simplified version of :func:`explore` intended for deployment
+        This is a simplified version of :meth:`explore` intended for deployment
         or evaluation, returning only the action and the updated memory state.
 
         Args:
