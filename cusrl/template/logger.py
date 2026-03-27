@@ -50,10 +50,10 @@ class Logger:
     When ``name`` is not ``None``, the logger creates a directory structure as
     follows:
     `[log_dir]/`
-        `[timestamp:][name]/`
+        `[timestamp]_[name]/`
             `info/` - For storing text-based information.
             `ckpt/` - For storing model checkpoints.
-        `latest` -> symlink to `[timestamp]:[name]/`
+        `latest` -> symlink to `[timestamp]_[name]/`
 
     Args:
         log_dir (str | os.PathLike):
@@ -86,7 +86,7 @@ class Logger:
                 raise ValueError("'name' must not contain '/' or '\\' characters")
             if add_datetime_prefix:
                 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-                self.name = f"{timestamp}:{self.name}" if self.name else timestamp
+                self.name = f"{timestamp}_{self.name}" if self.name else timestamp
             self.log_dir /= self.name
         self.log_dir.mkdir(parents=True, exist_ok=True)
         if self.name is not None:

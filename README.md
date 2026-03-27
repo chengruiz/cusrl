@@ -52,7 +52,7 @@ Train a PPO agent and evaluate it:
 
 ```bash
 python -m cusrl train -env MountainCar-v0 -alg ppo --logger tensorboard --seed 42
-python -m cusrl play --checkpoint logs/MountainCar-v0:ppo
+python -m cusrl play --checkpoint logs/MountainCar-v0_ppo
 ```
 
 Or if you have [IssacLab](https://github.com/isaac-sim/IsaacLab) installed:
@@ -60,7 +60,7 @@ Or if you have [IssacLab](https://github.com/isaac-sim/IsaacLab) installed:
 ```bash
 python -m cusrl train -env Isaac-Velocity-Rough-Anymal-C-v0 -alg ppo \
     --logger tensorboard --environment-args="--headless"
-python -m cusrl play --checkpoint logs/Isaac-Velocity-Rough-Anymal-C-v0:ppo
+python -m cusrl play --checkpoint logs/Isaac-Velocity-Rough-Anymal-C-v0_ppo
 ```
 
 Try distributed training:

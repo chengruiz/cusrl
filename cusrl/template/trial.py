@@ -11,9 +11,9 @@ class Trial:
 
     This class provides a convenient way to interact with the output of a
     training run (a "trial"). It can be initialized with a path to:
-      - An experiment's home directory (e.g., `Env:Algo/`)
-      - A trial's home directory (e.g., `Env:Algo/trial_1/`)
-      - A specific checkpoint file (e.g., `Env:Algo/trial_1/ckpt/ckpt_100.pt`)
+      - An experiment's home directory (e.g., `Env_Algo/`)
+      - A trial's home directory (e.g., `Env_Algo/trial_1/`)
+      - A specific checkpoint file (e.g., `Env_Algo/trial_1/ckpt/ckpt_100.pt`)
 
     The class automatically discovers information like the experiment name,
     algorithm, environment, and available checkpoint iterations.
@@ -34,7 +34,8 @@ class Trial:
             The name of the trial, derived from its directory name.
         experiment_name (str | None):
             The name of the experiment, if the directory name follows the
-            'env:algo' convention.
+            `env_algo` convention. Legacy `env:algo` names are also supported
+            when reading existing experiments.
         algorithm_name (str | None):
             The name of the algorithm, parsed from the experiment name.
         environment_name (str | None):
@@ -76,7 +77,9 @@ class Trial:
         self.environment_name: str | None
 
         self.experiment_name = self.home.parent.name
-        if self.experiment_name.count(":") == 1:
+        if self.experiment_name.count("_") == 1:
+            self.environment_name, self.algorithm_name = self.experiment_name.split("_")
+        elif self.experiment_name.count(":") == 1:
             self.environment_name, self.algorithm_name = self.experiment_name.split(":")
         else:  # If the naming does not follow the convention
             self.environment_name = self.algorithm_name = self.experiment_name = None

@@ -85,7 +85,7 @@ def load_experiment_modules():
 def get_experiment(environment_name: str, algorithm_name: str) -> ExperimentSpec:
     load_experiment_modules()
 
-    key = f"{environment_name}:{algorithm_name}"
+    key = f"{environment_name}_{algorithm_name}"
     if key not in registry:
         all_experiments = "".join([f"\n  - {experiment_name}" for experiment_name in sorted(registry.keys())])
         raise ValueError(f"Experiment '{key}' is not registered. Available experiments:{all_experiments}")

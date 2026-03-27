@@ -30,10 +30,11 @@ class ExperimentSpec:
     save_interval: int = 50
 
     def __post_init__(self):
-        if ":" in self.environment_name or "/" in self.environment_name or "\\" in self.environment_name:
-            raise ValueError(f"'environment_name' cannot contain ':', '/', or '\\'; got '{self.environment_name}'")
-        if ":" in self.algorithm_name or "/" in self.algorithm_name or "\\" in self.algorithm_name:
-            raise ValueError(f"'algorithm_name' cannot contain ':', '/', or '\\'; got '{self.algorithm_name}'")
+        disallowed = (":", "_", "/", "\\")
+        if any(token in self.environment_name for token in disallowed):
+            raise ValueError(f"'environment_name' cannot contain ':', '_', '/', or '\\'; got '{self.environment_name}'")
+        if any(token in self.algorithm_name for token in disallowed):
+            raise ValueError(f"'algorithm_name' cannot contain ':', '_', '/', or '\\'; got '{self.algorithm_name}'")
         if self.training_env_args is None:
             self.training_env_args = (self.environment_name,)
         if self.playing_env_factory is None:
@@ -45,7 +46,7 @@ class ExperimentSpec:
 
     @property
     def name(self) -> str:
-        return f"{self.environment_name}:{self.algorithm_name}"
+        return f"{self.environment_name}_{self.algorithm_name}"
 
     def make_agent_factory(self, override_kwargs: dict[str, Any] | None = None, **kwargs) -> AgentFactory:
         agent_factory_kwargs = self.agent_factory_kwargs | (override_kwargs or {}) | kwargs
