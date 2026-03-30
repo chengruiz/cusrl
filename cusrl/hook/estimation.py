@@ -1,10 +1,11 @@
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 from torch import Tensor, nn
 
 from cusrl.module import Module, ModuleFactoryLike
-from cusrl.template import ActorCritic, Hook
+from cusrl.template import ActorCritic, Hook, HookFactory
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = ["StateEstimation"]
@@ -12,6 +13,22 @@ __all__ = ["StateEstimation"]
 
 class StateEstimation(Hook[ActorCritic]):
     """A hook to estimate states from observations."""
+
+    @dataclass
+    class Factory(HookFactory["StateEstimation"]):
+        estimator_factory: ModuleFactoryLike
+        source_name: str = "observation"
+        source_indices: Slice = slice(None)
+        source_dim: int | None = None
+        target_name: str = "state"
+        target_indices: Slice = slice(None)
+        target_dim: int | None = None
+        estimation_name: str = "state_estimation"
+        weight: float = 1.0
+
+        @classmethod
+        def get_hook_type(cls):
+            return StateEstimation
 
     def __init__(
         self,

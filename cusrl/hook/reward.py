@@ -1,8 +1,9 @@
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 
-from cusrl.template import Hook
+from cusrl.template import Hook, HookFactory
 
 __all__ = ["RewardShaping"]
 
@@ -26,6 +27,17 @@ class RewardShaping(Hook):
             The maximum value to clamp the reward to. If None, no upper bound
             is applied. Defaults to ``None``.
     """
+
+    @dataclass
+    class Factory(HookFactory["RewardShaping"]):
+        scale: float = 1.0
+        shift: float = 0.0
+        lower_bound: float | None = None
+        upper_bound: float | None = None
+
+        @classmethod
+        def get_hook_type(cls):
+            return RewardShaping
 
     def __init__(
         self,

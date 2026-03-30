@@ -1,16 +1,26 @@
 import math
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 
 from cusrl.hook.on_policy import OnPolicyPreparation
-from cusrl.template import ActorCritic, Hook
+from cusrl.template import ActorCritic, Hook, HookFactory
 from cusrl.utils import distributed
 
 __all__ = ["AdaptiveLRSchedule", "MiniBatchWiseLRSchedule", "ThresholdLRSchedule"]
 
 
 class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
+    @dataclass
+    class Factory(HookFactory["KLDivergenceBasedLRSchedule"]):
+        desired_kl_divergence: float = 0.01
+        scale_all_params: bool = False
+
+        @classmethod
+        def get_hook_type(cls):
+            return KLDivergenceBasedLRSchedule
+
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
@@ -70,6 +80,17 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
             scales actor parameter groups. Defaults to ``False``.
     """
 
+    @dataclass
+    class Factory(HookFactory["ThresholdLRSchedule"]):
+        desired_kl_divergence: float = 0.01
+        threshold: float = 1.2
+        scale_factor: float = 1.1
+        scale_all_params: bool = False
+
+        @classmethod
+        def get_hook_type(cls):
+            return ThresholdLRSchedule
+
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
@@ -111,6 +132,17 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
             If ``True``, scales all optimizer parameter groups; otherwise only
             scales the parameter group of the actor. Defaults to ``False``.
     """
+
+    @dataclass
+    class Factory(HookFactory["AdaptiveLRSchedule"]):
+        desired_kl_divergence: float = 0.01
+        threshold: float = 1.0
+        scale_factor: float = 0.2
+        scale_all_params: bool = False
+
+        @classmethod
+        def get_hook_type(cls):
+            return AdaptiveLRSchedule
 
     def __init__(
         self,
@@ -154,6 +186,16 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
         scale_factor (float, optional):
             Multiplicative factor for scaling the LR. Defaults to ``1.5``.
     """
+
+    @dataclass
+    class Factory(HookFactory["MiniBatchWiseLRSchedule"]):
+        desired_kl_divergence: float = 0.01
+        threshold: float = 2.0
+        scale_factor: float = 1.5
+
+        @classmethod
+        def get_hook_type(cls):
+            return MiniBatchWiseLRSchedule
 
     def __init__(
         self,

@@ -1,11 +1,12 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 from torch import nn
 
 from cusrl.module.distribution import MeanStdDict
-from cusrl.template import Hook
+from cusrl.template import Hook, HookFactory
 from cusrl.utils.recurrent import apply_sequence_batch_mask, split_and_pad_sequences
 
 __all__ = ["ActionSmoothnessLoss"]
@@ -30,6 +31,15 @@ class ActionSmoothnessLoss(Hook):
             Weight for the 2nd order smoothness loss. Could be a scalar or a
             tensor matching the action dimension. Defaults to ``None``.
     """
+
+    @dataclass
+    class Factory(HookFactory["ActionSmoothnessLoss"]):
+        weight_1st_order: float | Sequence[float] | None = None
+        weight_2nd_order: float | Sequence[float] | None = None
+
+        @classmethod
+        def get_hook_type(cls):
+            return ActionSmoothnessLoss
 
     def __init__(
         self,

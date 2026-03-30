@@ -2,7 +2,7 @@ from .actor_critic import ActorCritic
 from .agent import Agent
 from .buffer import Buffer, Sampler
 from .environment import Environment, EnvironmentSpec
-from .hook import Hook
+from .hook import Hook, HookFactory
 from .logger import Logger, LoggerFactory, LoggerFactoryLike, make_logger_factory
 from .optimizer import OptimizerFactory
 from .player import Player
@@ -16,6 +16,7 @@ __all__ = [
     "Environment",
     "EnvironmentSpec",
     "Hook",
+    "HookFactory",
     "Logger",
     "LoggerFactory",
     "LoggerFactoryLike",

@@ -8,7 +8,7 @@ from torch import Tensor, nn
 from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
 from cusrl.module.actor import ActorFactory
 from cusrl.module.distribution import MeanStdDict
-from cusrl.template import ActorCritic, Hook
+from cusrl.template import ActorCritic, Hook, HookFactory
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.nest import map_nested
 from cusrl.utils.typing import Memory, NestedTensor, Slice
@@ -89,6 +89,15 @@ class SymmetryLoss(SymmetryHook):
             Whether to symmetrize the action standard deviation. Defaults to
             ``False``.
     """
+
+    @dataclass
+    class Factory(HookFactory["SymmetryLoss"]):
+        weight: float | None
+        symmetrize_action_std: bool = False
+
+        @classmethod
+        def get_hook_type(cls):
+            return SymmetryLoss
 
     def __init__(self, weight: float | None, symmetrize_action_std: bool = False):
         if weight is not None and weight < 0:
@@ -174,6 +183,14 @@ class SymmetricDataAugmentation(SymmetryHook):
             Whether to augment the value function with mirrored transitions.
             Defaults to ``True``.
     """
+
+    @dataclass
+    class Factory(HookFactory["SymmetricDataAugmentation"]):
+        augments_value: bool = True
+
+        @classmethod
+        def get_hook_type(cls):
+            return SymmetricDataAugmentation
 
     def __init__(self, augments_value: bool = True):
         self.augments_value = augments_value
@@ -284,6 +301,12 @@ class SymmetricArchitecture(SymmetryHook):
     This hook wraps the agent's original actor with a ``SymmetricActor`` during
     the initialization phase, ensuring that the policy is strictly symmetric.
     """
+
+    @dataclass
+    class Factory(HookFactory["SymmetricArchitecture"]):
+        @classmethod
+        def get_hook_type(cls):
+            return SymmetricArchitecture
 
     def pre_init(self, agent: ActorCritic):
         super().pre_init(agent)

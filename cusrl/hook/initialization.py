@@ -1,10 +1,11 @@
 import itertools
 import math
+from dataclasses import dataclass
 from typing import Literal
 
 from torch import nn
 
-from cusrl.template import ActorCritic, Hook
+from cusrl.template import ActorCritic, Hook, HookFactory
 
 __all__ = ["ModuleInitialization"]
 
@@ -44,6 +45,22 @@ class ModuleInitialization(Hook[ActorCritic]):
             If provided, sets the initial standard deviation for the action
             distribution. Defaults to ``None``.
     """
+
+    @dataclass
+    class Factory(HookFactory["ModuleInitialization"]):
+        scale: float = math.sqrt(2)
+        scale_dist: float = math.sqrt(2) * 0.1
+        zero_bias: bool = True
+        conv_a: float = 0.0
+        conv_mode: Literal["fan_in", "fan_out"] = "fan_in"
+        conv_nonlinearity: Literal["relu", "leaky_relu"] = "leaky_relu"
+        init_actor: bool = True
+        init_critic: bool = True
+        distribution_std: float | None = None
+
+        @classmethod
+        def get_hook_type(cls):
+            return ModuleInitialization
 
     def __init__(
         self,

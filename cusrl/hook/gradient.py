@@ -1,6 +1,8 @@
+from dataclasses import dataclass, field
+
 from torch import nn
 
-from cusrl.template import Hook
+from cusrl.template import Hook, HookFactory
 
 __all__ = ["GradientClipping"]
 
@@ -30,6 +32,15 @@ class GradientClipping(Hook):
             If ``max_grad_norm`` or any group limit is negative, or if a group
             prefix is empty.
     """
+
+    @dataclass
+    class Factory(HookFactory["GradientClipping"]):
+        max_grad_norm: float | None = 1.0
+        groups: dict[str, float | None] = field(default_factory=dict)
+
+        @classmethod
+        def get_hook_type(cls):
+            return GradientClipping
 
     def __init__(
         self,

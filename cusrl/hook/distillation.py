@@ -1,15 +1,25 @@
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 from torch import Tensor, nn
 
 from cusrl.module.distribution import MeanStdDict
-from cusrl.template import ActorCritic, Hook
+from cusrl.template import ActorCritic, Hook, HookFactory
 
 __all__ = ["PolicyDistillation", "PolicyDistillationLoss"]
 
 
 class PolicyDistillationLoss(Hook[ActorCritic]):
+    @dataclass
+    class Factory(HookFactory["PolicyDistillationLoss"]):
+        target_name: str = "expert_action"
+        weight: float = 1.0
+
+        @classmethod
+        def get_hook_type(cls):
+            return PolicyDistillationLoss
+
     def __init__(
         self,
         target_name: str = "expert_action",
@@ -48,6 +58,16 @@ class PolicyDistillation(PolicyDistillationLoss):
         weight (float, optional):
             Weight for the distillation loss. Defaults to 1.0.
     """
+
+    @dataclass
+    class Factory(HookFactory["PolicyDistillation"]):
+        expert_path: str
+        observation_name: str = "observation"
+        weight: float = 1.0
+
+        @classmethod
+        def get_hook_type(cls):
+            return PolicyDistillation
 
     def __init__(
         self,

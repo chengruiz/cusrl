@@ -1,11 +1,12 @@
 import itertools
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 from torch import nn
 
 from cusrl.module import Module, ModuleFactoryLike
-from cusrl.template import Buffer, Hook
+from cusrl.template import Buffer, Hook, HookFactory
 from cusrl.utils.dict_utils import get_first
 from cusrl.utils.typing import Slice
 
@@ -29,6 +30,17 @@ class RandomNetworkDistillation(Hook):
             Indices of states used for quantifying novelty. Defaults to
             ``None``.
     """
+
+    @dataclass
+    class Factory(HookFactory["RandomNetworkDistillation"]):
+        module_factory: ModuleFactoryLike
+        output_dim: int
+        reward_scale: float
+        state_indices: Slice | None = None
+
+        @classmethod
+        def get_hook_type(cls):
+            return RandomNetworkDistillation
 
     def __init__(
         self,

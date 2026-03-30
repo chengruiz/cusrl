@@ -1,8 +1,9 @@
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 
-from cusrl.template import Hook
+from cusrl.template import Hook, HookFactory
 
 __all__ = ["PpoSurrogateLoss", "EntropyLoss"]
 
@@ -33,6 +34,14 @@ class PpoSurrogateLoss(Hook):
             the range ``[1 - clip_ratio, 1 + clip_ratio]`` within which the
             probability ratio is clipped. Defaults to ``0.2``.
     """
+
+    @dataclass
+    class Factory(HookFactory["PpoSurrogateLoss"]):
+        clip_ratio: float = 0.2
+
+        @classmethod
+        def get_hook_type(cls):
+            return PpoSurrogateLoss
 
     def __init__(self, clip_ratio: float = 0.2):
         if clip_ratio <= 0:
@@ -67,6 +76,14 @@ class EntropyLoss(Hook):
             The coefficient for the entropy loss term. A larger value results in
             a stronger incentive for exploration. Defaults to ``0.01``.
     """
+
+    @dataclass
+    class Factory(HookFactory["EntropyLoss"]):
+        weight: float = 0.01
+
+        @classmethod
+        def get_hook_type(cls):
+            return EntropyLoss
 
     def __init__(self, weight: float = 0.01):
         if weight < 0:

@@ -1,9 +1,10 @@
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 
 from cusrl.module import ExponentialMovingNormalizer
-from cusrl.template import ActorCritic, Hook
+from cusrl.template import ActorCritic, Hook, HookFactory
 
 __all__ = ["GeneralizedAdvantageEstimation"]
 
@@ -58,6 +59,18 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             If not ``None``, applies PopArt normalization to the value function
             with the specified alpha. Defaults to ``None`` (no normalization).
     """
+
+    @dataclass
+    class Factory(HookFactory["GeneralizedAdvantageEstimation"]):
+        gamma: float = 0.99
+        lamda: float = 0.95
+        lamda_value: float | None = None
+        recompute: bool = False
+        popart_alpha: float | None = None
+
+        @classmethod
+        def get_hook_type(cls):
+            return GeneralizedAdvantageEstimation
 
     def __init__(
         self,

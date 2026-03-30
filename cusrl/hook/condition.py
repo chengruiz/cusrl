@@ -1,7 +1,8 @@
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
 from typing import Any
 
-from cusrl.template import ActorCritic, Hook
+from cusrl.template import ActorCritic, Hook, HookFactory
 
 __all__ = ["ConditionalObjectiveActivation", "EpochIndexCondition"]
 
@@ -37,9 +38,21 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
             ``False`` otherwise.
     """
 
-    def __init__(self, **named_conditions: Callable[[ActorCritic, dict[str, Any]], bool]):
+    @dataclass
+    class Factory(HookFactory["ConditionalObjectiveActivation"]):
+        named_conditions: dict[str, Callable[[ActorCritic, dict[str, Any]], bool]] = field(default_factory=dict)
+
+        @classmethod
+        def get_hook_type(cls):
+            return ConditionalObjectiveActivation
+
+    def __init__(
+        self,
+        named_conditions: dict[str, Callable[[ActorCritic, dict[str, Any]], bool]] | None = None,
+        **kwargs: Callable[[ActorCritic, dict[str, Any]], bool],
+    ):
         super().__init__(training_only=True)
-        self.named_conditions = named_conditions
+        self.named_conditions = (named_conditions or {}) | kwargs
         self.named_activation = {}
 
     def pre_update(self, buffer):

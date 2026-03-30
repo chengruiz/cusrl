@@ -1,16 +1,28 @@
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 from torch import nn
 
 from cusrl.module import FlowGraph, LayerFactoryLike
-from cusrl.template import ActorCritic, Hook
+from cusrl.template import ActorCritic, Hook, HookFactory
 from cusrl.utils.typing import Slice
 
 __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]
 
 
 class ReturnPrediction(Hook[ActorCritic]):
+    @dataclass
+    class Factory(HookFactory["ReturnPrediction"]):
+        latent_name: str = "backbone.output"
+        weight: float = 0.01
+        predictor_factory: LayerFactoryLike = nn.Linear  # type: ignore[assignment]
+        predicts_value_instead_of_return: bool = False
+
+        @classmethod
+        def get_hook_type(cls):
+            return ReturnPrediction
+
     def __init__(
         self,
         latent_name: str = "backbone.output",
@@ -78,6 +90,17 @@ class StatePrediction(Hook[ActorCritic]):
             Defaults to ``nn.Linear``.
     """
 
+    @dataclass
+    class Factory(HookFactory["StatePrediction"]):
+        target_indices: Slice
+        latent_name: str = "backbone.output"
+        weight: float = 0.01
+        predictor_factory: LayerFactoryLike = nn.Linear  # type: ignore[assignment]
+
+        @classmethod
+        def get_hook_type(cls):
+            return StatePrediction
+
     def __init__(
         self,
         target_indices: Slice,
@@ -138,6 +161,17 @@ class ActionAwarePredictorWrapper(nn.Module):
 
 
 class NextStatePrediction(Hook[ActorCritic]):
+    @dataclass
+    class Factory(HookFactory["NextStatePrediction"]):
+        target_indices: Slice
+        latent_name: str = "backbone.output"
+        weight: float = 0.01
+        predictor_factory: LayerFactoryLike = nn.Linear  # type: ignore[assignment]
+
+        @classmethod
+        def get_hook_type(cls):
+            return NextStatePrediction
+
     def __init__(
         self,
         target_indices: Slice,

@@ -1,9 +1,10 @@
+from dataclasses import dataclass
 from typing import cast
 
 import torch
 from torch import Tensor, nn
 
-from cusrl.template import ActorCritic, Buffer, Hook
+from cusrl.template import ActorCritic, Buffer, Hook, HookFactory
 from cusrl.utils.dict_utils import get_first
 from cusrl.utils.nest import map_nested
 from cusrl.utils.recurrent import apply_sequence_batch_mask, set_sequence_batch_masked_
@@ -24,6 +25,15 @@ class ValueComputation(Hook[ActorCritic]):
             If ``True``, bootstraps the value of truncated states using the
             critic.
     """
+
+    @dataclass
+    class Factory(HookFactory["ValueComputation"]):
+        termination_value: float = 0.0
+        bootstrap_truncated_states: bool = True
+
+        @classmethod
+        def get_hook_type(cls):
+            return ValueComputation
 
     def __init__(
         self,
@@ -111,6 +121,15 @@ class ValueLoss(Hook[ActorCritic]):
             If specified, uses a clipped value loss instead of standard MSE.
             Defaults to ``None``, which means standard MSE is used.
     """
+
+    @dataclass
+    class Factory(HookFactory["ValueLoss"]):
+        weight: float = 0.5
+        loss_clip: float | None = None
+
+        @classmethod
+        def get_hook_type(cls):
+            return ValueLoss
 
     def __init__(self, weight: float = 0.5, loss_clip: float | None = None):
         if weight <= 0:
