@@ -146,19 +146,22 @@ class SymmetryLoss(SymmetryHook):
                 done=batch["done"],
             )
 
+        losses = {}
         curr_action_dist = cast(MeanStdDict, batch["curr_action_dist"])
-        loss = self.criterion(
+        action_mean_symmetry_loss = self.criterion(
             curr_action_dist["mean"],
             self.mirror_action(mirrored_action_dist["mean"]),
         )
+        losses["action_mean_symmetry_loss"] = action_mean_symmetry_loss * self.weight
+
         if self.symmetrize_action_std:
-            loss += self.criterion(
+            action_std_symmetry_loss = self.criterion(
                 curr_action_dist["std"],
                 self.mirror_action(mirrored_action_dist["std"]).abs(),
             )
-        symmetry_loss = self.weight * loss
-        self.agent.record(symmetry_loss=symmetry_loss)
-        return symmetry_loss
+            losses["action_std_symmetry_loss"] = action_std_symmetry_loss * self.weight
+
+        return losses
 
 
 class SymmetricDataAugmentation(SymmetryHook):

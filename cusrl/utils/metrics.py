@@ -1,7 +1,6 @@
-from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
-from itertools import chain
+import itertools
 from typing import Any
 
 import torch
@@ -29,11 +28,36 @@ class Metric:
         self.count = total_count
 
 
-class Metrics(defaultdict[str, Metric]):
+class Metrics:
     def __init__(self):
-        super().__init__(Metric)
+        self._data: dict[str, Metric] = {}
 
-    def record(self, **kwargs: Any | None):
+    def clear(self):
+        self._data.clear()
+
+    def __getitem__(self, name: str) -> Metric:
+        return self._data[name]
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self):
+        return len(self._data)
+
+    def items(self):
+        return self._data.items()
+
+    def keys(self):
+        return self._data.keys()
+
+    def values(self):
+        return self._data.values()
+
+    def get(self, name: str, default=None):
+        return self._data.get(name, default)
+
+    @torch.no_grad()
+    def record(self, metrics: Mapping[str, Any | None] | None = None, /, **kwargs: Any | None):
         """Records statistics for multiple metrics.
 
         Each keyword argument represents a metric name and its corresponding
@@ -43,21 +67,17 @@ class Metrics(defaultdict[str, Metric]):
             **kwargs:
                 Metric names mapped to values convertible to torch tensors.
         """
-        self.update(kwargs)
-
-    @torch.no_grad()
-    def update(self, other: Mapping[str, Any], /, **kwargs):
-        for name, value in chain(other.items(), kwargs.items()):
+        for name, value in itertools.chain((metrics or {}).items(), kwargs.items()):
             if value is None:
                 continue
             try:
                 value = torch.as_tensor(value, dtype=torch.float32)
-                numel = value.numel()
-                if numel == 0:
-                    continue
-                self[name].update(value.mean(), numel)
             except Exception as error:
                 raise ValueError(f"Failed to update metric '{name}'") from error
+            numel = value.numel()
+            if numel == 0:
+                continue
+            self._data.setdefault(name, Metric()).update(value.mean(), numel)
 
     def summary(self, prefix: str = "") -> dict[str, float]:
         """Generates summary statistics with optional prefix.

@@ -38,19 +38,24 @@ class PpoSurrogateLoss(Hook):
     @dataclass
     class Factory(HookFactory["PpoSurrogateLoss"]):
         clip_ratio: float = 0.2
+        weight: float = 1.0
 
         @classmethod
         def get_hook_type(cls):
             return PpoSurrogateLoss
 
-    def __init__(self, clip_ratio: float = 0.2):
+    def __init__(self, clip_ratio: float = 0.2, weight: float = 1.0):
         if clip_ratio <= 0:
             raise ValueError("'clip_ratio' must be positive")
+        if weight < 0:
+            raise ValueError("'weight' must be non-negative")
         super().__init__(training_only=True)
 
         # Mutable attributes
         self.clip_ratio: float = clip_ratio
+        self.weight: float = weight
         self.register_mutable("clip_ratio")
+        self.register_mutable("weight")
 
     def objective(self, batch):
         if (advantage := cast(torch.Tensor, batch["advantage"])).size(-1) != 1:
@@ -58,8 +63,7 @@ class PpoSurrogateLoss(Hook):
         action_prob_ratio = cast(torch.Tensor, batch["action_prob_ratio"])
         with self.agent.autocast():
             surrogate_loss = _ppo_surrogate_loss(advantage, action_prob_ratio, self.clip_ratio)
-        self.agent.record(surrogate_loss=surrogate_loss)
-        return surrogate_loss
+        return {"surrogate_loss": surrogate_loss * self.weight}
 
 
 class EntropyLoss(Hook):
@@ -95,4 +99,5 @@ class EntropyLoss(Hook):
         self.register_mutable("weight")
 
     def objective(self, batch):
-        return -self.weight * cast(torch.Tensor, batch["curr_entropy"]).mean()
+        entropy_loss = -cast(torch.Tensor, batch["curr_entropy"]).mean()
+        return {"entropy_loss": entropy_loss * self.weight}

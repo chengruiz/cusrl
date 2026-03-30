@@ -38,9 +38,8 @@ class PolicyDistillationLoss(Hook[ActorCritic]):
 
     def objective(self, batch) -> Tensor:
         action_dist = cast(MeanStdDict, batch["curr_action_dist"])
-        distillation_loss = self.criterion(action_dist["mean"], batch[self.target_name]) * self.weight
-        self.agent.record(distillation_loss=distillation_loss)
-        return distillation_loss
+        distillation_loss = self.criterion(action_dist["mean"], batch[self.target_name])
+        return {"distillation_loss": distillation_loss * self.weight}
 
 
 class PolicyDistillation(PolicyDistillationLoss):

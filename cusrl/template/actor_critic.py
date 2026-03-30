@@ -214,10 +214,7 @@ class ActorCritic(Agent):
         self.actor = self.setup_module(self.actor)
         self.critic = self.setup_module(self.critic)
         if self.compile:
-            self.actor.compile()
-            self.critic.compile()
-            self.hook.compile()
-            self._train_step = torch.compile(self._train_step)
+            self.hook.objective = torch.compile(self.hook.objective)
         self.optimizer = self.optimizer_factory(
             itertools.chain(
                 self.actor.named_parameters(prefix="actor"),
@@ -311,7 +308,11 @@ class ActorCritic(Agent):
         return super().update()
 
     def _train_step(self, batch: dict[str, NestedTensor | Any]):
-        if (loss := self.hook.objective(batch)) is not None:
+        self.actor.clear_intermediate_repr()
+        self.critic.clear_intermediate_repr()
+        self.hook.pre_objective(batch)
+        if (objectives := self.hook.objective(batch)) is not None:
+            loss = sum(objectives.values())
             self.optimizer.zero_grad()
             self.grad_scaler.scale(loss).backward()
             self.grad_scaler.unscale_(self.optimizer)
@@ -320,6 +321,8 @@ class ActorCritic(Agent):
             self.grad_scaler.step(self.optimizer)
             self.grad_scaler.update()
             self.hook.post_optim()
+            self.record(**objectives)
+        self.hook.post_objective(batch)
 
     def set_iteration(self, iteration: int):
         if iteration != self.iteration:

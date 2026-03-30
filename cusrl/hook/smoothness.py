@@ -83,7 +83,7 @@ class ActionSmoothnessLoss(Hook):
         )
         # fmt: on
 
-        smoothness_loss = None
+        losses = {}
         if self._weight1_tensor is not None:
             # fmt: off
             smoothness_1st_order = (
@@ -94,12 +94,10 @@ class ActionSmoothnessLoss(Hook):
                 .movedim(-1, 0)                                             # ( L - 1, ..., N, C )
             )
             # fmt: on
-
             smoothness_1st_order_loss = (
                 self._weight1_tensor * apply_sequence_batch_mask(smoothness_1st_order, mask[1:]).abs()
             ).mean()
-            self.agent.record(smoothness_1st_order_loss=smoothness_1st_order_loss)
-            smoothness_loss = smoothness_1st_order_loss
+            losses["action_smoothness_1st_order_loss"] = smoothness_1st_order_loss
 
         if self._weight2_tensor is not None:
             # fmt: off
@@ -113,13 +111,9 @@ class ActionSmoothnessLoss(Hook):
             smoothness_loss_2nd_order = (
                 self._weight2_tensor * apply_sequence_batch_mask(smoothness_2nd_order, mask[2:]).abs()
             ).mean()
-            self.agent.record(smoothness_2nd_order_loss=smoothness_loss_2nd_order)
-            if smoothness_loss is None:
-                smoothness_loss = smoothness_loss_2nd_order
-            else:
-                smoothness_loss += smoothness_loss_2nd_order
+            losses["action_smoothness_2nd_order_loss"] = smoothness_loss_2nd_order
 
-        return smoothness_loss
+        return losses
 
     def update_attribute(self, name, value):
         super().update_attribute(name, value)

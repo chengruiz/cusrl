@@ -78,7 +78,6 @@ class OnPolicyPreparation(Hook[ActorCritic]):
             action_logp = actor.compute_logp(action_dist, batch["action"])
             entropy = actor.compute_entropy(action_dist)
             logp_ratio = action_logp - cast(torch.Tensor, batch["action_logp"])
-        self.agent.record(ratio=logp_ratio.abs(), entropy=entropy)
 
         batch["curr_action_dist"] = action_dist
         batch["curr_action_logp"] = action_logp
@@ -87,6 +86,12 @@ class OnPolicyPreparation(Hook[ActorCritic]):
         batch["action_prob_ratio"] = logp_ratio.exp()
         if self.calculate_kl_divergence:
             batch["kl_divergence"] = actor.compute_kl_div(batch["action_dist"], action_dist)
+
+    def post_objective(self, batch):
+        self.agent.record(
+            ratio=batch["action_logp_ratio"].abs(),
+            entropy=batch["curr_entropy"],
+        )
 
 
 class OnPolicyStatistics(Hook[ActorCritic]):

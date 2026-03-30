@@ -161,11 +161,15 @@ class ValueLoss(Hook[ActorCritic]):
                 else _clipped_value_loss(value, curr_value, return_, self.loss_clip)
             ) * self.weight
 
+        return {"value_loss": value_loss}
+
+    def post_objective(self, batch):
+        critic = self.agent.critic
+
+        curr_value = cast(Tensor, batch["curr_value"])
+        self.agent.record(value=curr_value.sum(dim=-1))
         with torch.no_grad():
             if critic.value_rms is not None:
                 curr_value = critic.value_rms.unnormalize(curr_value)
-            self.agent.record(value=curr_value, value_loss=value_loss)
             if (value_dim := curr_value.size(-1)) != 1:
                 self.agent.record(**{f"value.{i}": curr_value[..., i] for i in range(value_dim)})
-
-        return value_loss

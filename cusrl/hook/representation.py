@@ -54,9 +54,8 @@ class ReturnPrediction(Hook[ActorCritic]):
         target = batch["value"] if self.predicts_value_instead_of_return else batch["return"]
         with self.agent.autocast():
             prediction = self.predictor(latent)
-            return_prediction_loss = self.weight * self.criterion(prediction, target)
-        self.agent.record(return_prediction_loss=return_prediction_loss)
-        return return_prediction_loss
+            return_prediction_loss = self.criterion(prediction, target)
+        return {"return_prediction_loss": return_prediction_loss * self.weight}
 
     def post_export(self, graph: FlowGraph):
         graph.add_node(
@@ -135,9 +134,8 @@ class StatePrediction(Hook[ActorCritic]):
         with self.agent.autocast():
             latent = self.agent.actor.intermediate_repr[self.latent_name]
             target = state[..., self.target_indices]
-            state_prediction_loss = self.weight * self.criterion(self.predictor(latent), target)
-        self.agent.record(state_prediction_loss=state_prediction_loss)
-        return state_prediction_loss
+            state_prediction_loss = self.criterion(self.predictor(latent), target)
+        return {"state_prediction_loss": state_prediction_loss * self.weight}
 
     def post_export(self, graph: FlowGraph):
         graph.add_node(
@@ -208,9 +206,8 @@ class NextStatePrediction(Hook[ActorCritic]):
             latent = self.agent.actor.intermediate_repr[self.latent_name]
             target = next_state[..., self.target_indices]
             prediction = self.predictor(latent, batch["action"])
-            next_state_prediction_loss = self.weight * self.criterion(prediction, target)
-        self.agent.record(next_state_prediction_loss=next_state_prediction_loss)
-        return next_state_prediction_loss
+            next_state_prediction_loss = self.criterion(prediction, target)
+        return {"next_state_prediction_loss": next_state_prediction_loss * self.weight}
 
     def post_export(self, graph: FlowGraph):
         graph.add_node(

@@ -103,6 +103,5 @@ class StateEstimation(Hook[ActorCritic]):
         target = cast(Tensor, batch[self.target_name])[..., self.target_indices]
         with self.agent.autocast():
             estimation, _ = self.estimator(source, memory=batch["estimator_memory"], done=batch["done"])
-            state_estimation_loss = self.weight * self.criterion(estimation, target)
-        self.agent.record(state_estimation_loss=state_estimation_loss)
-        return state_estimation_loss
+            state_estimation_loss = self.criterion(estimation, target)
+        return {"state_estimation_loss": state_estimation_loss * self.weight}

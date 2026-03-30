@@ -264,9 +264,9 @@ class Agent(ABC):
         module = module.to(device=self.device)
         return module
 
-    def record(self, **kwargs):
+    def record(self, metrics: Mapping[str, Any | None] | None = None, /, **kwargs):
         """Record metrics for the agent."""
-        self.metrics.record(**kwargs)
+        self.metrics.record(metrics, **kwargs)
 
     def state_dict(self):
         state_dict = {}

@@ -91,5 +91,4 @@ class RandomNetworkDistillation(Hook):
         rnd_state = state[..., self.state_indices]
         with self.agent.autocast():
             rnd_loss = self.criterion(self.predictor(rnd_state), self.target(rnd_state))
-        self.agent.record(rnd_loss=rnd_loss)
-        return rnd_loss
+        return {"rnd_loss": rnd_loss}

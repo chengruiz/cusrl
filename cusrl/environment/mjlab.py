@@ -123,7 +123,7 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
                 termination_flags = torch.zeros(num_finished_episodes)
                 termination_flags[:value] = 1.0
                 log[key] = termination_flags
-        self.metrics.update(log)
+        self.metrics.record(log)
         return observation, state, reward, terminated, truncated, observation_dict | extras
 
     def get_metrics(self):

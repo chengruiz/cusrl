@@ -245,7 +245,15 @@ class Hook(Generic[AgentType]):
                 The buffer containing the collected experience.
         """
 
-    def objective(self, batch: dict[str, NestedTensor | Any]) -> torch.Tensor | None:
+    def pre_objective(self, batch: dict[str, NestedTensor | Any]):
+        """Called before computing the objective for a batch of experience.
+
+        Args:
+            batch (dict[str, NestedTensor | Any]):
+                A batch of experience sampled from the buffer.
+        """
+
+    def objective(self, batch: dict[str, NestedTensor | Any]) -> dict[str, torch.Tensor] | None:
         """Defines the objective function for the agent's update.
 
         Args:
@@ -253,11 +261,18 @@ class Hook(Generic[AgentType]):
                 A batch of experience sampled from the buffer.
 
         Returns:
-            loss (torch.Tensor | None):
-                The computed loss tensor, which will be used to update the
-                agent.
+            loss (dict[str, torch.Tensor] | None):
+                A dictionary mapping loss names to their corresponding tensors.
         """
         return None
+
+    def post_objective(self, batch: dict[str, NestedTensor | Any]):
+        """Called after computing the objective for a batch of experience.
+
+        Args:
+            batch (dict[str, NestedTensor | Any]):
+                A batch of experience sampled from the buffer.
+        """
 
     def pre_optim(self, optimizer: torch.optim.Optimizer):
         """Called before the optimizer's step.
@@ -403,14 +418,22 @@ class HookComposite(Hook):
         for hook in self.active_hooks():
             hook.pre_update(buffer)
 
-    def objective(self, batch: dict[str, NestedTensor | Any]) -> torch.Tensor | None:
-        objectives = []
+    def pre_objective(self, batch: dict[str, NestedTensor | Any]):
+        for hook in self.active_hooks():
+            hook.pre_objective(batch)
+
+    def objective(self, batch: dict[str, NestedTensor | Any]) -> dict[str, torch.Tensor] | None:
+        objectives = {}
         for hook in self.active_hooks():
             if (obj := hook.objective(batch)) is not None:
-                objectives.append(obj)
+                objectives.update(obj)
         if objectives:
-            return sum(objectives)
+            return objectives
         return None
+
+    def post_objective(self, batch: dict[str, NestedTensor | Any]):
+        for hook in self.active_hooks():
+            hook.post_objective(batch)
 
     def pre_optim(self, optimizer):
         for hook in self.active_hooks():

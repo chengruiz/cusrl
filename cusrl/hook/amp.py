@@ -171,11 +171,10 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             discrimination_loss = (agent_disc_loss + expert_disc_loss) / 2
             grad_penalty_loss = self.grad_penalty(expert_logit, expert_transition)
 
-        self.agent.record(
-            amp_discrimination_loss=discrimination_loss,
-            amp_grad_penalty_loss=grad_penalty_loss,
-        )
-        return (discrimination_loss + grad_penalty_loss * self.grad_penalty_weight) * self.loss_weight
+        return {
+            "amp_discrimination_loss": discrimination_loss * self.loss_weight,
+            "amp_grad_penalty_loss": grad_penalty_loss * (self.grad_penalty_weight * self.loss_weight),
+        }
 
     def _sample_demonstration(self, num_samples: int) -> Tensor:
         if self.dataset is not None:
