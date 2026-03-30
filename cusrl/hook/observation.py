@@ -254,7 +254,7 @@ class ObservationNormalization(Hook[ActorCritic]):
             else:
                 self.observation_rms.synchronize()
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         if self.renormalize:
             original_observation = cast(Tensor, batch["original_observation"])
             original_next_observation = cast(Tensor, batch["original_next_observation"])

@@ -34,7 +34,9 @@ def test_hook_factory_call_supports_dict_payload_constructor():
 
 
 def test_hook_factory_call_supports_named_conditions_constructor():
-    condition = lambda agent, batch: True
+    def condition(agent, metadata, batch):
+        return True
+
     hook = ConditionalObjectiveActivation.Factory(named_conditions={"value_loss": condition})()
 
     assert isinstance(hook, ConditionalObjectiveActivation)

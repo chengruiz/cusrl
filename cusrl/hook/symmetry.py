@@ -133,7 +133,7 @@ class SymmetryLoss(SymmetryHook):
             )
             actor.reset_memory(self.mirrored_actor_memory, done)
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         if self.weight is None:
             return None
 
@@ -260,7 +260,7 @@ class SymmetricDataAugmentation(SymmetryHook):
             )
             critic.reset_memory(self.mirrored_critic_memory, done)
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         augmented_observation = cast(Tensor, batch["augmented_observation"])
         batch["observation"] = augmented_observation
         batch["next_observation"] = batch["augmented_next_observation"]

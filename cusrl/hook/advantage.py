@@ -59,7 +59,7 @@ class AdvantageReduction(Hook):
     def init(self):
         self._weight_tensor = None if self.weight is None else self.agent.to_tensor(self.weight)
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         advantage = cast(torch.Tensor, batch["advantage"])
         if self._weight_tensor is not None:
             advantage = advantage * self._weight_tensor
@@ -120,7 +120,7 @@ class AdvantageNormalization(Hook[ActorCritic]):
         if not self.mini_batch_wise:
             self.normalize_(cast(torch.Tensor, buffer["advantage"]))
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         if self.mini_batch_wise:
             self.normalize_(cast(torch.Tensor, batch["advantage"]))
 

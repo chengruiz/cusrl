@@ -245,19 +245,23 @@ class Hook(Generic[AgentType]):
                 The buffer containing the collected experience.
         """
 
-    def pre_objective(self, batch: dict[str, NestedTensor | Any]):
+    def pre_objective(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]):
         """Called before computing the objective for a batch of experience.
 
         Args:
-            batch (dict[str, NestedTensor | Any]):
+            metadata (dict[str, Any]):
+                Metadata associated with the sampled batch.
+            batch (dict[str, NestedTensor]):
                 A batch of experience sampled from the buffer.
         """
 
-    def objective(self, batch: dict[str, NestedTensor | Any]) -> dict[str, torch.Tensor] | None:
+    def objective(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]) -> dict[str, torch.Tensor] | None:
         """Defines the objective function for the agent's update.
 
         Args:
-            batch (dict[str, NestedTensor | Any]):
+            metadata (dict[str, Any]):
+                Metadata associated with the sampled batch.
+            batch (dict[str, NestedTensor]):
                 A batch of experience sampled from the buffer.
 
         Returns:
@@ -418,14 +422,14 @@ class HookComposite(Hook):
         for hook in self.active_hooks():
             hook.pre_update(buffer)
 
-    def pre_objective(self, batch: dict[str, NestedTensor | Any]):
+    def pre_objective(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]):
         for hook in self.active_hooks():
-            hook.pre_objective(batch)
+            hook.pre_objective(metadata, batch)
 
-    def objective(self, batch: dict[str, NestedTensor | Any]) -> dict[str, torch.Tensor] | None:
+    def objective(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]) -> dict[str, torch.Tensor] | None:
         objectives = {}
         for hook in self.active_hooks():
-            if (obj := hook.objective(batch)) is not None:
+            if (obj := hook.objective(metadata, batch)) is not None:
                 objectives.update(obj)
         if objectives:
             return objectives

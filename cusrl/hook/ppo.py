@@ -57,7 +57,7 @@ class PpoSurrogateLoss(Hook):
         self.register_mutable("clip_ratio")
         self.register_mutable("weight")
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         if (advantage := cast(torch.Tensor, batch["advantage"])).size(-1) != 1:
             raise ValueError(f"Expected advantage to have shape [..., 1], got {advantage.shape}")
         action_prob_ratio = cast(torch.Tensor, batch["action_prob_ratio"])
@@ -98,6 +98,6 @@ class EntropyLoss(Hook):
         self.weight: float = weight
         self.register_mutable("weight")
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         entropy_loss = -cast(torch.Tensor, batch["curr_entropy"]).mean()
         return {"entropy_loss": entropy_loss * self.weight}

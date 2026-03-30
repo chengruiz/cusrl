@@ -86,7 +86,7 @@ class RandomNetworkDistillation(Hook):
         cast(torch.Tensor, buffer["reward"]).add_(rnd_reward)
         self.agent.record(rnd_reward=rnd_reward)
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         state = cast(torch.Tensor, get_first(batch, "state", "observation"))
         rnd_state = state[..., self.state_indices]
         with self.agent.autocast():

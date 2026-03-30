@@ -301,17 +301,17 @@ class ActorCritic(Agent):
     @Agent._decorator_update__set_training_mode
     def update(self):
         self.hook.pre_update(self.buffer)
-        for batch in self.sampler(self.buffer):
-            self._train_step(batch)
+        for metadata, batch in self.sampler(self.buffer):
+            self._train_step(metadata, batch)
         self.hook.post_update()
         self.hook.apply_schedule(self.iteration + 1)
         return super().update()
 
-    def _train_step(self, batch: dict[str, NestedTensor | Any]):
+    def _train_step(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]):
         self.actor.clear_intermediate_repr()
         self.critic.clear_intermediate_repr()
-        self.hook.pre_objective(batch)
-        if (objectives := self.hook.objective(batch)) is not None:
+        self.hook.pre_objective(metadata, batch)
+        if (objectives := self.hook.objective(metadata, batch)) is not None:
             loss = sum(objectives.values())
             self.optimizer.zero_grad()
             self.grad_scaler.scale(loss).backward()

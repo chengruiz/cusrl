@@ -9,8 +9,8 @@ class DummyHook(cusrl.Hook):
         super().__init__()
         self.epoch_index = set([epoch_index] if isinstance(epoch_index, int) else epoch_index)
 
-    def objective(self, batch):
-        assert batch["epoch_index"] in self.epoch_index
+    def objective(self, metadata, batch):
+        assert metadata["epoch_index"] in self.epoch_index
 
 
 def test_objective_activation():
@@ -24,7 +24,7 @@ def test_objective_activation():
 
 
 class DummyHook2(cusrl.Hook):
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         assert self.agent.iteration % 2 == 0
 
 

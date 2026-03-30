@@ -98,7 +98,7 @@ class StateEstimation(Hook[ActorCritic]):
     def post_step(self, transition):
         self.estimator.reset_memory(self._estimator_memory, cast(Tensor, transition["done"]))
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         source = cast(Tensor, batch[self.source_name])[..., self.source_indices]
         target = cast(Tensor, batch[self.target_name])[..., self.target_indices]
         with self.agent.autocast():

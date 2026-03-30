@@ -49,7 +49,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         self.register_module("predictor", self.predictor_factory(latent_dim, self.agent.value_dim))
         self.criterion = nn.MSELoss()
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         latent = self.agent.actor.intermediate_repr[self.latent_name]
         target = batch["value"] if self.predicts_value_instead_of_return else batch["return"]
         with self.agent.autocast():
@@ -129,7 +129,7 @@ class StatePrediction(Hook[ActorCritic]):
         self.register_module("predictor", self.predictor_factory(latent_dim, target_dim))
         self.criterion = nn.MSELoss()
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         state = cast(torch.Tensor, batch["state"])
         with self.agent.autocast():
             latent = self.agent.actor.intermediate_repr[self.latent_name]
@@ -200,7 +200,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         self.register_module("predictor", ActionAwarePredictorWrapper(predictor))
         self.criterion = nn.MSELoss()
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         next_state = cast(torch.Tensor, batch["next_state"])
         with self.agent.autocast():
             latent = self.agent.actor.intermediate_repr[self.latent_name]

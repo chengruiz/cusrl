@@ -218,7 +218,7 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
     def post_update(self):
         pass
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         with torch.no_grad():
             kl_divergence = cast(torch.Tensor, batch["kl_divergence"]).mean()
         distributed.reduce_mean_(kl_divergence)

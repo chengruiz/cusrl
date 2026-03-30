@@ -25,7 +25,7 @@ class MiniBatchSampler(Sampler):
 
         self.shuffle = shuffle
 
-    def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
+    def __call__(self, buffer: Buffer):
         if not buffer.full:
             raise RuntimeError("MiniBatchSampler can sample only from a full buffer")
         num_samples = self._get_num_samples(buffer)
@@ -38,13 +38,15 @@ class MiniBatchSampler(Sampler):
             if self.shuffle and epoch > 0:
                 torch.randperm(num_samples, device=buffer.device, out=epoch_indices)
             for mini_batch_idx in range(num_mini_batches):
+                metadata = {
+                    "epoch_index": epoch,
+                    "mini_batch_index": mini_batch_idx,
+                    "total_epochs": self.num_epochs,
+                    "total_mini_batches": num_mini_batches,
+                }
                 indices = epoch_indices[mini_batch_idx * mini_batch_size : (mini_batch_idx + 1) * mini_batch_size]
-                mini_batch: dict[str, Any] = buffer.sample(functools.partial(self._sample, indices=indices))
-                mini_batch["epoch_index"] = epoch
-                mini_batch["mini_batch_index"] = mini_batch_idx
-                mini_batch["total_epochs"] = self.num_epochs
-                mini_batch["total_mini_batches"] = num_mini_batches
-                yield mini_batch
+                mini_batch = buffer.sample(functools.partial(self._sample, indices=indices))
+                yield metadata, mini_batch
 
     def _get_num_samples(self, buffer: Buffer) -> int:
         """Returns the total number of samples in the buffer."""
@@ -72,7 +74,7 @@ class AutoMiniBatchSampler(Sampler):
         self.num_mini_batches = num_mini_batches
         self.shuffle = shuffle
 
-    def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
+    def __call__(self, buffer: Buffer):
         is_temporal = any(key.split(".")[0].endswith("memory") for key in buffer)
         sampler_cls = TemporalMiniBatchSampler if is_temporal else MiniBatchSampler
         sampler = sampler_cls(self.num_epochs, self.num_mini_batches, self.shuffle)

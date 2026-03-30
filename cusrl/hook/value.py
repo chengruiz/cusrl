@@ -144,7 +144,7 @@ class ValueLoss(Hook[ActorCritic]):
         self.register_mutable("weight")
         self.register_mutable("loss_clip")
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         critic = self.agent.critic
         state = cast(Tensor, get_first(batch, "state", "observation"))
         done = cast(Tensor, batch["done"])
@@ -159,9 +159,9 @@ class ValueLoss(Hook[ActorCritic]):
                 nn.functional.mse_loss(return_, curr_value)
                 if self.loss_clip is None
                 else _clipped_value_loss(value, curr_value, return_, self.loss_clip)
-            ) * self.weight
+            )
 
-        return {"value_loss": value_loss}
+        return {"value_loss": value_loss * self.weight}
 
     def post_objective(self, batch):
         critic = self.agent.critic

@@ -70,7 +70,7 @@ class OnPolicyPreparation(Hook[ActorCritic]):
         super().__init__(training_only=True)
         self.calculate_kl_divergence = calculate_kl_divergence
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         actor = self.agent.actor
 
         with self.agent.autocast():
@@ -124,7 +124,7 @@ class OnPolicyStatistics(Hook[ActorCritic]):
     @torch.no_grad()
     def post_update(self):
         actor = self.agent.actor
-        for batch in self.sampler(self.agent.buffer):
+        for _, batch in self.sampler(self.agent.buffer):
             with self.agent.autocast():
                 action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
             self.agent.record(kl_divergence=actor.compute_kl_div(batch["action_dist"], action_dist))

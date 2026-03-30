@@ -115,7 +115,7 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         if not self.recompute:
             self._compute_advantage_and_return(buffer)
 
-    def objective(self, batch):
+    def objective(self, metadata, batch):
         if self.recompute:
             self._compute_advantage_and_return(batch)
 

@@ -243,5 +243,5 @@ class Buffer(MutableMapping[str, NestedTensor]):
 class Sampler:
     """Base class for iterators that yield samples from a `Buffer`."""
 
-    def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
-        yield buffer.sample(lambda _1, _2, x: x)
+    def __call__(self, buffer: Buffer) -> Iterator[tuple[dict[str, Any], dict[str, NestedTensor]]]:
+        yield {}, buffer.sample(lambda _1, _2, tensor: tensor)

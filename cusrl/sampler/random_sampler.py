@@ -1,11 +1,9 @@
 import functools
-from collections.abc import Iterator
 from typing import Any
 
 import torch
 
 from cusrl.template import Buffer, Sampler
-from cusrl.utils.typing import NestedTensor
 
 __all__ = ["AutoRandomSampler", "RandomSampler", "TemporalRandomSampler"]
 
@@ -15,14 +13,16 @@ class RandomSampler(Sampler):
         self.num_batches = num_batches
         self.batch_size = batch_size
 
-    def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
+    def __call__(self, buffer: Buffer):
         num_samples = self._get_num_samples(buffer)
         for batch_index in range(self.num_batches):
+            metadata = {
+                "batch_index": batch_index,
+                "total_batches": self.num_batches,
+            }
             indices = torch.randint(num_samples, (self.batch_size,), device=buffer.device)
             mini_batch: dict[str, Any] = buffer.sample(functools.partial(self._sample, indices=indices))
-            mini_batch["batch_index"] = batch_index
-            mini_batch["total_batches"] = self.num_batches
-            yield mini_batch
+            yield metadata, mini_batch
 
     def _get_num_samples(self, buffer: Buffer) -> int:
         """Returns the total number of samples in the buffer."""
@@ -49,7 +49,7 @@ class AutoRandomSampler(Sampler):
         self.num_batches = num_batches
         self.batch_size = batch_size
 
-    def __call__(self, buffer: Buffer) -> Iterator[dict[str, NestedTensor | Any]]:
+    def __call__(self, buffer: Buffer):
         is_temporal = any(key.split(".")[0].endswith("memory") for key in buffer)
         sampler_cls = TemporalRandomSampler if is_temporal else RandomSampler
         sampler = sampler_cls(num_batches=self.num_batches, batch_size=self.batch_size)

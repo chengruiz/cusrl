@@ -151,7 +151,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         cast(Tensor, transition["reward"]).add_(style_reward)
         self.agent.record(amp_reward=style_reward)
 
-    def objective(self, batch) -> Tensor:
+    def objective(self, metadata, batch) -> Tensor:
         agent_transition = cast(Tensor, batch["agent_transition"]).flatten(0, -2)
         expert_transition = cast(Tensor, batch["expert_transition"]).flatten(0, -2)
         if self.batch_size is not None:
