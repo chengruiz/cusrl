@@ -304,7 +304,7 @@ HookType = TypeVar("HookType", bound="Hook")
 class HookFactory(Generic[HookType]):
     @classmethod
     def get_hook_type(cls) -> type[HookType]:
-        raise NotImplementedError
+        raise NotImplementedError(f"{cls.__name__} must implement 'get_hook_type'")
 
     @property
     def name(self) -> str:

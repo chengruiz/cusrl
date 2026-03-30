@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 import torch
@@ -18,10 +18,10 @@ class StateEstimation(Hook[ActorCritic]):
     class Factory(HookFactory["StateEstimation"]):
         estimator_factory: ModuleFactoryLike
         source_name: str = "observation"
-        source_indices: Slice = slice(None)
+        source_indices: Slice = field(default_factory=slice)
         source_dim: int | None = None
         target_name: str = "state"
-        target_indices: Slice = slice(None)
+        target_indices: Slice = field(default_factory=slice)
         target_dim: int | None = None
         estimation_name: str = "state_estimation"
         weight: float = 1.0
