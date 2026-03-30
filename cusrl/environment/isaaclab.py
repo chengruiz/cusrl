@@ -184,7 +184,6 @@ class IsaacLabEnvLauncher(IsaacLabEnvAdapter):
         env_cfg.sim.device = args.device
         if args.num_envs is not None:
             env_cfg.scene.num_envs = args.num_envs
-        env_cfg.scene.num_envs = max(env_cfg.scene.num_envs // cusrl.utils.distributed.world_size(), 1)
 
         # Create the environment and wrap with the adapter
         wrapped = gym.make(id, cfg=env_cfg, disable_env_checker=True, **kwargs)

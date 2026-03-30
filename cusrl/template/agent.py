@@ -261,10 +261,7 @@ class Agent(ABC):
         return self.to_tensor(input)
 
     def setup_module(self, module: _ModuleType) -> _ModuleType:
-        # Can also return a DistributedDataParallel instance with the module wrapped
         module = module.to(device=self.device)
-        if distributed.enabled():
-            module = distributed.make_distributed(module)
         return module
 
     def record(self, **kwargs):

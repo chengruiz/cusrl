@@ -1,15 +1,16 @@
+from collections.abc import Iterable
 from io import StringIO
-from typing import Any, TypeVar
+from typing import TypeVar
 
 import numpy as np
 import torch
-from torch import nn
 
 from cusrl.utils.config import CONFIG, configure_distributed
 
 __all__ = [
     "average_dict",
     "barrier",
+    "broadcast_parameters",
     "enabled",
     "is_main_process",
     "gather_obj",
@@ -17,10 +18,10 @@ __all__ = [
     "gather_stack",
     "gather_tensor",
     "local_rank",
-    "make_distributed",
     "make_none_obj_list",
     "print_rank0",
     "rank",
+    "reduce_gradients",
     "reduce_mean_",
     "reduce_mean_var_",
     "world_size",
@@ -48,6 +49,13 @@ def barrier():
     if not configure_distributed():
         return
     torch.distributed.barrier()
+
+
+def broadcast_parameters(parameters: Iterable[torch.nn.Parameter]):
+    if not configure_distributed():
+        return
+    for param in parameters:
+        torch.distributed.broadcast(param.data, src=0)
 
 
 def enabled() -> bool:
@@ -104,20 +112,6 @@ def local_rank() -> int:
     return CONFIG.local_rank
 
 
-def make_distributed(module) -> Any:
-    from cusrl.module.module import DistributedDataParallel
-
-    if not configure_distributed():
-        raise RuntimeError("Distributed training is not enabled")
-    if isinstance(module, nn.parallel.DistributedDataParallel):
-        return module
-    if not any(param.requires_grad for param in module.parameters()):
-        return module
-    if hasattr(module, "to_distributed"):
-        return module.to_distributed()
-    return DistributedDataParallel(module)
-
-
 def make_none_obj_list() -> list[object]:
     if not configure_distributed():
         return []
@@ -131,6 +125,25 @@ def print_rank0(*args, **kwargs):
 
 def rank() -> int:
     return CONFIG.rank
+
+
+def reduce_gradients(optimizer: torch.optim.Optimizer):
+    """Reduces the gradients across all GPUs by averaging."""
+    if not configure_distributed():
+        return
+
+    params = [param for group in optimizer.param_groups for param in group["params"] if param.grad is not None]
+    if not params:
+        return
+
+    grads = torch.cat([param.grad.reshape(-1) for param in params])
+    reduce_mean_(grads)
+
+    offset = 0
+    for param in params:
+        numel = param.numel()
+        param.grad.data.copy_(grads[offset : offset + numel].view_as(param.grad.data))
+        offset += numel
 
 
 def reduce_mean_(tensor: torch.Tensor) -> torch.Tensor:

@@ -6,7 +6,6 @@ from torch import nn
 
 from cusrl.module.module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
 from cusrl.module.normalizer import RunningMeanStd
-from cusrl.utils import make_distributed
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
@@ -57,13 +56,6 @@ class Value(Module):
         self.value_rms: RunningMeanStd | None = None
         self.action_aware: bool = action_aware
         self.backbone_kwargs: dict[str, Any] = {}
-
-    def to_distributed(self):
-        if not self.is_distributed:
-            self.is_distributed = True
-            self.backbone = self.backbone.to_distributed()  # type: ignore[assignment]
-            self.value_head = make_distributed(self.value_head)
-        return self
 
     def evaluate(
         self,

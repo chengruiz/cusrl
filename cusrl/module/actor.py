@@ -56,13 +56,6 @@ class Actor(Module):
         self.backbone_kwargs: dict[str, Any] = {}
         self.distribution_kwargs: dict[str, Any] = {}
 
-    def to_distributed(self):
-        if not self.is_distributed:
-            self.is_distributed = True
-            self.backbone = self.backbone.to_distributed()  # type: ignore[assignment]
-            self.distribution = self.distribution.to_distributed()
-        return self
-
     def clear_intermediate_repr(self):
         super().clear_intermediate_repr()
         self.backbone.clear_intermediate_repr()

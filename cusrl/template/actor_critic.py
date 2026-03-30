@@ -14,6 +14,7 @@ from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
+from cusrl.utils.distributed import broadcast_parameters, reduce_gradients
 from cusrl.utils.typing import ArrayType, Nested, NestedArray, NestedTensor, Observation, State
 
 __all__ = ["ActorCritic"]
@@ -226,7 +227,13 @@ class ActorCritic(Agent):
         )
         self._set_training_mode(False)
         self.hook.post_init()
+        broadcast_parameters(self.parameters())
         self.hook.apply_schedule(0)
+
+    def parameters(self):
+        yield from self.actor.parameters()
+        yield from self.critic.parameters()
+        yield from self.hook.parameters()
 
     @torch.no_grad()
     @Agent._decorator_act__preserve_io_format
@@ -308,6 +315,7 @@ class ActorCritic(Agent):
             self.optimizer.zero_grad()
             self.grad_scaler.scale(loss).backward()
             self.grad_scaler.unscale_(self.optimizer)
+            reduce_gradients(self.optimizer)
             self.hook.pre_optim(self.optimizer)
             self.grad_scaler.step(self.optimizer)
             self.grad_scaler.update()

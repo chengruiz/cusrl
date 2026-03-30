@@ -3,49 +3,17 @@ from typing import Any, Generic, Optional, TypeAlias, TypeVar
 
 import torch
 from torch import nn
-from typing_extensions import Self
 
-from cusrl.utils.config import configure_distributed
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = [
-    "resolve_activation_fn",
-    "DistributedDataParallel",
     "Module",
     "ModuleType",
     "ModuleFactory",
     "ModuleFactoryLike",
     "LayerFactoryLike",
+    "resolve_activation_fn",
 ]
-
-
-class DistributedDataParallel(nn.parallel.DistributedDataParallel):
-    is_distributed = True
-
-    def __init__(self, module, *args, **kwargs):
-        configure_distributed()
-        super().__init__(module, *args, **kwargs)
-        self.register_state_dict_post_hook(self._state_dict_post_hook)
-        self._register_load_state_dict_pre_hook(self._load_state_dict_pre_hook)
-
-    def __getattr__(self, item):
-        try:
-            return super().__getattr__(item)
-        except AttributeError:
-            return getattr(self.module, item)
-
-    @staticmethod
-    def _state_dict_post_hook(module: nn.Module, state_dict: dict[str, Any], prefix: str, *args):
-        for key in tuple(state_dict.keys()):
-            if key.startswith(prefix):
-                new_key = f"{prefix}{key.removeprefix(f'{prefix}module.')}"
-                state_dict[new_key] = state_dict.pop(key)
-
-    def _load_state_dict_pre_hook(self, state_dict: dict[str, Any], prefix: str, *args):
-        for key in tuple(state_dict.keys()):
-            if key.startswith(prefix):
-                new_key = f"{prefix}module.{key.removeprefix(prefix)}"
-                state_dict[new_key] = state_dict.pop(key)
 
 
 ModuleType = TypeVar("ModuleType", bound="Module")
@@ -54,19 +22,6 @@ ModuleType = TypeVar("ModuleType", bound="Module")
 class ModuleFactory(Generic[ModuleType]):
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None) -> ModuleType:
         raise NotImplementedError
-
-
-def resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:
-    if isinstance(activation_fn, str):
-        activation_name = activation_fn
-        resolved_activation_fn = getattr(nn, activation_name, None)
-        if resolved_activation_fn is None:
-            raise ValueError(f"No activation function named '{activation_name}' was found in torch.nn")
-    else:
-        resolved_activation_fn = activation_fn
-    if not isinstance(resolved_activation_fn, type) or not issubclass(resolved_activation_fn, nn.Module):
-        raise TypeError(f"Activation functions must be subclasses of nn.Module; got {resolved_activation_fn}")
-    return resolved_activation_fn
 
 
 ModuleFactoryLike: TypeAlias = Callable[[int | None, int | None], "Module"] | ModuleFactory
@@ -124,21 +79,12 @@ class Module(nn.Module):
         self.input_dim: int = input_dim
         self.output_dim: int = output_dim
         self.is_recurrent: bool = is_recurrent
-        self.is_distributed: bool = False
         self.intermediate_repr: dict[str, Any] = intermediate_repr or {}
         self._rnn_compatible: bool = False
 
     @property
     def device(self) -> torch.device:
         return next(self.parameters()).device
-
-    def to_distributed(self) -> DistributedDataParallel | Self:
-        if self.is_distributed:
-            return self
-        if not any(param.requires_grad for param in self.parameters()):
-            self.is_distributed = True
-            return self
-        return DistributedDataParallel(self)
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError
@@ -205,3 +151,14 @@ class Module(nn.Module):
 
             self.forward = wrapped_forward
         return self
+
+
+def resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:
+    if isinstance(activation_fn, str):
+        activation_name = activation_fn
+        activation_fn = getattr(nn, activation_name, None)
+        if activation_fn is None:
+            raise ValueError(f"No activation function named '{activation_name}' was found in torch.nn")
+    if not issubclass(activation_fn, nn.Module):
+        raise TypeError(f"Activation functions must be subclasses of nn.Module; got {activation_fn}")
+    return activation_fn

@@ -284,9 +284,6 @@ class RunningMeanStd(nn.Module):
         """Inplace version of `unnormalize`."""
         return input.mul_(self.std).add_(self.mean)
 
-    def to_distributed(self):
-        return self
-
     def _process_mean_var(self, batch_mean: Tensor, batch_var: Tensor):
         if self.excluded_indices is not None:
             batch_mean[self.excluded_indices,] = 0.0

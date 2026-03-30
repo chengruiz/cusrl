@@ -120,6 +120,11 @@ class Hook(Generic[AgentType]):
             raise ValueError(f"Attribute '{name}' is not mutable on hook '{self.name}'")
         setattr(self, name, value)
 
+    def parameters(self):
+        """Returns an iterator over the hook's parameters."""
+        for _name, param in self.named_parameters():
+            yield param
+
     def named_parameters(self, prefix: str = "") -> Iterator[tuple[str, nn.Parameter]]:
         """Returns an iterator over the hook's parameters, yielding both the
         name of the parameter and the parameter itself.

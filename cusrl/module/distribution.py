@@ -6,7 +6,6 @@ import torch
 from torch import Tensor, distributions, nn
 from torch.nn.functional import one_hot
 
-from cusrl import utils
 from cusrl.module.bijector import Bijector, make_bijector
 from cusrl.module.module import Module, ModuleFactory
 
@@ -160,12 +159,6 @@ class Distribution(Module, Generic[ParamType]):
     def deterministic(self):
         return DeterministicWrapper(self)
 
-    def to_distributed(self):
-        if not self.is_distributed:
-            self.is_distributed = True
-            self.mean_head = utils.make_distributed(self.mean_head)
-        return self
-
 
 DistributionFactoryLike: TypeAlias = Callable[[int | None, int | None], Distribution]
 
@@ -250,12 +243,6 @@ class NormalDist(_Normal):
     def forward(self, latent: Tensor, **kwargs):
         return MeanStdDict(mean=self.mean_head(latent), std=self.std(latent))
 
-    def to_distributed(self):
-        if not self.is_distributed:
-            super().to_distributed()
-            self.std = utils.make_distributed(self.std)
-        return self
-
     def set_std(self, std):
         self.std.fill_(std)
 
@@ -288,12 +275,6 @@ class AdaptiveNormalDist(_Normal):
         self.std_head: nn.Linear = nn.Linear(input_dim, output_dim)
         self.bijector = make_bijector(bijector)
         self.backward = backward
-
-    def to_distributed(self):
-        if not self.is_distributed:
-            super().to_distributed()
-            self.std_head = utils.make_distributed(self.std_head)
-        return self
 
     def clear_intermediate_repr(self):
         super().clear_intermediate_repr()

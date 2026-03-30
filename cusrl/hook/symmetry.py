@@ -349,15 +349,6 @@ class SymmetricActor(Actor):
         self.wrapped = wrapped
         self.mirror_observation = mirror_observation
         self.mirror_action = mirror_action
-        self.is_distributed = self.wrapped.is_distributed
-
-    def to_distributed(self):
-        if not self.is_distributed:
-            self.is_distributed = True
-            self.wrapped = self.wrapped.to_distributed()
-            self.backbone = self.wrapped.backbone
-            self.distribution = self.wrapped.distribution
-        return self
 
     def _forward_impl(
         self,
