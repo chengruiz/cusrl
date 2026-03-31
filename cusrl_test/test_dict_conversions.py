@@ -163,7 +163,7 @@ def test_dict_conversions():
         ),
         hooks=[
             cusrl.hook.ActionSmoothnessLoss(),
-            cusrl.hook.AdaptiveLRSchedule(),
+            cusrl.hook.AdaptiveLRSchedule(warmup_iterations=100, initial_scale=0.1),
             cusrl.hook.AdvantageNormalization(),
             cusrl.hook.AdvantageReduction(),
             cusrl.hook.AdversarialMotionPrior(cusrl.Mlp.Factory(hidden_dims=(256, 256))),

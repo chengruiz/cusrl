@@ -8,7 +8,11 @@ from cusrl.hook.on_policy import OnPolicyPreparation
 from cusrl.template import ActorCritic, Hook, HookFactory
 from cusrl.utils import distributed
 
-__all__ = ["AdaptiveLRSchedule", "MiniBatchWiseLRSchedule", "ThresholdLRSchedule"]
+__all__ = [
+    "AdaptiveLRSchedule",
+    "MiniBatchWiseLRSchedule",
+    "ThresholdLRSchedule",
+]
 
 
 class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
@@ -16,6 +20,8 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
     class Factory(HookFactory["KLDivergenceBasedLRSchedule"]):
         desired_kl_divergence: float = 0.01
         scale_all_params: bool = False
+        warmup_iterations: int = 0
+        initial_scale: float = 0.0
 
         @classmethod
         def get_hook_type(cls):
@@ -25,37 +31,62 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
         self,
         desired_kl_divergence: float = 0.01,
         scale_all_params: bool = False,
+        warmup_iterations: int = 0,
+        initial_scale: float = 0.0,
     ):
         if desired_kl_divergence <= 0:
             raise ValueError("'desired_kl_divergence' must be positive")
+        if warmup_iterations < 0:
+            raise ValueError("'warmup_iterations' must be non-negative")
+        if not 0 <= initial_scale <= 1:
+            raise ValueError("'initial_scale' must be within [0, 1]")
 
         super().__init__(training_only=True)
         self.scale_all_params = scale_all_params
+        self.warmup_iterations = warmup_iterations
+        self.initial_scale = initial_scale
 
         # Mutable attributes
         self.desired_kl_divergence: float = desired_kl_divergence
         self.register_mutable("desired_kl_divergence")
 
         self._lr_scale = 1.0
+        self._base_lrs: list[float] = []
+
+    def post_init(self):
+        self._base_lrs = [param_group["lr"] for param_group in self.agent.optimizer.param_groups]
 
     def post_update(self):
+        if self.agent.iteration < self.warmup_iterations:
+            return
         kl_divergence = self.agent.metrics["kl_divergence"].mean.clone()
         distributed.reduce_mean_(kl_divergence)
         scale = self._compute_scale(kl_divergence.item())
-        self._scale_lr_of_parameters(scale)
+        self._scale_lr(scale)
+        self.agent.record(lr_scale=self._lr_scale)
+
+    def apply_schedule(self, iteration: int):
+        if self.warmup_iterations <= 0 or iteration > self.warmup_iterations:
+            return
+
+        progress = min(iteration, self.warmup_iterations) / self.warmup_iterations
+        self._lr_scale = self.initial_scale + (1.0 - self.initial_scale) * progress
+        self._apply_lr_scale()
         self.agent.record(lr_scale=self._lr_scale)
 
     def _compute_scale(self, kl_divergence: float) -> float | None:
         raise NotImplementedError
 
-    def _scale_lr_of_parameters(self, scale: float | None):
+    def _scale_lr(self, scale: float | None):
         if scale is None or scale == 1.0:
             return
-
         self._lr_scale *= scale
-        for param_group in self.agent.optimizer.param_groups:
+        self._apply_lr_scale()
+
+    def _apply_lr_scale(self):
+        for base_lr, param_group in zip(self._base_lrs, self.agent.optimizer.param_groups):
             if self.scale_all_params or any(name.startswith("actor.") for name in param_group["param_names"]):
-                param_group["lr"] *= scale
+                param_group["lr"] = base_lr * self._lr_scale
 
     def state_dict(self):
         return {"lr_scale": self._lr_scale}
@@ -78,6 +109,12 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
         scale_all_params (bool, optional):
             If ``True``, scales all optimizer parameter groups; otherwise only
             scales actor parameter groups. Defaults to ``False``.
+        warmup_iterations (int, optional):
+            Number of initial iterations that use only linear warmup and ignore
+            KL divergence. Defaults to ``0``.
+        initial_scale (float, optional):
+            Initial LR scale used at iteration ``0`` during warmup. Defaults to
+            ``0.0``.
     """
 
     @dataclass
@@ -86,6 +123,8 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
         threshold: float = 1.2
         scale_factor: float = 1.1
         scale_all_params: bool = False
+        warmup_iterations: int = 0
+        initial_scale: float = 0.0
 
         @classmethod
         def get_hook_type(cls):
@@ -97,8 +136,15 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
         threshold: float = 1.2,
         scale_factor: float = 1.1,
         scale_all_params: bool = False,
+        warmup_iterations: int = 0,
+        initial_scale: float = 0.0,
     ):
-        super().__init__(desired_kl_divergence, scale_all_params)
+        super().__init__(
+            desired_kl_divergence,
+            scale_all_params,
+            warmup_iterations=warmup_iterations,
+            initial_scale=initial_scale,
+        )
         if threshold <= 1:
             raise ValueError("'threshold' must be greater than 1")
         if scale_factor <= 1:
@@ -131,6 +177,12 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
         scale_all_params (bool, optional):
             If ``True``, scales all optimizer parameter groups; otherwise only
             scales the parameter group of the actor. Defaults to ``False``.
+        warmup_iterations (int, optional):
+            Number of initial iterations that use only linear warmup and ignore
+            KL divergence. Defaults to ``0``.
+        initial_scale (float, optional):
+            Initial LR scale used at iteration ``0`` during warmup. Defaults to
+            ``0.0``.
     """
 
     @dataclass
@@ -139,6 +191,8 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
         threshold: float = 1.0
         scale_factor: float = 0.2
         scale_all_params: bool = False
+        warmup_iterations: int = 0
+        initial_scale: float = 0.0
 
         @classmethod
         def get_hook_type(cls):
@@ -150,8 +204,15 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
         threshold: float = 1.0,
         scale_factor: float = 0.2,
         scale_all_params: bool = False,
+        warmup_iterations: int = 0,
+        initial_scale: float = 0.0,
     ):
-        super().__init__(desired_kl_divergence, scale_all_params)
+        super().__init__(
+            desired_kl_divergence,
+            scale_all_params,
+            warmup_iterations=warmup_iterations,
+            initial_scale=initial_scale,
+        )
         if threshold <= 0:
             raise ValueError("'threshold' must be positive")
         if scale_factor <= 0:
@@ -163,6 +224,7 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
         self._count = 0
 
     def _compute_scale(self, kl_divergence: float):
+        kl_divergence = max(kl_divergence, 1e-5)
         self._accumulated_log_error += math.log(kl_divergence / self.desired_kl_divergence)
         self._count += 1
         if self.threshold > self._accumulated_log_error > -self.threshold:
@@ -185,6 +247,12 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
             Ratio threshold for deciding scaling per batch. Defaults to ``2.0``.
         scale_factor (float, optional):
             Multiplicative factor for scaling the LR. Defaults to ``1.5``.
+        warmup_iterations (int, optional):
+            Number of initial iterations that use only linear warmup and ignore
+            KL divergence. Defaults to ``0``.
+        initial_scale (float, optional):
+            Initial LR scale used at iteration ``0`` during warmup. Defaults to
+            ``0.0``.
     """
 
     @dataclass
@@ -192,6 +260,8 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
         desired_kl_divergence: float = 0.01
         threshold: float = 2.0
         scale_factor: float = 1.5
+        warmup_iterations: int = 0
+        initial_scale: float = 0.0
 
         @classmethod
         def get_hook_type(cls):
@@ -202,15 +272,20 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
         desired_kl_divergence: float = 0.01,
         threshold: float = 2.0,
         scale_factor: float = 1.5,
+        warmup_iterations: int = 0,
+        initial_scale: float = 0.0,
     ):
         super().__init__(
             desired_kl_divergence,
             threshold=threshold,
             scale_factor=scale_factor,
             scale_all_params=True,
+            warmup_iterations=warmup_iterations,
+            initial_scale=initial_scale,
         )
 
     def post_init(self):
+        super().post_init()
         for hook in self.agent.hook:
             if isinstance(hook, OnPolicyPreparation):
                 hook.calculate_kl_divergence = True
@@ -219,9 +294,11 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
         pass
 
     def objective(self, metadata, batch):
+        if self.agent.iteration < self.warmup_iterations:
+            return
         with torch.no_grad():
             kl_divergence = cast(torch.Tensor, batch["kl_divergence"]).mean()
         distributed.reduce_mean_(kl_divergence)
         scale = self._compute_scale(kl_divergence.item())
-        self._scale_lr_of_parameters(scale)
+        self._scale_lr(scale)
         self.agent.record(lr_scale=self._lr_scale)
