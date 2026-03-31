@@ -1,10 +1,19 @@
 import atexit
+from datetime import datetime
 import os
+import re
+import socket
 
 import torch
 from torch.distributed import GroupMember
 
 __all__ = ["CONFIG", "configure_distributed", "device", "is_autocast_available"]
+
+
+def _normalize_identifier(value: str) -> str:
+    value = re.sub(r"[^0-9A-Za-z._-]+", "_", value.strip())
+    value = value.strip("._-")
+    return value or "unknown"
 
 
 class Configurations:
@@ -28,6 +37,22 @@ class Configurations:
             self._local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
             if self._cuda:
                 self.device = torch.device(f"cuda:{self._local_rank}")
+
+            # Set unique directories for each process to avoid conflicts
+            idenfier = self._get_distributed_identifier()
+            torchinductor_root = os.getenv("TORCHINDUCTOR_CACHE_DIR", f"/tmp/cache/torchinductor/{torch.__version__}")
+            os.environ["TORCHINDUCTOR_CACHE_DIR"] = os.path.join(torchinductor_root, idenfier)
+            if (triton_root := os.getenv("TRITON_CACHE_DIR")) is None:
+                os.environ["TRITON_CACHE_DIR"] = os.path.join(os.environ["TORCHINDUCTOR_CACHE_DIR"], "triton")
+            else:
+                os.environ["TRITON_CACHE_DIR"] = os.path.join(triton_root, idenfier)
+            try:
+                import warp as wp
+
+                warp_root = os.getenv("WARP_CACHE_PATH", f"/tmp/cache/warp/{wp.__version__}")
+                os.environ["WARP_CACHE_PATH"] = os.path.join(warp_root, idenfier)
+            except ImportError:
+                pass
         else:
             self._distributed = False
             self._rank = 0
@@ -98,6 +123,19 @@ class Configurations:
         if enabled and not self._flash_attention_found:
             raise RuntimeError("Cannot enable 'flash_attn' because it is not installed")
         self._flash_attention_enabled = enabled
+
+    def _get_distributed_identifier(self) -> str:
+        if (job_id := os.getenv("TORCHELASTIC_RUN_ID")) == "none":
+            fallback_parts = []
+            if (master_addr := os.getenv("MASTER_ADDR")) is not None:
+                fallback_parts.append(f"master_{_normalize_identifier(master_addr)}")
+            if (master_port := os.getenv("MASTER_PORT")) is not None:
+                fallback_parts.append(f"port_{_normalize_identifier(master_port)}")
+            fallback_parts.append(datetime.now().strftime("%Y%m%d%H%M%S"))
+            fallback_parts.append(f"pid_{os.getpid()}")
+            job_id = "__".join(fallback_parts)
+        host = _normalize_identifier(socket.gethostname())
+        return os.path.join(f"host_{host}", f"job_{job_id}", f"rank{self._rank}")
 
 
 def device(device: str | torch.device | None = None) -> torch.device:
