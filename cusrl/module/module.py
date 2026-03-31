@@ -122,13 +122,19 @@ class Module(nn.Module):
         """
         if memory is None:
             return
-        if isinstance(memory, tuple):
-            for mem in memory:
-                self.reset_memory(mem, done)
-            return
         if isinstance(done, torch.Tensor):
             done = done.squeeze(-1)
-        memory[..., done, :] = 0
+        if done is None:
+            done = slice(None)
+
+        def reset_nested_memory(data):
+            if isinstance(data, dict):
+                for value in data.values():
+                    reset_nested_memory(value)
+                return
+            data[..., done, :] = 0
+
+        reset_nested_memory(memory)
 
     def clear_intermediate_repr(self):
         self.intermediate_repr.clear()

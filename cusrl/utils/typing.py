@@ -1,5 +1,5 @@
 from collections.abc import Mapping, Sequence
-from typing import TypeAlias, TypeVar
+from typing import TypeAlias, TypeVar, Union
 
 import numpy as np
 import torch
@@ -46,5 +46,5 @@ Terminated: TypeAlias = NDArray[np.bool_] | torch.Tensor
 Truncated: TypeAlias = NDArray[np.bool_] | torch.Tensor
 BoolArrayType = TypeVar("BoolArrayType", NDArray[np.bool_], torch.Tensor)
 Info: TypeAlias = dict[str, Nested[Array]]
-ValidMemory: TypeAlias = torch.Tensor | tuple["ValidMemory", ...]
+ValidMemory: TypeAlias = dict[str, Union[torch.Tensor, "ValidMemory"]]
 Memory: TypeAlias = ValidMemory | None

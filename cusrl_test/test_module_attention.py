@@ -43,12 +43,12 @@ def test_causal_self_mha():
     x = torch.randn(seq, batch, embed_dim, device="cuda", dtype=torch.bfloat16)
 
     # full sequence computation
-    out1, (x_cache, kv_cache, mask) = attn(x)
-    out2, _ = attn(x, memory=(x_cache, kv_cache, mask))
+    out1, memory = attn(x)
+    out2, _ = attn(x, memory=memory)
     assert out1.shape == (seq, batch, embed_dim)
-    assert x_cache.shape == (window, batch, embed_dim)
-    assert kv_cache.shape == (window, batch, embed_dim * 2)
-    assert mask.shape == (window, batch, 1)
+    assert memory["input_cache"].shape == (window, batch, embed_dim)
+    assert memory["kv_cache"].shape == (window, batch, embed_dim * 2)
+    assert memory["cache_mask"].shape == (window, batch, 1)
     assert out2.shape == (seq, batch, embed_dim)
 
 
@@ -66,12 +66,12 @@ def test_causal_transformer_encoder_layer():
     x = torch.randn(seq, batch, input_dim, device="cuda", dtype=torch.bfloat16)
 
     # full sequence computation
-    out1, (x_cache, kv_cache, mask) = attn(x)
-    out2, _ = attn(x, memory=(x_cache, kv_cache, mask))
+    out1, memory = attn(x)
+    out2, _ = attn(x, memory=memory)
     assert out1.shape == (seq, batch, output_dim)
-    assert x_cache.shape == (window, batch, embed_dim)
-    assert kv_cache.shape == (window, batch, embed_dim * 2)
-    assert mask.shape == (window, batch, 1)
+    assert memory["input_cache"].shape == (window, batch, embed_dim)
+    assert memory["kv_cache"].shape == (window, batch, embed_dim * 2)
+    assert memory["cache_mask"].shape == (window, batch, 1)
     assert out2.shape == (seq, batch, output_dim)
 
 

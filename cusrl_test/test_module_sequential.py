@@ -31,7 +31,7 @@ def test_sequential_rnn_mlp():
     output_dim = 8
     seq_len = 10
 
-    rnn_factory = cusrl.Rnn.Factory(module_cls="RNN", hidden_size=rnn_hidden_dim)
+    rnn_factory = cusrl.Rnn.Factory(module_type="RNN", hidden_size=rnn_hidden_dim)
     mlp_factory = cusrl.Mlp.Factory(hidden_dims=[mlp_hidden_dim], activation_fn=nn.ReLU)
     sequential_factory = cusrl.Sequential.Factory(factories=[rnn_factory, mlp_factory], hidden_dims=[None])
     sequential_module = sequential_factory(input_dim=input_dim, output_dim=output_dim)
@@ -44,16 +44,16 @@ def test_sequential_rnn_mlp():
     dummy_input_seq = torch.randn(seq_len, batch_size, input_dim)
     output_seq, memory_seq = sequential_module(dummy_input_seq)
     assert output_seq.shape == (seq_len, batch_size, output_dim)
-    assert isinstance(memory_seq, tuple) and len(memory_seq) == 1
-    assert memory_seq[0].shape == (1, batch_size, rnn_hidden_dim)
+    assert memory_seq is not None
+    assert memory_seq["0"]["hidden"].shape == (1, batch_size, rnn_hidden_dim)
 
     # Test with single tensor input (N, C) -> RNN treats as (1, N, C)
     dummy_input_tensor = torch.randn(batch_size, input_dim)
     output_tensor, memory_tensor = sequential_module(dummy_input_tensor)
 
     assert output_tensor.shape == (batch_size, output_dim)
-    assert memory_tensor is not None and len(memory_tensor) == 1
-    assert memory_tensor[0].shape == (1, batch_size, rnn_hidden_dim)
+    assert memory_tensor is not None
+    assert memory_tensor["0"]["hidden"].shape == (1, batch_size, rnn_hidden_dim)
 
     # Test reset_memory
     done_tensor = torch.zeros(batch_size, dtype=torch.bool)  # (N,)
@@ -61,8 +61,8 @@ def test_sequential_rnn_mlp():
 
     _, reset_mem = sequential_module(dummy_input_tensor)  # Get a memory state
     sequential_module.reset_memory(reset_mem, done_tensor)
-    assert reset_mem is not None and len(reset_mem) == 1
-    assert torch.all(reset_mem[0][:, 0, :] == 0.0)
+    assert reset_mem is not None
+    assert torch.all(reset_mem["0"]["hidden"][:, 0, :] == 0.0)
 
 
 def test_sequential_rnn_rnn():
@@ -73,8 +73,8 @@ def test_sequential_rnn_rnn():
     output_dim = 8
     seq_len = 10
 
-    lstm_factory = cusrl.Rnn.Factory(module_cls="LSTM", hidden_size=rnn_hidden_dim1)
-    gru_factory = cusrl.Rnn.Factory(module_cls="GRU", hidden_size=rnn_hidden_dim2)
+    lstm_factory = cusrl.Rnn.Factory(module_type="LSTM", hidden_size=rnn_hidden_dim1)
+    gru_factory = cusrl.Rnn.Factory(module_type="GRU", hidden_size=rnn_hidden_dim2)
     sequential_factory = cusrl.Sequential.Factory(factories=[lstm_factory, gru_factory], hidden_dims=[None])
     sequential_module = sequential_factory(input_dim=input_dim, output_dim=output_dim)
 
@@ -87,22 +87,20 @@ def test_sequential_rnn_rnn():
     output_seq, memory_seq = sequential_module(dummy_input_seq)
 
     assert output_seq.shape == (seq_len, batch_size, output_dim)
-    assert isinstance(memory_seq, tuple) and len(memory_seq) == 2
-    assert isinstance(memory_seq[0], tuple) and len(memory_seq[0]) == 2
-    assert memory_seq[0][0].shape == (1, batch_size, rnn_hidden_dim1)
-    assert memory_seq[0][1].shape == (1, batch_size, rnn_hidden_dim1)
-    assert memory_seq[1].shape == (1, batch_size, rnn_hidden_dim2)
+    assert memory_seq is not None
+    assert memory_seq["0"]["hidden"].shape == (1, batch_size, rnn_hidden_dim1)
+    assert memory_seq["0"]["cell"].shape == (1, batch_size, rnn_hidden_dim1)
+    assert memory_seq["1"]["hidden"].shape == (1, batch_size, rnn_hidden_dim2)
 
     # Test with single tensor input (N, C) -> RNN treats as (1, N, C)
     dummy_input_tensor = torch.randn(batch_size, input_dim)
     output_tensor, memory_tensor = sequential_module(dummy_input_tensor)
 
     assert output_tensor.shape == (batch_size, output_dim)
-    assert isinstance(memory_tensor, tuple) and len(memory_tensor) == 2
-    assert isinstance(memory_tensor[0], tuple) and len(memory_tensor[0]) == 2
-    assert memory_tensor[0][0].shape == (1, batch_size, rnn_hidden_dim1)
-    assert memory_tensor[0][1].shape == (1, batch_size, rnn_hidden_dim1)
-    assert memory_tensor[1].shape == (1, batch_size, rnn_hidden_dim2)
+    assert memory_tensor is not None
+    assert memory_tensor["0"]["hidden"].shape == (1, batch_size, rnn_hidden_dim1)
+    assert memory_tensor["0"]["cell"].shape == (1, batch_size, rnn_hidden_dim1)
+    assert memory_tensor["1"]["hidden"].shape == (1, batch_size, rnn_hidden_dim2)
 
     # Test reset_memory
     done_tensor = torch.zeros(batch_size, dtype=torch.bool)  # (N,)
@@ -110,8 +108,7 @@ def test_sequential_rnn_rnn():
     _, reset_mem = sequential_module(dummy_input_tensor)  # Get a memory state
     sequential_module.reset_memory(reset_mem, done_tensor)
 
-    assert reset_mem is not None and len(reset_mem) == 2
-    assert isinstance(reset_mem[0], tuple) and len(reset_mem[0]) == 2
-    assert torch.all(reset_mem[0][0][:, 0, :] == 0.0)
-    assert torch.all(reset_mem[0][1][:, 0, :] == 0.0)
-    assert torch.all(reset_mem[1][:, 0, :] == 0.0)
+    assert reset_mem is not None
+    assert torch.all(reset_mem["0"]["hidden"][:, 0, :] == 0.0)
+    assert torch.all(reset_mem["0"]["cell"][:, 0, :] == 0.0)
+    assert torch.all(reset_mem["1"]["hidden"][:, 0, :] == 0.0)

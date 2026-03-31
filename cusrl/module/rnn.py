@@ -1,4 +1,5 @@
-from typing import TypeAlias, cast
+from dataclasses import dataclass
+from typing import cast
 
 import torch
 from torch import Tensor, nn
@@ -8,71 +9,153 @@ from cusrl.utils.nest import map_nested
 from cusrl.utils.recurrent import compute_sequence_lengths, split_and_pad_sequences, unpad_and_merge_sequences
 from cusrl.utils.typing import Memory
 
-__all__ = ["Gru", "Lstm", "Rnn", "concat_memory", "scatter_memory", "gather_memory"]
+__all__ = ["Gru", "Lstm", "Rnn", "VanillaRnn", "concat_memory", "scatter_memory", "gather_memory"]
 
 
-class RnnBase(nn.Module):
-    def __init__(self, input_size: int, hidden_size: int):
-        super().__init__()
-        self.input_size: int = input_size
-        self.hidden_size: int = hidden_size
+class _VanillaRnn(nn.RNN):
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        num_layers: int = 1,
+        nonlinearity: str = "tanh",
+        bias: bool = True,
+        dropout: float = 0.0,
+    ):
+        super().__init__(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            nonlinearity=nonlinearity,
+            bias=bias,
+            dropout=dropout,
+        )
 
     def forward(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
-        raise NotImplementedError
+        if memory is None:
+            output, hn = super().forward(input)
+        else:
+            h0 = memory["hidden"]
+            output, hn = super().forward(input, h0)
+        return output, {"hidden": hn}
 
 
-RnnLike: TypeAlias = nn.RNNBase | RnnBase
+class _Lstm(nn.LSTM):
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        num_layers: int = 1,
+        bias: bool = True,
+        dropout: float = 0.0,
+    ):
+        super().__init__(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            bias=bias,
+            dropout=dropout,
+        )
+
+    def forward(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
+        if memory is None:
+            output, (hn, cn) = super().forward(input)
+        else:
+            h0 = memory["hidden"]
+            c0 = memory["cell"]
+            output, (hn, cn) = super().forward(input, (h0, c0))
+        return output, {"hidden": hn, "cell": cn}
 
 
+class _Gru(nn.GRU):
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        num_layers: int = 1,
+        bias: bool = True,
+        dropout: float = 0.0,
+    ):
+        super().__init__(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            bias=bias,
+            dropout=dropout,
+        )
+
+    def forward(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
+        if memory is None:
+            output, hn = super().forward(input)
+        else:
+            h0 = memory["hidden"]
+            output, hn = super().forward(input, h0)
+        return output, {"hidden": hn}
+
+
+@dataclass
 class RnnFactory(ModuleFactory["Rnn"]):
-    def __init__(self, module_cls: str | type[RnnLike], **kwargs):
-        self.module_cls: str | type[RnnLike] = module_cls
-        self.kwargs = kwargs
+    module_type: str
+    hidden_size: int
+    num_layers: int = 1
+    nonlinearity: str = "tanh"
+    bias: bool = True
+    dropout: float = 0.0
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        # RNN / LSTM / GRU
-        module_cls = getattr(nn, self.module_cls) if isinstance(self.module_cls, str) else self.module_cls
-        return Rnn(module_cls, input_size=input_dim, output_dim=output_dim, **self.kwargs)
-
-    def __getattr__(self, item):
-        if item in (kwargs := super().__getattribute__("kwargs")):
-            return kwargs[item]
-        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{item}'")
-
-    def to_dict(self):
-        return {"module_cls": self.module_cls, **self.kwargs}
+        module_type = self.module_type.lower()
+        if module_type == "rnn" or module_type == "vanilla":
+            module = _VanillaRnn(
+                input_size=input_dim,
+                hidden_size=self.hidden_size,
+                num_layers=self.num_layers,
+                nonlinearity=self.nonlinearity,
+                bias=self.bias,
+                dropout=self.dropout,
+            )
+        elif module_type == "lstm":
+            module = _Lstm(
+                input_size=input_dim,
+                hidden_size=self.hidden_size,
+                num_layers=self.num_layers,
+                bias=self.bias,
+                dropout=self.dropout,
+            )
+        elif module_type == "gru":
+            module = _Gru(
+                input_size=input_dim,
+                hidden_size=self.hidden_size,
+                num_layers=self.num_layers,
+                bias=self.bias,
+                dropout=self.dropout,
+            )
+        else:
+            raise ValueError(f"Unsupported RNN module class '{self.module_type}'")
+        return Rnn(module, output_dim=output_dim)
 
 
 class Rnn(Module):
-    """A generic wrapper for recurrent neural networks (RNNs).
+    """Wrapper around the recurrent modules defined in this file.
 
-    This module provides a unified interface for various RNN-like layers (e.g.,
-    `nn.RNN`, `nn.LSTM`, `nn.GRU`), handling different input scenarios such as
-    single tensors, sequences with termination signals, and packed sequences.
+    This module provides a unified interface for the internal RNN adapters
+    (``_VanillaRnn``, ``_Lstm``, and ``_Gru``), handling single tensors,
+    sequences with termination signals, and packed sequences.
 
-    It automatically handles memory (hidden state) management, including
-    resetting states for new episodes within a batch.
+    It also manages recurrent memory, including resetting states for finished
+    episodes within a batch when ``done`` flags are provided.
 
     Args:
-        rnn (type[RnnLike] | RnnLike):
-            The RNN class (e.g., `nn.LSTM`) or an instantiated RNN module.
+        rnn (_VanillaRnn | _Lstm | _Gru):
+            An instantiated recurrent module created by this module's helpers
+            or factories.
         output_dim (int | None, optional):
-            The dimension of the output. If not None, an linear layer is added
-            to project the RNN's output to this dimension. Defaults to None.
-        **kwargs:
-            Additional keyword arguments passed to the RNN constructor if `rnn`
-            is a class.
+            Output feature dimension. If not ``None``, a linear projection is
+            applied to the recurrent output. Defaults to ``None``.
     """
 
     Factory = RnnFactory
 
-    def __init__(self, rnn: type[RnnLike] | RnnLike, output_dim: int | None = None, **kwargs):
-        if isinstance(rnn, type):
-            rnn = rnn(**kwargs)
-        if getattr(rnn, "batch_first", False):
-            raise ValueError("RNNs with 'batch_first=True' are not supported")
-        if getattr(rnn, "bidirectional", False):
-            raise ValueError("RNNs with 'bidirectional=True' are not supported")
+    def __init__(self, rnn: _VanillaRnn | _Lstm | _Gru, output_dim: int | None = None):
         super().__init__(rnn.input_size, output_dim or rnn.hidden_size, is_recurrent=True)
         self.rnn = rnn
         self.output_proj = nn.Linear(rnn.hidden_size, output_dim) if output_dim else nn.Identity()
@@ -103,7 +186,7 @@ class Rnn(Module):
                 The recurrent state from the previous step. Defaults to None,
                 which initializes a zero state.
             done (Tensor | None, optional):
-                A boolean tensor of shape :math:`(L, N)` indicating
+                A boolean tensor of shape :math:`(L, N, 1)` indicating
                 terminations. If provided, the memory is reset for the
                 corresponding batch entries where `done` is True. Requires
                 ``sequential`` to be True. Defaults to None.
@@ -160,7 +243,10 @@ class Rnn(Module):
             reshaped_packed_latent, reshaped_scattered_output_memory = self.rnn(
                 reshaped_packed_input, reshaped_scattered_memory
             )
-            reshaped_padded_latent, _ = nn.utils.rnn.pad_packed_sequence(reshaped_packed_latent)
+            reshaped_padded_latent, _ = nn.utils.rnn.pad_packed_sequence(
+                reshaped_packed_latent,
+                total_length=reshaped_padded_input.size(0),
+            )
             padded_latent, scattered_output_memory = self._reshape_output(
                 reshaped_padded_latent, reshaped_scattered_output_memory, padded_input.shape
             )
@@ -212,17 +298,52 @@ class Rnn(Module):
         return memory
 
 
-class LstmFactory(ModuleFactory["Lstm"]):
-    def __init__(self, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, **kwargs):
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.bias = bias
-        self.dropout = dropout
-        for name, value in kwargs.items():
-            setattr(self, name, value)
+@dataclass
+class VanillaRnnFactory(ModuleFactory["VanillaRnn"]):
+    hidden_size: int
+    num_layers: int = 1
+    nonlinearity: str = "tanh"
+    bias: bool = True
+    dropout: float = 0.0
 
-    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        assert input_dim is not None
+    def __call__(self, input_dim: int, output_dim: int | None = None):
+        return VanillaRnn(input_dim=input_dim, output_dim=output_dim, **self.__dict__)
+
+
+class VanillaRnn(Rnn):
+    Factory = VanillaRnnFactory
+
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_size: int,
+        num_layers: int = 1,
+        nonlinearity: str = "tanh",
+        bias: bool = True,
+        dropout: float = 0.0,
+        output_dim: int | None = None,
+    ):
+        super().__init__(
+            _VanillaRnn(
+                input_size=input_dim,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                nonlinearity=nonlinearity,
+                bias=bias,
+                dropout=dropout,
+            ),
+            output_dim=output_dim,
+        )
+
+
+@dataclass
+class LstmFactory(ModuleFactory["Lstm"]):
+    hidden_size: int
+    num_layers: int = 1
+    bias: bool = True
+    dropout: float = 0.0
+
+    def __call__(self, input_dim: int, output_dim: int | None = None):
         return Lstm(input_dim=input_dim, output_dim=output_dim, **self.__dict__)
 
 
@@ -237,31 +358,27 @@ class Lstm(Rnn):
         bias: bool = True,
         dropout: float = 0.0,
         output_dim: int | None = None,
-        **kwargs,
     ):
         super().__init__(
-            nn.LSTM,
-            input_size=input_dim,
+            _Lstm(
+                input_size=input_dim,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                bias=bias,
+                dropout=dropout,
+            ),
             output_dim=output_dim,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            bias=bias,
-            dropout=dropout,
-            **kwargs,
         )
 
 
+@dataclass
 class GruFactory(ModuleFactory["Gru"]):
-    def __init__(self, hidden_size: int, num_layers: int = 1, bias: bool = True, dropout: float = 0.0, **kwargs):
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.bias = bias
-        self.dropout = dropout
-        for name, value in kwargs.items():
-            setattr(self, name, value)
+    hidden_size: int
+    num_layers: int = 1
+    bias: bool = True
+    dropout: float = 0.0
 
-    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        assert input_dim is not None
+    def __call__(self, input_dim: int, output_dim: int | None = None):
         return Gru(input_dim=input_dim, output_dim=output_dim, **self.__dict__)
 
 
@@ -276,17 +393,16 @@ class Gru(Rnn):
         bias: bool = True,
         dropout: float = 0.0,
         output_dim: int | None = None,
-        **kwargs,
     ):
         super().__init__(
-            nn.GRU,
-            input_size=input_dim,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            bias=bias,
-            dropout=dropout,
+            _Gru(
+                input_size=input_dim,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                bias=bias,
+                dropout=dropout,
+            ),
             output_dim=output_dim,
-            **kwargs,
         )
 
 
@@ -296,10 +412,13 @@ def concat_memory(memory1: Memory, memory2: Memory) -> Memory:
         raise TypeError("Memory values must have the same type to be concatenated")
     if memory1 is None:
         return None
-    if isinstance(memory1, Tensor):
-        memory2 = cast(Tensor, memory2)
-        return torch.cat((memory1, memory2), dim=-2)
-    return tuple(concat_memory(m1, m2) for m1, m2 in zip(memory1, memory2))
+    if isinstance(memory1, dict):
+        memory2 = cast(dict[str, Memory], memory2)
+        return {key: concat_memory(value, memory2[key]) for key, value in memory1.items()}
+    if not isinstance(memory1, Tensor):
+        raise TypeError(f"Unsupported memory type: {type(memory1).__name__}")
+    memory2 = cast(Tensor, memory2)
+    return torch.cat((memory1, memory2), dim=-2)
 
 
 def scatter_memory(memory: Memory, done: Tensor) -> Memory:
@@ -317,7 +436,7 @@ def scatter_memory(memory: Memory, done: Tensor) -> Memory:
             where :math:`N` is the batch size and :math:`C` is the channel
             dimension.
         done (Tensor):
-            A boolean tensor of shape :math:`(L, C, 1)` indicating episode
+            A boolean tensor of shape :math:`(L, N, 1)` indicating episode
             terminations.
 
     Returns:
@@ -327,8 +446,10 @@ def scatter_memory(memory: Memory, done: Tensor) -> Memory:
     """
     if memory is None:
         return None
-    if isinstance(memory, tuple):
-        return tuple(scatter_memory(mem, done) for mem in memory)
+    if isinstance(memory, dict):
+        return {key: scatter_memory(value, done) for key, value in memory.items()}
+    if not isinstance(memory, Tensor):
+        raise TypeError(f"Unsupported memory type: {type(memory).__name__}")
 
     done = done.squeeze(-1)
     seq_indices = done[:-1].sum(dim=0).cumsum(dim=0)
@@ -347,8 +468,10 @@ def scatter_memory(memory: Memory, done: Tensor) -> Memory:
 def gather_memory(memory: Memory, done: Tensor) -> Memory:
     if memory is None:
         return None
-    if isinstance(memory, tuple):
-        return tuple(gather_memory(mem, done) for mem in memory)
+    if isinstance(memory, dict):
+        return {key: gather_memory(value, done) for key, value in memory.items()}
+    if not isinstance(memory, Tensor):
+        raise TypeError(f"Unsupported memory type: {type(memory).__name__}")
 
     done = done.squeeze(-1)
     seq_indices = done[:-1].sum(dim=0).cumsum(dim=0)

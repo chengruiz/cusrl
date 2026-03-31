@@ -290,9 +290,10 @@ class SymmetricDataAugmentation(SymmetryHook):
     def _concat_memory(self, memory1: Memory, memory2: Memory):
         if memory1 is None:
             return None
-        if isinstance(memory1, torch.Tensor):
-            return torch.cat([memory1, memory2], dim=-3)
-        return tuple(self._concat_memory(m1, m2) for m1, m2 in zip(memory1, memory2))
+        if isinstance(memory1, dict):
+            assert memory2 is not None
+            return {key: self._concat_memory(value, memory2[key]) for key, value in memory1.items()}
+        return torch.cat([memory1, memory2], dim=-3)
 
 
 class SymmetricArchitecture(SymmetryHook):
@@ -362,9 +363,10 @@ class SymmetricActor(Actor):
         distribution_kwargs: dict | None = None,
     ) -> tuple[NestedTensor, Memory]:
         if memory is not None:
-            memory, mirrored_memory = memory
+            original_memory = memory["original"]
+            mirrored_memory = memory["mirrored"]
         else:
-            memory = mirrored_memory = None
+            original_memory = mirrored_memory = None
 
         self.wrapped.intermediate_repr.clear()
         mirrored_observation = self.mirror_observation(observation)
@@ -378,9 +380,9 @@ class SymmetricActor(Actor):
         mirrored_intermediate_repr = self.wrapped.intermediate_repr
 
         self.wrapped.intermediate_repr = {}
-        original_action_dist, memory = self.wrapped(
+        original_action_dist, original_memory = self.wrapped(
             observation,
-            memory=memory,
+            memory=original_memory,
             done=done,
             backbone_kwargs=backbone_kwargs,
             distribution_kwargs=distribution_kwargs,
@@ -395,9 +397,9 @@ class SymmetricActor(Actor):
             "mean": (original_action_dist["mean"] + self.mirror_action(mirrored_action_dist["mean"])) / 2,
             "std": (original_action_dist["std"] + self.mirror_action(mirrored_action_dist["std"]).abs()) / 2,
         }
-        if memory is None:
+        if original_memory is None:
             return action_dist, None
-        return action_dist, (memory, mirrored_memory)
+        return action_dist, {"original": original_memory, "mirrored": mirrored_memory}
 
     def _explore_impl(
         self,
@@ -432,19 +434,21 @@ class SymmetricActor(Actor):
 
     def step_memory(self, observation, memory=None, **kwargs):
         if memory is not None:
-            memory, mirrored_memory = memory
+            original_memory = memory["original"]
+            mirrored_memory = memory["mirrored"]
         else:
-            memory = mirrored_memory = None
+            original_memory = mirrored_memory = None
 
-        memory = self.wrapped.step_memory(observation, memory=memory, **kwargs)
+        original_memory = self.wrapped.step_memory(observation, memory=original_memory, **kwargs)
         mirrored_observation = self.mirror_observation(observation)
         mirrored_memory = self.wrapped.step_memory(mirrored_observation, memory=mirrored_memory, **kwargs)
-        return None if memory is None else (memory, mirrored_memory)
+        return None if original_memory is None else {"original": original_memory, "mirrored": mirrored_memory}
 
     def reset_memory(self, memory: Memory, done: Slice | Tensor | None = None):
         if memory is None:
             return
 
-        memory, mirrored_memory = memory
-        self.wrapped.reset_memory(memory, done=done)
+        original_memory = memory["original"]
+        mirrored_memory = memory["mirrored"]
+        self.wrapped.reset_memory(original_memory, done=done)
         self.wrapped.reset_memory(mirrored_memory, done=done)

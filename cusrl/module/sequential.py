@@ -49,24 +49,21 @@ class Sequential(Module):
         )
         self.layers = nn.ModuleList(layers)
 
-    def forward(self, input, **kwargs):
-        last_memory = kwargs.pop("memory", None)
-        if last_memory is not None:
-            last_memory = iter(last_memory)
-        memory = []
+    def forward(self, input, memory: Memory | None = None, **kwargs):
+        final_memory = {}
         for i, layer in enumerate(self.layers):
             if layer.is_recurrent:
-                layer_memory = None if last_memory is None else next(last_memory)
+                layer_memory = None if memory is None else memory.get(str(i))
                 input, layer_memory = layer(input, memory=layer_memory, **kwargs)
-                memory.append(layer_memory)
+                if layer_memory is not None:
+                    final_memory[str(i)] = layer_memory
             else:
                 input = layer(input, **kwargs)
+
             prefix = f"{i}/{type(layer).__name__}"
             self.intermediate_repr[f"{prefix}.output"] = input
             self.intermediate_repr.update(prefix_dict_keys(layer.intermediate_repr, f"{prefix}."))
-        if memory:
-            return input, tuple(memory)
-        return input
+        return (input, final_memory) if self.is_recurrent else input
 
     def clear_intermediate_repr(self):
         super().clear_intermediate_repr()
@@ -76,7 +73,6 @@ class Sequential(Module):
     def reset_memory(self, memory: Memory, done: Slice | torch.Tensor | None = None):
         if not self.is_recurrent or memory is None:
             return
-        memory = iter(memory)
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             if layer.is_recurrent:
-                layer.reset_memory(next(memory), done)
+                layer.reset_memory(memory.get(str(i)), done)

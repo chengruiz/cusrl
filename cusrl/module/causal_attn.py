@@ -15,7 +15,7 @@ from cusrl.utils.recurrent import (
     compute_sequence_lengths,
     cumulate_sequence_lengths,
 )
-from cusrl.utils.typing import Slice
+from cusrl.utils.typing import Memory, Slice
 
 try:
     from flash_attn import flash_attn_varlen_kvpacked_func
@@ -107,12 +107,12 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
     def forward(
         self,
         input: Tensor,
-        memory: tuple[Tensor, Tensor, Tensor] | None = None,
+        memory: Memory = None,
         *,
         done: Tensor | None = None,
         sequential: bool = True,
         **kwargs,
-    ) -> tuple[Tensor, tuple[Tensor, Tensor, Tensor]]:
+    ) -> tuple[Tensor, Memory]:
         """Computes multi-head self-attention with KV caching.
 
         Args:
@@ -120,8 +120,8 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
                 Input tensor of shape :math:`(L, N, C)`, where :math:`L` is the
                 sequence length, :math:`N` is the batch size, and :math:`C` is
                 the input dimension.
-            memory (tuple[Tensor, Tensor, Tensor] | None):
-                A tuple containing the input cache, KV cache, and cache mask.
+            memory (Memory):
+                A dict containing the input cache, KV cache, and cache mask.
                   - input_cache (Tensor):
                       Tensor of shape :math:`(W, N, C)` storing past inputs,
                       where :math:`W` is the window size.
@@ -141,8 +141,9 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         Outputs:
             - **output** (Tensor):
                 The attention output tensor of the same shape as ``input``.
-            - **memory** (tuple[Tensor, Tensor, Tensor]):
-                The updated memory tuple `(input_cache, kv_cache, cache_mask)`.
+            - **memory** (Memory):
+                The updated memory dict with ``input_cache``, ``kv_cache``, and
+                ``cache_mask`` entries.
         """
         if seq_missing := (input.dim() == 2 or not sequential):
             input = input.unsqueeze(0)
@@ -169,7 +170,9 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
             seq_lens_mask = input.new_zeros(batch_size, dtype=torch.int32)
         else:
             # Concatenate past states and generate mask
-            input_cache, kv_cache, cache_mask = memory
+            input_cache = memory["input_cache"]
+            kv_cache = memory["kv_cache"]
+            cache_mask = memory["cache_mask"]
             input_cache = input_cache.flatten(1, -2).transpose(0, 1)
             kv_cache = kv_cache.flatten(1, -2).transpose(0, 1)
             cache_mask = cache_mask.flatten(1, -2).transpose(0, 1).squeeze(-1)
@@ -257,11 +260,15 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         new_cache_mask = new_cache_mask.unflatten(1, batch_dims)
         if seq_missing:
             output = output.squeeze(0)
-        return output, (new_input_cache, new_kv_cache, new_cache_mask.unsqueeze(-1))
+        return output, {
+            "input_cache": new_input_cache,
+            "kv_cache": new_kv_cache,
+            "cache_mask": new_cache_mask.unsqueeze(-1),
+        }
 
     def reset_memory(
         self,
-        memory: tuple[Tensor, Tensor, Tensor] | None,
+        memory: dict[str, Tensor] | None,
         done: Slice | Tensor | None = None,
     ):
         """Resets the memory cache for specific environments.
@@ -272,8 +279,8 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         the ``done`` indices (e.g., for environments that are done) are reset.
 
         Args:
-            memory (tuple[Tensor, Tensor, Tensor] | None):
-                A tuple containing the input cache, KV cache, and cache mask. If
+            memory (dict[str, Tensor] | None):
+                A dict containing the input cache, KV cache, and cache mask. If
                 ``None``, the function does nothing.
             done (SliceType | Tensor | None, optional):
                 A mask or slice indicating which parts of the memory to reset.
@@ -282,7 +289,9 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         """
         if memory is None:
             return
-        input_cache, kv_cache, cache_mask = memory
+        input_cache = memory["input_cache"]
+        kv_cache = memory["kv_cache"]
+        cache_mask = memory["cache_mask"]
         if done is None:
             input_cache.zero_()
             kv_cache.zero_()
@@ -405,12 +414,12 @@ class CausalTransformerEncoderLayer(Module):
     def forward(
         self,
         input: Tensor,
-        memory: tuple[Tensor, Tensor, Tensor] | None = None,
+        memory: Memory = None,
         *,
         done: Tensor | None = None,
         sequential: bool = True,
         **kwargs,
-    ) -> tuple[Tensor, tuple[Tensor, Tensor, Tensor]]:
+    ) -> tuple[Tensor, Memory]:
         input = self.in_proj(input)
         if self.layer_norm == "pre":
             # pre-norm: norm -> attn -> add -> norm -> ff -> add
@@ -444,7 +453,7 @@ class CausalTransformerEncoderLayer(Module):
 
     def reset_memory(
         self,
-        memory: tuple[Tensor, Tensor, Tensor],
+        memory: dict[str, Tensor],
         done: Slice | Tensor | None = None,
     ):
         self.self_attn.reset_memory(memory, done)
