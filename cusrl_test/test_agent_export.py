@@ -34,7 +34,7 @@ def test_export_agent_with_hooks(rnn_type):
         torch.randn(environment.action_dim).abs(),
         torch.randn(environment.action_dim),
     )
-    agent_factory = cusrl.preset.ppo.RecurrentAgentFactory(rnn_type=rnn_type)
+    agent_factory = cusrl.preset.ppo.RecurrentAgentFactory(rnn_type=rnn_type).to_underlying()
     agent_factory.register_hook(cusrl.hook.ReturnPrediction(), after="entropy_loss")
     agent_factory.register_hook(cusrl.hook.StatePrediction(slice(16, 24)), after="return_prediction")
     agent_factory.register_hook(cusrl.hook.NextStatePrediction(slice(16, 24)), after="state_prediction")

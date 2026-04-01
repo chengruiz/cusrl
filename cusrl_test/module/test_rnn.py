@@ -11,9 +11,7 @@ def assert_memory_allclose(memory1, memory2, *, atol=1e-8, rtol=1e-5):
     flat_memory2 = flatten_nested(memory2)
     assert flat_memory1.keys() == flat_memory2.keys()
     for key in flat_memory1:
-        assert torch.allclose(flat_memory1[key], flat_memory2[key], atol=atol, rtol=rtol), (
-            f"Memory mismatch at {key}"
-        )
+        assert torch.allclose(flat_memory1[key], flat_memory2[key], atol=atol, rtol=rtol), f"Memory mismatch at {key}"
 
 
 def clone_memory(memory):

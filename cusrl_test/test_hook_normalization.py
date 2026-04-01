@@ -9,7 +9,7 @@ from cusrl_test import create_dummy_env
 
 
 def train_agent_with_observation_normalization(env, window_size=None, num_iterations=5):
-    agent_factory = cusrl.preset.ppo.AgentFactory()
+    agent_factory = cusrl.preset.ppo.AgentFactory().to_underlying()
     agent_factory.register_hook(cusrl.hook.ObservationNormalization(window_size), after="module_initialization")
     trainer = cusrl.Trainer(env, agent_factory, num_iterations=num_iterations)
     trainer.run_training_loop()

@@ -1,4 +1,4 @@
-from cusrl import environment, hook, logger, module, preset, sampler, template, utils, zoo
+from cusrl import environment, hook, logger, module, preset, sampler, testing, template, utils, zoo
 from cusrl.environment import make_gym_env, make_gym_vec, make_isaaclab_env, make_mjlab_env
 from cusrl.module import (
     Actor,
@@ -69,6 +69,7 @@ __all__ = [
     "nn",
     "preset",
     "sampler",
+    "testing",
     "template",
     "utils",
     "zoo",

@@ -4,7 +4,7 @@ import torch
 
 import cusrl
 from cusrl.template.environment import get_done_indices
-from cusrl.utils.testing import DummyNumpyEnvironment, DummyTorchEnvironment
+from cusrl.testing.environment import DummyNumpyEnvironment, DummyTorchEnvironment
 
 __all__ = [
     "create_dummy_env",
@@ -80,9 +80,9 @@ def test_module_consistency(backbone_factory=None, is_recurrent=False, atol=1e-4
                 assert max_error < atol, f"Max error {max_error} exceeds tolerance {atol}"
 
     if is_recurrent:
-        agent_factory = cusrl.preset.ppo.RecurrentAgentFactory(sampler_mini_batches=1, sampler_epochs=1)
+        agent_factory = cusrl.preset.ppo.RecurrentAgentFactory(sampler_mini_batches=1, sampler_epochs=1).to_underlying()
     else:
-        agent_factory = cusrl.preset.ppo.AgentFactory(sampler_mini_batches=1, sampler_epochs=1)
+        agent_factory = cusrl.preset.ppo.AgentFactory(sampler_mini_batches=1, sampler_epochs=1).to_underlying()
     if backbone_factory is not None:
         agent_factory.actor_factory = cusrl.Actor.Factory(
             backbone_factory=backbone_factory,

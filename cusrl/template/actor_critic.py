@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import itertools
 import os
 from collections.abc import Iterable
@@ -45,38 +46,21 @@ class HookList(list[Hook]):
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
 
+@dataclass(kw_only=True)
 class ActorCriticFactory(AgentFactory["ActorCritic"]):
     actor_factory: ActorFactory
+    """The factory for creating the actor module."""
     critic_factory: ValueFactory
+    """The factory for creating the critic module."""
     optimizer_factory: OptimizerFactory
+    """The factory for creating the optimizer."""
     sampler: Sampler
-    hooks: HookList
+    """The sampler for generating training batches."""
+    hooks: list[Hook]
+    """A list of hooks to be called during the agent's lifecycle."""
 
-    def __init__(
-        self,
-        actor_factory: ActorFactory,
-        critic_factory: ValueFactory,
-        optimizer_factory: OptimizerFactory,
-        sampler: Sampler,
-        hooks: Iterable[Hook],
-        num_steps_per_update: int,
-        name: str = "Agent",
-        device: torch.device | str | None = None,
-        compile: bool = False,
-        autocast: bool | None | str | torch.dtype = False,
-    ):
-        super().__init__(
-            num_steps_per_update=num_steps_per_update,
-            name=name,
-            device=device,
-            compile=compile,
-            autocast=autocast,
-        )
-        self.actor_factory = actor_factory
-        self.critic_factory = critic_factory
-        self.optimizer_factory = optimizer_factory
-        self.sampler = sampler
-        self.hooks = HookList(hooks)
+    def __post_init__(self):
+        self.hooks = HookList(self.hooks)
 
     def __call__(self, environment_spec: EnvironmentSpec):
         """Instantiate an Actor-Critic agent with the given environment spec."""

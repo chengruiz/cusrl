@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Any, Generic, TypeVar, overload
 
 import numpy as np
@@ -19,26 +20,19 @@ __all__ = ["Agent", "AgentType", "AgentFactory"]
 AgentType = TypeVar("AgentType", bound="Agent")
 
 
+@dataclass(kw_only=True)
 class AgentFactory(ABC, Generic[AgentType]):
     num_steps_per_update: int
-    name: str
-    device: torch.device | str | None
-    compile: bool
-    autocast: bool | None | str | torch.dtype
-
-    def __init__(
-        self,
-        num_steps_per_update: int,
-        name: str = "Agent",
-        device: torch.device | str | None = None,
-        compile: bool = False,
-        autocast: bool | None | str | torch.dtype = False,
-    ):
-        self.num_steps_per_update = num_steps_per_update
-        self.name = name
-        self.device = device
-        self.compile = compile
-        self.autocast = autocast
+    """Number of environment steps to collect before performing an update."""
+    name: str = "Agent"
+    """Name of the agent."""
+    device: torch.device | str | None = None
+    """Device on which to place the agent's tensors and modules."""
+    compile: bool = False
+    """Whether to use torch.compile on the agent's modules."""
+    autocast: bool | None | str | torch.dtype = False
+    """Whether to enable automatic mixed precision. If a string or torch.dtype
+    is provided, it specifies the dtype for autocasting."""
 
     def override(self, **kwargs: Any) -> Self:
         for key, value in kwargs.items():

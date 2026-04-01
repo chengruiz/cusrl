@@ -55,9 +55,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         recompute (bool, optional):
             If ``True``, recompute advantages and returns after each update.
             Defaults to ``False``.
-        popart_alpha (float | None, optional):
-            If not ``None``, applies PopArt normalization to the value function
-            with the specified alpha. Defaults to ``None`` (no normalization).
     """
 
     @dataclass
@@ -66,7 +63,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         lamda: float = 0.95
         lamda_value: float | None = None
         recompute: bool = False
-        popart_alpha: float | None = None
 
         @classmethod
         def get_hook_type(cls):
@@ -78,7 +74,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         lamda: float = 0.95,
         lamda_value: float | None = None,
         recompute: bool = False,
-        popart_alpha: float | None = None,
     ):
         if gamma < 0 or gamma >= 1:
             raise ValueError(f"'gamma' must be in [0, 1); got {gamma}")
@@ -89,7 +84,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
 
         super().__init__(training_only=True)
         self.recompute = recompute
-        self.popart_alpha = popart_alpha
 
         # Mutable attributes
         self.gamma: float = gamma
@@ -98,18 +92,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         self.register_mutable("gamma")
         self.register_mutable("lamda")
         self.register_mutable("lamda_value")
-
-        # Runtime attributes
-        self.value_rms: ExponentialMovingNormalizer | None
-
-    def init(self):
-        if self.popart_alpha is not None:
-            self.register_module("value_rms", ExponentialMovingNormalizer(self.agent.value_dim, self.popart_alpha))
-            self.agent.critic.value_rms = self.agent.setup_module(
-                ExponentialMovingNormalizer(self.agent.value_dim, self.popart_alpha)
-            )
-        else:
-            self.value_rms = None
 
     def pre_update(self, buffer):
         if not self.recompute:
@@ -120,24 +102,9 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             self._compute_advantage_and_return(batch)
 
     @torch.no_grad()
-    def post_update(self):
-        if self.value_rms is not None:
-            old_value_rms = cast(ExponentialMovingNormalizer, self.agent.critic.value_rms)
-            old_mean, old_std = old_value_rms.mean, old_value_rms.std
-            # Adjust value head weights and biases
-            new_mean, new_std = self.value_rms.mean, self.value_rms.std
-            value_head = cast(torch.nn.Linear, self.agent.critic.value_head)
-            value_head.weight.data.mul_(old_std / new_std)
-            value_head.bias.data.mul_(old_std).add_(old_mean).sub_(new_mean).div_(new_std)
-            old_value_rms.load_state_dict(self.value_rms.state_dict())
-
-    @torch.no_grad()
     def _compute_advantage_and_return(self, data):
         value = data["value"]
         next_value = data["next_value"]
-        if (value_rms := self.agent.critic.value_rms) is not None:
-            value = value_rms.unnormalize(value)
-            next_value = value_rms.unnormalize(next_value)
 
         data["advantage"] = _generalized_advantage_estimation(
             reward=data["reward"],
@@ -160,7 +127,3 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
                 lamda=self.lamda_value,
             )
         )
-
-        if value_rms is not None:
-            self.value_rms.update(data["return"])
-            value_rms.normalize_(data["return"])

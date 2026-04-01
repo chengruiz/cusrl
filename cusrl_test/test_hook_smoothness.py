@@ -4,7 +4,7 @@ from cusrl_test import create_dummy_env
 
 def test_smoothness():
     environment = create_dummy_env()
-    agent_factory = cusrl.preset.ppo.RecurrentAgentFactory()
+    agent_factory = cusrl.preset.ppo.RecurrentAgentFactory().to_underlying()
     agent_factory.register_hook(
         cusrl.hook.ActionSmoothnessLoss(
             weight_1st_order=0.01,

@@ -9,7 +9,7 @@ def test_distillation():
     env1 = create_dummy_env(observation_dim=24)
     env2 = create_dummy_env(with_state=True)
 
-    expert = cusrl.preset.ppo.AgentFactory().from_environment(env1)
+    expert = cusrl.preset.ppo.AgentFactory().to_underlying().from_environment(env1)
     dirname = f"/tmp/cusrl/distillation/{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}"
     expert.export(dirname, target_format="jit", batch_size=env1.num_instances)
 

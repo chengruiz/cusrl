@@ -80,8 +80,6 @@ class ValueComputation(Hook[ActorCritic]):
         with self.agent.autocast():
             next_value[-1] = critic.evaluate(next_state[-1], memory=self._critic_memory)
         termination_value = value.new_full([value.size(-1)], self.termination_value)
-        if critic.value_rms is not None:
-            critic.value_rms.normalize_(termination_value)
         set_sequence_batch_masked_(next_value, terminated, termination_value)
         if truncated.any():
             if self.bootstrap_truncated_states:
@@ -164,12 +162,8 @@ class ValueLoss(Hook[ActorCritic]):
         return {"value_loss": value_loss * self.weight}
 
     def post_objective(self, batch):
-        critic = self.agent.critic
-
         curr_value = cast(Tensor, batch["curr_value"])
         self.agent.record(value=curr_value.sum(dim=-1))
         with torch.no_grad():
-            if critic.value_rms is not None:
-                curr_value = critic.value_rms.unnormalize(curr_value)
             if (value_dim := curr_value.size(-1)) != 1:
                 self.agent.record(**{f"value.{i}": curr_value[..., i] for i in range(value_dim)})

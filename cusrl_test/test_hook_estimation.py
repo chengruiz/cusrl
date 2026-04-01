@@ -4,7 +4,7 @@ from cusrl_test import create_dummy_env
 
 def test_estimation():
     environment = create_dummy_env(with_state=True)
-    agent_factory = cusrl.preset.ppo.RecurrentAgentFactory()
+    agent_factory = cusrl.preset.ppo.RecurrentAgentFactory().to_underlying()
     agent_factory.register_hook(
         cusrl.hook.StateEstimation(
             estimator_factory=cusrl.Lstm.Factory(hidden_size=32),

@@ -53,7 +53,6 @@ class Value(Module):
         )
         self.backbone: Module = backbone.rnn_compatible()
         self.value_head = value_head
-        self.value_rms: RunningMeanStd | None = None
         self.action_aware: bool = action_aware
         self.backbone_kwargs: dict[str, Any] = {}
 

@@ -85,7 +85,6 @@ CusRL provides a modular and extensible framework for RL with the following key 
 - [Generalized Advantage Estimation (GAE)](https://arxiv.org/abs/1506.02438)
   with [distinct lambda values](https://proceedings.neurips.cc/paper_files/paper/2022/hash/e95475f5fb8edb9075bf9e25670d4013-Abstract-Conference.html)
 - [Privileged Training (Policy Distillation)](https://www.science.org/doi/10.1126/scirobotics.abc5986)
-- [Preserving Outputs Precisely, while Adaptively Rescaling Targets (Pop-Art)](https://proceedings.neurips.cc/paper/2016/hash/5227b6aaf294f5f027273aebf16015f2-Abstract.html)
 - [Proximal Policy Optimization (PPO)](https://arxiv.org/abs/1707.06347) with recurrent policy support
 - [Random Network Distillation (RND)](https://arxiv.org/abs/1810.12894)
 - Symmetry Augmentations:
