@@ -243,7 +243,7 @@ def test_transformer_decoder_factory_forward():
 @torch.no_grad()
 @pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
 @pytest.mark.parametrize("is_causal", [False, True])
-@pytest.mark.parametrize("qk_norm", [True, "rms", "layer"])
+@pytest.mark.parametrize("qk_norm", ["rms", "layer", None])
 def test_mha_qk_norm_consistency_between_self_and_general(dtype, is_causal, qk_norm):
     torch.manual_seed(0)
     batch, seq, embed_dim, num_heads = 2, 9, 32, 4
