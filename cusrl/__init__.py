@@ -26,6 +26,7 @@ from cusrl.module import (
     Sequential,
     Simba,
     StubModule,
+    TransformerDecoderLayer,
     TransformerEncoderLayer,
     Value,
 )
@@ -118,6 +119,7 @@ __all__ = [
     "TemporalMiniBatchSampler",
     "TemporalRandomSampler",
     "Trainer",
+    "TransformerDecoderLayer",
     "TransformerEncoderLayer",
     "Trial",
     "Value",

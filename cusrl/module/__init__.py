@@ -84,6 +84,7 @@ from .stub import (
 )
 from .transformer import (
     FeedForward,
+    TransformerDecoderLayer,
     TransformerEncoderLayer,
 )
 
@@ -137,6 +138,7 @@ __all__ = [
     "SoftplusBijector",
     "StubModule",
     "SwiGlu",
+    "TransformerDecoderLayer",
     "TransformerEncoderLayer",
     "get_gate_cls",
     "make_bijector",

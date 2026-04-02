@@ -8,6 +8,7 @@ from cusrl.module import (
     MultiheadAttention,
     MultiheadCrossAttention,
     MultiheadSelfAttention,
+    TransformerDecoderLayer,
 )
 from cusrl.module.encoding import RotaryEmbedding
 from cusrl.module.mha import FlashAttention
@@ -214,6 +215,29 @@ def test_cross_mha_consistency_with_torch(dtype):
 
     assert out_flash.shape == out_torch.shape
     assert torch.allclose(out_flash, out_torch, atol=1e-6, rtol=1e-6)
+
+
+@torch.no_grad()
+def test_transformer_decoder_factory_forward():
+    batch, target_len, context_len = 2, 5, 7
+    input_dim, embed_dim, context_dim, output_dim, num_heads = 24, 32, 20, 12, 4
+
+    decoder = TransformerDecoderLayer(
+        embed_dim=embed_dim,
+        num_heads=num_heads,
+        input_dim=input_dim,
+        output_dim=output_dim,
+        context_dim=context_dim,
+        block_norm="layer",
+        block_norm_order="post",
+        dtype=torch.float32,
+    ).eval()
+
+    target = torch.randn(batch, target_len, input_dim)
+    context = torch.randn(batch, context_len, context_dim)
+    output = decoder(target, context, is_causal=True)
+
+    assert output.shape == (batch, target_len, output_dim)
 
 
 @torch.no_grad()

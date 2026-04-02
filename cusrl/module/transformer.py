@@ -1,34 +1,15 @@
-from dataclasses import dataclass
 from typing import Literal
 
 import torch
 from torch import Tensor, nn
 
 from cusrl.module.gate import get_gate_cls
-from cusrl.module.mha import MultiheadSelfAttention, make_norm
-from cusrl.module.module import Module, ModuleFactory
+from cusrl.module.mha import MultiheadCrossAttention, MultiheadSelfAttention, make_norm
 
-__all__ = ["FeedForward", "TransformerEncoderLayer"]
-
-
-@dataclass(slots=True)
-class FeedForwardFactory(ModuleFactory["FeedForward"]):
-    feedforward_dim: int | None = None
-    activation_fn: type[nn.Module] = nn.GELU
-    dropout: float = 0.0
-
-    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        assert input_dim is not None
-        return FeedForward(
-            input_dim=input_dim,
-            feedforward_dim=self.feedforward_dim,
-            activation_fn=self.activation_fn,
-            dropout=self.dropout,
-            output_dim=output_dim,
-        )
+__all__ = ["FeedForward", "TransformerDecoderLayer", "TransformerEncoderLayer"]
 
 
-class FeedForward(Module):
+class FeedForward(nn.Module):
     """A feed-forward network module.
 
     This module implements a standard feed-forward network, typically used as a
@@ -48,8 +29,6 @@ class FeedForward(Module):
             The dimension of the output tensor. Defaults to ``input_dim``.
     """
 
-    Factory = FeedForwardFactory
-
     def __init__(
         self,
         input_dim: int,
@@ -58,7 +37,9 @@ class FeedForward(Module):
         dropout: float = 0.0,
         output_dim: int | None = None,
     ):
-        super().__init__(input_dim, output_dim or input_dim)
+        super().__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim or input_dim
         self.feedforward_dim = feedforward_dim or input_dim * 4
 
         self.layers = nn.Sequential(
@@ -74,43 +55,7 @@ class FeedForward(Module):
         return self.layers(input)
 
 
-@dataclass(slots=True)
-class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
-    embed_dim: int
-    num_heads: int
-    feedforward_dim: int | None = None
-    activation_fn: type[nn.Module] = nn.GELU
-    rope_base: float | None = None
-    dropout: float = 0.0
-    batch_first: bool = True
-    dtype: torch.dtype = torch.float16
-    gate_type: str | None = "residual"
-    qk_norm: Literal["rms", "layer"] | None = None
-    block_norm: Literal["rms", "layer"] | None = None
-    block_norm_order: Literal[None, "pre", "post"] = "post"
-
-    def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        return TransformerEncoderLayer(
-            embed_dim=self.embed_dim,
-            num_heads=self.num_heads,
-            feedforward_dim=self.feedforward_dim,
-            activation_fn=self.activation_fn,
-            rope_base=self.rope_base,
-            dropout=self.dropout,
-            batch_first=self.batch_first,
-            dtype=self.dtype,
-            gate_type=self.gate_type,
-            qk_norm=self.qk_norm,
-            block_norm=self.block_norm,
-            block_norm_order=self.block_norm_order,
-            input_dim=input_dim,
-            output_dim=output_dim,
-        )
-
-
-class TransformerEncoderLayer(Module):
-    Factory = TransformerEncoderLayerFactory
-
+class TransformerEncoderLayer(nn.Module):
     def __init__(
         self,
         embed_dim: int,
@@ -124,18 +69,16 @@ class TransformerEncoderLayer(Module):
         gate_type: str | None = "residual",
         qk_norm: Literal["rms", "layer"] | None = None,
         block_norm: Literal["rms", "layer"] | None = None,
-        block_norm_order: Literal[None, "pre", "post"] = "post",
+        block_norm_order: Literal["pre", "post"] = "post",
         input_dim: int | None = None,
         output_dim: int | None = None,
     ):
+        super().__init__()
         self.embed_dim = embed_dim
+        self.input_dim = input_dim or embed_dim
+        self.output_dim = output_dim or embed_dim
         self.block_norm_order = block_norm_order
         gate_cls = get_gate_cls(gate_type)
-        super().__init__(
-            input_dim=input_dim or embed_dim,
-            output_dim=output_dim or embed_dim,
-            is_recurrent=False,
-        )
 
         # modules
         if self.input_dim != self.embed_dim:
@@ -181,19 +124,110 @@ class TransformerEncoderLayer(Module):
 
             ff_out = self.feedforward(self.norm2(input))
             input = self.gate2(input, self.dropout2(ff_out))
-        elif self.block_norm_order == "post":
+        else:
             # post-norm: attn -> add -> norm -> ff -> add -> norm
             attn_out = self.self_attn(input, is_causal=is_causal)
             input = self.norm1(self.gate1(input, self.dropout1(attn_out)))
 
             ff_out = self.feedforward(input)
             input = self.norm2(self.gate2(input, self.dropout2(ff_out)))
+
+        return self.out_proj(input)
+
+
+class TransformerDecoderLayer(nn.Module):
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int,
+        context_dim: int | None = None,
+        feedforward_dim: int | None = None,
+        activation_fn: type[nn.Module] = nn.GELU,
+        rope_base: float | None = None,
+        dropout: float = 0.0,
+        batch_first: bool = True,
+        dtype: torch.dtype = torch.float16,
+        gate_type: str | None = "residual",
+        qk_norm: Literal["rms", "layer"] | None = None,
+        block_norm: Literal["rms", "layer"] | None = None,
+        block_norm_order: Literal["pre", "post"] = "post",
+        input_dim: int | None = None,
+        output_dim: int | None = None,
+    ):
+        super().__init__()
+        self.embed_dim = embed_dim
+        self.context_dim = context_dim or embed_dim
+        self.input_dim = input_dim or embed_dim
+        self.output_dim = output_dim or embed_dim
+        self.block_norm_order = block_norm_order
+        gate_cls = get_gate_cls(gate_type)
+
+        if self.input_dim != self.embed_dim:
+            self.in_proj: nn.Module = nn.Linear(self.input_dim, self.embed_dim)
         else:
-            # no norm: attn -> add -> ff -> add
-            attn_out = self.self_attn(input, is_causal=is_causal)
-            input = self.gate1(input, self.dropout1(attn_out))
+            self.in_proj = nn.Identity()
+
+        self.norm1 = make_norm(block_norm, self.embed_dim)
+        self.self_attn = MultiheadSelfAttention(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            rope_base=rope_base,
+            qk_norm=qk_norm,
+            dropout=dropout,
+            batch_first=batch_first,
+            dtype=dtype,
+        )
+        self.dropout1 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
+        self.gate1 = gate_cls(self.embed_dim)
+
+        self.norm2 = make_norm(block_norm, self.embed_dim)
+        self.cross_attn = MultiheadCrossAttention(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            qk_norm=qk_norm,
+            dropout=dropout,
+            kv_dim=self.context_dim,
+            batch_first=batch_first,
+            dtype=dtype,
+        )
+        self.dropout2 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
+        self.gate2 = gate_cls(self.embed_dim)
+
+        self.norm3 = make_norm(block_norm, self.embed_dim)
+        self.feedforward = FeedForward(
+            input_dim=self.embed_dim,
+            feedforward_dim=feedforward_dim,
+            dropout=dropout,
+            output_dim=self.embed_dim,
+            activation_fn=activation_fn,
+        )
+        self.dropout3 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
+        self.gate3 = gate_cls(self.embed_dim)
+
+        if self.output_dim != self.embed_dim:
+            self.out_proj: nn.Module = nn.Linear(self.embed_dim, self.output_dim)
+        else:
+            self.out_proj = nn.Identity()
+
+    def forward(self, input: Tensor, context: Tensor, is_causal: bool = False) -> Tensor:
+        input = self.in_proj(input)
+        if self.block_norm_order == "pre":
+            self_attn_out = self.self_attn(self.norm1(input), is_causal=is_causal)
+            input = self.gate1(input, self.dropout1(self_attn_out))
+
+            cross_attn_out = self.cross_attn(self.norm2(input), context)
+            input = self.gate2(input, self.dropout2(cross_attn_out))
+
+            ff_out = self.feedforward(self.norm3(input))
+            input = self.gate3(input, self.dropout3(ff_out))
+        else:
+            self_attn_out = self.self_attn(input, is_causal=is_causal)
+            input = self.norm1(self.gate1(input, self.dropout1(self_attn_out)))
+
+            cross_attn_out = self.cross_attn(input, context)
+            input = self.norm2(self.gate2(input, self.dropout2(cross_attn_out)))
 
             ff_out = self.feedforward(input)
-            input = self.gate2(input, self.dropout2(ff_out))
+            input = self.norm3(self.gate3(input, self.dropout3(ff_out)))
 
         return self.out_proj(input)
