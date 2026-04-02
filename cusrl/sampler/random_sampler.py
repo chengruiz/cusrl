@@ -33,7 +33,7 @@ class RandomSampler(Sampler):
 
     def _sample(self, name: str, data: torch.Tensor, indices):
         """Samples data from the buffer based on the provided indices."""
-        return data.movedim(0, -3).flatten(-3, -2)[indices]
+        return data.flatten(0, 1)[indices]
 
 
 class TemporalRandomSampler(RandomSampler):
@@ -44,7 +44,7 @@ class TemporalRandomSampler(RandomSampler):
         return buffer.get_parallelism()
 
     def _sample(self, name: str, data: torch.Tensor, indices):
-        result = data[..., indices, :]
+        result = data[:, indices]
         if name.split(".")[0].endswith("memory"):
             result = result[0, ...]
         return result

@@ -1,70 +1,16 @@
 import torch
 from torch import Tensor
-from torch.types import Number
 
 __all__ = [
-    "apply_sequence_batch_mask",
     "compute_cumulative_sequence_lengths",
     "compute_cumulative_timesteps",
     "compute_sequence_indices",
     "compute_sequence_lengths",
     "compute_reverse_cumulative_timesteps",
     "cumulate_sequence_lengths",
-    "set_sequence_batch_masked_",
     "split_and_pad_sequences",
     "unpad_and_merge_sequences",
 ]
-
-
-def apply_sequence_batch_mask(tensor: Tensor, mask: Tensor) -> Tensor:
-    """Applies a boolean mask to a tensor on sequence and batch dimensions.
-
-    Args:
-        tensor (Tensor):
-            The input tensor of shape :math:`(L, ..., N, C)`, where :math:`L`
-            is the sequence length, :math:`N` is the batch size and :math:`C` is
-            the channel dimension.
-        mask (Tensor):
-            A boolean tensor of shape :math:`(L, N)` used to select elements
-            from the input tensor.
-
-    Returns:
-        masked_tensor (Tensor):
-            The resulting tensor of shape :math:`(..., M, C)` containing the
-            masked elements, where :math:`M` is the number of ``True`` values in
-            the mask.
-    """
-    # fmt: off
-    return (
-        tensor             # ( L, ..., N, C )
-        .movedim(-2, 1)    # ( L, N, ..., C )
-        [mask]             # ( M, ..., C )
-        .movedim(0, -2)    # ( ..., M, C )
-    )
-    # fmt: on
-
-
-def set_sequence_batch_masked_(tensor: Tensor, mask: Tensor, value: Tensor | Number) -> None:
-    """In-place sets elements of a tensor based on a mask.
-
-    Args:
-        tensor (Tensor):
-            The input tensor of shape :math:`(L, ..., N, C)`, where :math:`L`
-            is the sequence length, :math:`N` is the batch size and :math:`C` is
-            the channel dimension.
-        mask (Tensor):
-            A boolean tensor of shape :math:`(L, N)` used to select elements
-            from the input tensor.
-        value (Tensor | Number):
-            The value to set, which should be broadcastable to the shape of the
-            selected elements in the tensor.
-    """
-    if isinstance(value, Tensor):
-        if value.dim() > 3:
-            value = value.movedim(-2, 0)  # ( ..., M, C ) -> ( M, ..., C )
-        tensor.movedim(-2, 1)[mask] = value
-    else:
-        tensor.movedim(-2, 1).masked_fill_(mask, value)
 
 
 def compute_sequence_indices(done: Tensor) -> Tensor:
@@ -148,16 +94,15 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
 
     Args:
         compact_sequences (Tensor):
-            A tensor of compact sequence data of shape :math:`(L, ..., N, C)`,
-            where :math:`L` is the sequence length, :math:`N` is the batch size,
-            and :math:`C` is the channel dimension.
+            A tensor of compact sequence data of shape :math:`(L, N, ...)`,
+            where :math:`L` is the sequence length, :math:`N` is the batch size.
         done (Tensor):
             A boolean tensor of shape :math:`(L, N, 1)` that indicates sequence
             terminations.
 
     Outputs:
         - **padded_sequences** (Tensor):
-            A tensor of shape :math:`(L, ..., Ns, C)`, where :math:`Ns >= N` is
+            A tensor of shape :math:`(L, Ns, ...)`, where :math:`Ns >= N` is
             the number of extracted contiguous sequences. Each sequence is
             padded with zeros to length :math:`L`.
         - **mask** (Tensor):
@@ -172,16 +117,11 @@ def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Te
     max_sequence_len = compact_sequences.size(0)
     sequence_lens = compute_sequence_lengths(done)
     num_sequences = sequence_lens.size(0)
-    padded_sequences = compact_sequences.new_zeros(
-        num_sequences,
-        max_sequence_len,
-        *compact_sequences.shape[1:-2],
-        compact_sequences.size(-1),
-    )
+    padded_sequences = compact_sequences.new_zeros(num_sequences, max_sequence_len, *compact_sequences.shape[2:])
 
     mask = sequence_lens.unsqueeze(1) > torch.arange(0, max_sequence_len, device=sequence_lens.device)
-    padded_sequences[mask] = compact_sequences.movedim(-2, 0).flatten(0, 1)
-    return padded_sequences.movedim(0, -2), mask.transpose(0, 1)
+    padded_sequences[mask] = compact_sequences.transpose(0, 1).flatten(0, 1)
+    return padded_sequences.transpose(0, 1), mask.transpose(0, 1)
 
 
 def unpad_and_merge_sequences(
@@ -195,11 +135,11 @@ def unpad_and_merge_sequences(
 
     # fmt: off
     return (
-        padded_sequences                            # (L, ..., Ns, C)
-        .movedim(-2, 0)                             # (Ns, L, ..., C)
-        [mask.transpose(0, 1)]                      # (N * L, ..., C)
-        .unflatten(0, (-1, original_sequence_len))  # (N, L, ..., C)
-        .movedim(0, -2)                             # (L, ..., N, C)
+        padded_sequences                            # (L, Ns, ...)
+        .transpose(0, 1)                            # (Ns, L, ...)
+        [mask.transpose(0, 1)]                      # (N * L, ...)
+        .unflatten(0, (-1, original_sequence_len))  # (N, L, ...)
+        .transpose(0, 1)                            # (L, N, ...)
     )
     # fmt: on
 

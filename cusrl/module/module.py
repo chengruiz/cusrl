@@ -4,6 +4,7 @@ from typing import Any, Generic, Optional, TypeAlias, TypeVar
 import torch
 from torch import nn
 
+from cusrl.utils.nest import iterate_nested
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = [
@@ -124,17 +125,11 @@ class Module(nn.Module):
             return
         if isinstance(done, torch.Tensor):
             done = done.squeeze(-1)
-        if done is None:
+        elif done is None:
             done = slice(None)
 
-        def reset_nested_memory(data):
-            if isinstance(data, dict):
-                for value in data.values():
-                    reset_nested_memory(value)
-                return
-            data[..., done, :] = 0
-
-        reset_nested_memory(memory)
+        for _, tensor in iterate_nested(memory):
+            tensor[done] = 0
 
     def clear_intermediate_repr(self):
         self.intermediate_repr.clear()

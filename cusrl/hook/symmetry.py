@@ -8,6 +8,7 @@ from torch import Tensor, nn
 from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
 from cusrl.module.actor import ActorFactory
 from cusrl.module.distribution import MeanStdDict
+from cusrl.module.rnn import concat_memory
 from cusrl.template import ActorCritic, Hook, HookFactory
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.nest import map_nested
@@ -239,9 +240,10 @@ class SymmetricDataAugmentation(SymmetryHook):
         done = cast(Tensor, transition["done"])
         with self.agent.autocast():
             if self.mirrored_actor_memory is not None:
-                transition["augmented_actor_memory"] = self._concat_memory(
+                transition["augmented_actor_memory"] = concat_memory(
                     cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["actor_memory"])),
                     self.mirrored_actor_memory,
+                    dim=-2,
                 )
             self.mirrored_actor_memory = actor.step_memory(
                 mirrored_observation, self.mirrored_actor_memory, sequential=False
@@ -251,9 +253,10 @@ class SymmetricDataAugmentation(SymmetryHook):
         # Augment memory for critic if needed
         if self.augments_value:
             if self.mirrored_critic_memory is not None:
-                transition["augmented_critic_memory"] = self._concat_memory(
+                transition["augmented_critic_memory"] = concat_memory(
                     cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["critic_memory"])),
                     self.mirrored_critic_memory,
+                    dim=-2,
                 )
             self.mirrored_critic_memory = critic.step_memory(
                 mirrored_state, self.mirrored_critic_memory, sequential=False
@@ -269,31 +272,41 @@ class SymmetricDataAugmentation(SymmetryHook):
             batch["state"] = batch["augmented_state"]
             batch["next_state"] = batch["augmented_next_state"]
 
+        augmentation_dim = 2 if metadata["temporal"] else 1
+        augmentation_factor = augmented_observation.size(augmentation_dim)
         for key in ("action_logp", "advantage"):
             if (original := cast(Tensor | None, batch.get(key))) is not None:
-                batch[key] = original.unsqueeze(-3).expand(*augmented_observation.shape[:-1], original.size(-1))
+                batch[key] = original.unsqueeze(augmentation_dim).repeat_interleave(
+                    augmentation_factor, dim=augmentation_dim
+                )
         if (augmented_actor_memory := batch.get("augmented_actor_memory")) is not None:
             batch["actor_memory"] = augmented_actor_memory
 
         if self.augments_value:
             for key in ("value", "return"):
                 original = cast(Tensor, batch[key])
-                batch[key] = original.unsqueeze(-3).expand(*augmented_observation.shape[:-1], original.size(-1))
+                batch[key] = original.unsqueeze(augmentation_dim).repeat_interleave(
+                    augmentation_factor, dim=augmentation_dim
+                )
             if (augmented_critic_memory := batch.get("augmented_critic_memory")) is not None:
                 batch["critic_memory"] = augmented_critic_memory
 
     @staticmethod
-    def _build_augmented_tensor(original: Tensor, mirror: Callable[[Tensor], Tensor]) -> tuple[Tensor, Tensor]:
-        mirrored = mirror(original).reshape(-1, *original.shape)
-        return mirrored, torch.cat([original.unsqueeze(0), mirrored], dim=0)
-
-    def _concat_memory(self, memory1: Memory, memory2: Memory):
-        if memory1 is None:
-            return None
-        if isinstance(memory1, dict):
-            assert memory2 is not None
-            return {key: self._concat_memory(value, memory2[key]) for key, value in memory1.items()}
-        return torch.cat([memory1, memory2], dim=-3)
+    def _build_augmented_tensor(
+        original: Tensor, mirror: Callable[[Tensor], Tensor], augmentation_dim: int = 1
+    ) -> tuple[Tensor, Tensor]:
+        mirrored = mirror(original)
+        if mirrored.shape[1:] == original.shape:
+            mirrored = mirrored.movedim(0, augmentation_dim)
+        elif mirrored.shape[1:] == original.shape[1:]:
+            mirrored = mirrored.reshape(-1, *original.shape).movedim(0, augmentation_dim)
+        else:
+            original_shape_str = ", ".join(str(s) for s in original.shape)
+            raise ValueError(
+                f"Mirrored tensor has incompatible shape: expected (N * {original_shape_str}) or "
+                f"(N, {original_shape_str}), got {mirrored.shape}"
+            )
+        return mirrored, torch.cat([original.unsqueeze(augmentation_dim), mirrored], dim=augmentation_dim)
 
 
 class SymmetricArchitecture(SymmetryHook):

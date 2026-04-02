@@ -23,8 +23,8 @@ def clone_memory(memory):
 @pytest.mark.parametrize(
     ("rnn_type", "memory_keys"),
     [
-        ("RNN", {"hidden"}),
-        ("GRU", {"hidden"}),
+        ("RNN", None),
+        ("GRU", None),
         ("LSTM", {"hidden", "cell"}),
     ],
 )
@@ -39,10 +39,14 @@ def test_rnn_factory_memory_structure(rnn_type, memory_keys):
     output, memory = rnn(torch.randn(seq_len, num_seqs, input_dim))
 
     assert output.shape == (seq_len, num_seqs, output_dim)
-    assert set(memory.keys()) == memory_keys
-    assert memory["hidden"].shape == (2, num_seqs, hidden_size)
-    if "cell" in memory:
-        assert memory["cell"].shape == (2, num_seqs, hidden_size)
+    if memory_keys is None:
+        assert isinstance(memory, torch.Tensor)
+        assert memory.shape == (num_seqs, 2 * hidden_size)
+    else:
+        assert set(memory.keys()) == memory_keys
+        assert memory["hidden"].shape == (num_seqs, 2 * hidden_size)
+        if "cell" in memory:
+            assert memory["cell"].shape == (num_seqs, 2 * hidden_size)
 
 
 def test_rnn_factory_rejects_unknown_module_type():
@@ -61,13 +65,13 @@ def test_rnn_multi_batch():
     rnn = cusrl.Lstm(observation_dim, num_layers=2, hidden_size=hidden_size)
     output1, memory1 = rnn(input)
 
-    input_reshaped = input.view(seq_len, repeat, num_seqs, observation_dim)
+    input_reshaped = input.view(seq_len, num_seqs, repeat, observation_dim)
     output2, memory2 = rnn(input_reshaped)
     assert torch.allclose(output1, output2.flatten(1, -2))
-    assert_memory_allclose(memory1, {key: value.flatten(1, -2) for key, value in memory2.items()})
+    assert_memory_allclose(memory1, {key: value.flatten(0, -2) for key, value in memory2.items()})
 
     done = torch.rand(seq_len, num_seqs, 1) < 0.1
-    done_repeat = done.repeat(1, repeat, 1)
+    done_repeat = done.repeat_interleave(repeat, dim=1)
     output1, _ = rnn(input, memory=memory1, done=done_repeat)
     output2, _ = rnn(input_reshaped, memory=memory2, done=done)
     assert torch.allclose(output1, output2.flatten(1, -2), atol=1e-5)
@@ -123,7 +127,7 @@ def test_rnn_pack_sequence_requires_3d_input():
     seq_len = 16
     repeat = 3
     rnn = cusrl.Lstm(input_dim, hidden_size=32, num_layers=2)
-    observation = torch.randn(seq_len, repeat, num_seqs, input_dim)
+    observation = torch.randn(seq_len, num_seqs, repeat, input_dim)
     done = torch.zeros(seq_len, num_seqs, 1, dtype=torch.bool)
 
     with pytest.raises(ValueError, match="Packed RNN input must be 3D"):

@@ -5,7 +5,6 @@ import torch
 from torch import nn
 
 from cusrl.module.module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
-from cusrl.module.normalizer import RunningMeanStd
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 

@@ -46,5 +46,5 @@ Terminated: TypeAlias = NDArray[np.bool_] | torch.Tensor
 Truncated: TypeAlias = NDArray[np.bool_] | torch.Tensor
 BoolArrayType = TypeVar("BoolArrayType", NDArray[np.bool_], torch.Tensor)
 Info: TypeAlias = dict[str, Nested[Array]]
-ValidMemory: TypeAlias = dict[str, Union[torch.Tensor, "ValidMemory"]]
+ValidMemory: TypeAlias = torch.Tensor | dict[str, Union[torch.Tensor, "ValidMemory"]]
 Memory: TypeAlias = ValidMemory | None

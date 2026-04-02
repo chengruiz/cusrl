@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import cast
+from typing import TypedDict, cast
 
 import torch
+from einops import rearrange
 from torch import Tensor, nn
 
 from cusrl.module.module import Module, ModuleFactory
@@ -31,13 +32,25 @@ class _VanillaRnn(nn.RNN):
             dropout=dropout,
         )
 
-    def forward(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
+    def forward(
+        self,
+        input: Tensor,
+        memory: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor]:
         if memory is None:
             output, hn = super().forward(input)
         else:
-            h0 = memory["hidden"]
-            output, hn = super().forward(input, h0)
-        return output, {"hidden": hn}
+            # input: [ L, N, C ]
+            # memory: [ N, K * C ]
+            h0 = rearrange(memory, "n (k c) -> k n c", k=self.num_layers, c=self.hidden_size)
+            output, hn = super().forward(input, h0.contiguous())
+        hn = rearrange(hn, "k n c -> n (k c)")
+        return output, hn
+
+
+class LstmMemory(TypedDict):
+    hidden: Tensor
+    cell: Tensor
 
 
 class _Lstm(nn.LSTM):
@@ -57,13 +70,24 @@ class _Lstm(nn.LSTM):
             dropout=dropout,
         )
 
-    def forward(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
+    def forward(
+        self,
+        input: Tensor,
+        memory: LstmMemory | None = None,
+    ) -> tuple[Tensor, LstmMemory]:
         if memory is None:
             output, (hn, cn) = super().forward(input)
         else:
-            h0 = memory["hidden"]
-            c0 = memory["cell"]
-            output, (hn, cn) = super().forward(input, (h0, c0))
+            # input: [ L, N, C ]
+            # memory: [ N, K * C ]
+            h0, c0 = memory["hidden"], memory["cell"]
+            assert h0.shape == c0.shape, "Hidden and cell states must have the same shape"
+            h0 = rearrange(h0, "n (k c) -> k n c", k=self.num_layers, c=self.hidden_size)
+            c0 = rearrange(c0, "n (k c) -> k n c", k=self.num_layers, c=self.hidden_size)
+            output, (hn, cn) = super().forward(input, (h0.contiguous(), c0.contiguous()))
+
+        hn = rearrange(hn, "k n c -> n (k c)")
+        cn = rearrange(cn, "k n c -> n (k c)")
         return output, {"hidden": hn, "cell": cn}
 
 
@@ -84,13 +108,20 @@ class _Gru(nn.GRU):
             dropout=dropout,
         )
 
-    def forward(self, input: Tensor, memory: Memory = None) -> tuple[Tensor, Memory]:
+    def forward(
+        self,
+        input: Tensor,
+        memory: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor]:
         if memory is None:
             output, hn = super().forward(input)
         else:
-            h0 = memory["hidden"]
-            output, hn = super().forward(input, h0)
-        return output, {"hidden": hn}
+            # input: [ L, N, C ]
+            # memory: [ N, K * C ] or [ L, N, K * C ]
+            h0 = rearrange(memory, "n (k c) -> k n c", k=self.num_layers, c=self.hidden_size)
+            output, hn = super().forward(input, h0.contiguous())
+        hn = rearrange(hn, "k n c -> n (k c)")
+        return output, hn
 
 
 @dataclass
@@ -178,10 +209,9 @@ class Rnn(Module):
 
         Args:
             input (Tensor):
-                Input tensor of shape :math:`(L, ..., N, Ci)` if sequential else
-                :math:`(..., N, Ci)`, where :math:`L` is the sequence length,
-                :math:`N` is the batch size, and :math:`Ci` is the input channel
-                dimension.
+                Input tensor of shape :math:`(L, N, ...)` if ``sequential`` else
+                :math:`(N, ...)`, where :math:`L` is the sequence length,
+                :math:`N` is the batch size.
             memory (Memory, optional):
                 The recurrent state from the previous step. Defaults to None,
                 which initializes a zero state.
@@ -199,21 +229,20 @@ class Rnn(Module):
 
         Outputs:
             - **output** (Tensor):
-                The output tensor of shape :math:`(L, ..., N, Co)` if sequential
-                else :math:`(..., N, Co)`, where :math:`Co` is the output
-                channel dimension.
+                The output tensor of shape :math:`(L, N, ...)` if ``sequential``
+                else :math:`(N, ...)`.
             - **memory** (Memory):
                 The updated recurrent state.
         """
         if done is not None:
             if not sequential:
                 raise ValueError("'done' can be provided only when 'sequential' is True")
-            latent, memory = self._forward_rnn_sequence(input, memory, done, pack_sequence=pack_sequence)
+            latent, memory = self._forward_sequence(input, memory, done, pack_sequence=pack_sequence)
         else:
-            latent, memory = self._forward_rnn_tensor(input, memory, sequential=sequential)
+            latent, memory = self._forward_tensor(input, memory, sequential=sequential)
         return self.output_proj(latent), memory
 
-    def _forward_rnn_tensor(
+    def _forward_tensor(
         self,
         input: Tensor,
         memory: Memory = None,
@@ -223,7 +252,7 @@ class Rnn(Module):
         reshaped_latent, reshaped_output_memory = self.rnn(reshaped_input, reshaped_memory)
         return self._reshape_output(reshaped_latent, reshaped_output_memory, input.shape, sequential=sequential)
 
-    def _forward_rnn_sequence(
+    def _forward_sequence(
         self,
         input: Tensor,
         memory: Memory,
@@ -252,7 +281,7 @@ class Rnn(Module):
             )
             output_memory = gather_memory(scattered_output_memory, done)
         else:
-            padded_latent, _ = self._forward_rnn_tensor(padded_input, scattered_memory)
+            padded_latent, _ = self._forward_tensor(padded_input, scattered_memory)
             output_memory = None
         latent = unpad_and_merge_sequences(padded_latent, mask)
         return latent, output_memory
@@ -267,12 +296,14 @@ class Rnn(Module):
             # ( C )    -> ( 1, 1, C )
             # ( N, C ) -> ( 1, N, C )
             input = input.reshape(1, -1, input.size(-1))
+            if memory is not None:
+                memory = map_nested(lambda mem: mem.reshape(input.size(1), -1), memory)
         if input.dim() >= 3:
-            # ( L, N, C )    -> ( L, N, C )     if sequential else ( 1, L * N, C )
-            # ( L, R, N, C ) -> ( L, R * N, C ) if sequential else ( 1, L * R * N, C )
+            # ( L, N, C )      -> ( L, N, C )       if ``sequential`` else ( 1, L * N, C )
+            # ( L, N, ..., C ) -> ( L, N * ..., C ) if ``sequential`` else ( 1, L * N * ..., C )
             input = input.reshape(input.size(0) if sequential else 1, -1, input.size(-1))
             if memory is not None:
-                memory = map_nested(lambda m: m.flatten(1, -2), memory)
+                memory = map_nested(lambda mem: mem.flatten(0, -2), memory)
         return input, memory
 
     def _reshape_output(
@@ -283,11 +314,9 @@ class Rnn(Module):
         sequential: bool = True,
     ) -> tuple[Tensor, Memory]:
         output = output.reshape(*original_input_shape[:-1], output.size(-1))
-        if memory is not None and len(original_input_shape) >= 3:
-            memory = map_nested(
-                lambda m: m.unflatten(-2, original_input_shape[1 if sequential else 0 : -1]),
-                memory,
-            )
+        if memory is not None:
+            batch_dims = original_input_shape[(1 if sequential and len(original_input_shape) > 2 else 0) : -1]
+            memory = map_nested(lambda mem: mem.reshape(*batch_dims, mem.size(-1)), memory)
         return output, memory
 
     def step_memory(self, input: Tensor, memory: Memory = None, sequential: bool = True, **kwargs):
@@ -406,7 +435,7 @@ class Gru(Rnn):
         )
 
 
-def concat_memory(memory1: Memory, memory2: Memory) -> Memory:
+def concat_memory(memory1: Memory, memory2: Memory, dim=0) -> Memory:
     """Concatenates two memory tensors along the batch dimension."""
     if type(memory1) is not type(memory2):
         raise TypeError("Memory values must have the same type to be concatenated")
@@ -414,11 +443,11 @@ def concat_memory(memory1: Memory, memory2: Memory) -> Memory:
         return None
     if isinstance(memory1, dict):
         memory2 = cast(dict[str, Memory], memory2)
-        return {key: concat_memory(value, memory2[key]) for key, value in memory1.items()}
+        return {key: concat_memory(value, memory2[key], dim=dim) for key, value in memory1.items()}
     if not isinstance(memory1, Tensor):
         raise TypeError(f"Unsupported memory type: {type(memory1).__name__}")
     memory2 = cast(Tensor, memory2)
-    return torch.cat((memory1, memory2), dim=-2)
+    return torch.cat((memory1, memory2), dim=dim)
 
 
 def scatter_memory(memory: Memory, done: Tensor) -> Memory:
@@ -432,50 +461,68 @@ def scatter_memory(memory: Memory, done: Tensor) -> Memory:
 
     Args:
         memory (Memory):
-            The memory tensor(s) to be scattered of shape :math:`(..., N, C)`,
-            where :math:`N` is the batch size and :math:`C` is the channel
-            dimension.
+            The memory tensor(s) to be scattered of shape :math:`(N, ...)`,
+            where :math:`N` is the batch size.
         done (Tensor):
             A boolean tensor of shape :math:`(L, N, 1)` indicating episode
             terminations.
 
     Returns:
         memory (Memory):
-            The scattered memory tensor(s) of shape :math:`(..., Ns, C)`, where
+            The scattered memory tensor(s) of shape :math:`(Ns, ...)`, where
             :math:`Ns` is the number of contiguous sequences in the batch.
     """
     if memory is None:
         return None
-    if isinstance(memory, dict):
-        return {key: scatter_memory(value, done) for key, value in memory.items()}
-    if not isinstance(memory, Tensor):
-        raise TypeError(f"Unsupported memory type: {type(memory).__name__}")
 
-    done = done.squeeze(-1)
-    seq_indices = done[:-1].sum(dim=0).cumsum(dim=0)
-    seq_indices += torch.arange(1, seq_indices.size(0) + 1, device=done.device)
-    num_seq: int = seq_indices[-1].item()
-    seq_indices[-1] = 0
-    seq_indices = seq_indices.roll(1)
+    def _scatter_memory(mem: Tensor, done: Tensor) -> Tensor:
+        done = done.squeeze(-1)
+        seq_indices = done[:-1].sum(dim=0).cumsum(dim=0)
+        seq_indices += torch.arange(1, seq_indices.size(0) + 1, device=done.device)
+        num_seq: int = seq_indices[-1].item()
+        seq_indices[-1] = 0
+        seq_indices = seq_indices.roll(1)
 
-    result_shape = list(memory.shape)
-    result_shape[-2] = num_seq
-    result = memory.new_zeros(*result_shape)
-    result[..., seq_indices, :] = memory
-    return result
+        result_shape = list(mem.shape)
+        result_shape[0] = num_seq
+        result = mem.new_zeros(*result_shape)
+        result[seq_indices] = mem
+        return result
+
+    return map_nested(lambda mem: _scatter_memory(mem, done), memory)
 
 
 def gather_memory(memory: Memory, done: Tensor) -> Memory:
+    """Does the inverse operation of ``scatter_memory``.
+
+    This function restores memory tensors from a batch of episode-aligned
+    sequences back to the original parallel-environment layout. It selects the
+    current memory state for each environment based on the cumulative sequence
+    boundaries encoded by ``done``. Environments marked as done at the last
+    timestep have their gathered memory cleared.
+
+    Args:
+        memory (Memory):
+            The scattered memory tensor(s) of shape :math:`(Ns, ...)`, where
+            :math:`Ns` is the number of contiguous sequences in the batch.
+        done (Tensor):
+            A boolean tensor of shape :math:`(L, N, 1)` indicating episode
+            terminations.
+
+    Returns:
+        memory (Memory):
+            The gathered memory tensor(s) of shape :math:`(N, ...)`, where
+            :math:`N` is the number of parallel environments.
+    """
     if memory is None:
         return None
-    if isinstance(memory, dict):
-        return {key: gather_memory(value, done) for key, value in memory.items()}
-    if not isinstance(memory, Tensor):
-        raise TypeError(f"Unsupported memory type: {type(memory).__name__}")
 
-    done = done.squeeze(-1)
-    seq_indices = done[:-1].sum(dim=0).cumsum(dim=0)
-    seq_indices += torch.arange(0, seq_indices.size(0), device=done.device)
-    result = memory[..., seq_indices, :].clone()
-    result[..., done[-1], :] = 0.0  # Clear the last hidden state
-    return result
+    def _gather_memory(mem: Tensor, done: Tensor) -> Tensor:
+        done = done.squeeze(-1)
+        seq_indices = done[:-1].sum(dim=0).cumsum(dim=0)
+        seq_indices += torch.arange(0, seq_indices.size(0), device=done.device)
+        result = mem[seq_indices].clone()
+        result[done[-1]] = 0.0  # Clear the last memory
+        return result
+
+    return map_nested(lambda mem: _gather_memory(mem, done), memory)

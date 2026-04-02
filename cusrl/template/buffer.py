@@ -173,24 +173,27 @@ class Buffer(MutableMapping[str, NestedTensor]):
     def _create_storage(
         self,
         data: np.ndarray | torch.Tensor,
-        temporal: bool = True,
         sequential: bool = False,
     ) -> torch.Tensor:
         if isinstance(data, np.ndarray):
             data = self._as_tensor(data)
-        # Each tensor / array should be in shape of [ [..., ] parallelism, num_channels ]
         if len(data.shape) < 2:
-            raise ValueError("Arrays must have shape [..., parallelism, num_channels]")
+            raise ValueError("Arrays must have shape [parallelism, ...]")
         if self.parallelism is None:
-            self.parallelism = data.size(-2)
-        elif data.size(-2) != self.parallelism:
-            raise ValueError("Arrays must have shape [..., parallelism, num_channels]")
-        if not sequential:
-            # shape: [ capacity, [..., ] parallelism, num_channels ]
-            return data.new_zeros(self.capacity, *data.shape)
-        if temporal and data.size(0) != self.capacity:
-            raise ValueError(f"Capacity mismatch: expected {self.capacity}, got {data.size(0)}")
-        return torch.zeros_like(data)
+            self.parallelism = data.size(1) if sequential else data.size(0)
+
+        if sequential:
+            if data.size(0) != self.capacity:
+                raise ValueError(f"Capacity mismatch: expected {self.capacity}, got {data.size(0)}")
+            if data.size(1) != self.parallelism:
+                raise ValueError(f"Parallelism mismatch: expected {self.parallelism}, got {data.size(1)}")
+            # shape: [ capacity, parallelism, ... ]
+            return torch.zeros_like(data)
+
+        if data.size(0) != self.parallelism:
+            raise ValueError(f"Parallelism mismatch: expected {self.parallelism}, got {data.size(0)}")
+        # shape: [ capacity, parallelism, ... ]
+        return data.new_zeros(self.capacity, *data.shape)
 
     def _check_data_schema(self, name: str, data: NestedArray):
         if (schema := self.schema.get(name)) is None:

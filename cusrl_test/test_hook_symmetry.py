@@ -25,9 +25,9 @@ def test_symmetry_data_augmentation(recurrent, with_state, custom_mirror_functio
     ).to_underlying()
     if custom_mirror_function:
         hook = cusrl.hook.EnvironmentSpecOverride(
-            mirror_observation=lambda obs: torch.cat([obs, obs.flip(-1)], dim=-2),
-            mirror_state=lambda state: torch.cat([state, state.flip(-1)], dim=-2),
-            mirror_action=lambda act: torch.cat([act, act.flip(-1)], dim=-2),
+            mirror_observation=lambda obs: torch.stack([obs, obs.flip(-1)]),
+            mirror_state=lambda state: torch.stack([state, state.flip(-1)]),
+            mirror_action=lambda act: torch.stack([act, act.flip(-1)]),
         )
         agent_factory.register_hook(hook, index=0)
     agent_factory.register_hook(cusrl.hook.SymmetricDataAugmentation(), before="value_loss")

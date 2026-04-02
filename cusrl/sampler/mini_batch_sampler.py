@@ -1,11 +1,10 @@
 import functools
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 import torch
 
 from cusrl.template import Buffer, Sampler
-from cusrl.utils.typing import NestedTensor
 
 __all__ = ["AutoMiniBatchSampler", "MiniBatchSampler", "TemporalMiniBatchSampler"]
 
@@ -57,7 +56,7 @@ class MiniBatchSampler(Sampler):
 
     def _sample(self, name: str, data: torch.Tensor, indices):
         """Samples data from the buffer based on the provided indices."""
-        return data.movedim(0, -3).flatten(-3, -2)[..., indices, :]
+        return data.flatten(0, 1)[indices]
 
 
 class TemporalMiniBatchSampler(MiniBatchSampler):
@@ -68,7 +67,7 @@ class TemporalMiniBatchSampler(MiniBatchSampler):
         return buffer.get_parallelism()
 
     def _sample(self, name: str, data: torch.Tensor, indices):
-        result = data[..., indices, :]
+        result = data[:, indices]
         if name.split(".")[0].endswith("memory"):
             result = result[0, ...]
         return result

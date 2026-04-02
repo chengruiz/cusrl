@@ -1,9 +1,7 @@
 from dataclasses import dataclass
-from typing import cast
 
 import torch
 
-from cusrl.module import ExponentialMovingNormalizer
 from cusrl.template import ActorCritic, Hook, HookFactory
 
 __all__ = ["GeneralizedAdvantageEstimation"]

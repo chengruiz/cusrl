@@ -1,4 +1,3 @@
-import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -117,20 +116,21 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
 
         Args:
             input (Tensor):
-                Input tensor of shape :math:`(L, N, C)`, where :math:`L` is the
-                sequence length, :math:`N` is the batch size, and :math:`C` is
-                the input dimension.
+                Input tensor of shape :math:`(L, N, ..., C)`, where :math:`L` is
+                the sequence length, :math:`N` is the batch size, and :math:`C`
+                is the input dimension.
             memory (Memory):
                 A dict containing the input cache, KV cache, and cache mask.
                   - input_cache (Tensor):
-                      Tensor of shape :math:`(W, N, C)` storing past inputs,
-                      where :math:`W` is the window size.
+                      Tensor of shape :math:`(N, ..., W * C)` storing past
+                      inputs, where :math:`W` is the window size.
                   - kv_cache (Tensor):
-                      Tensor of shape :math:`(W, N, 2 * E)` storing past keys
-                      and values, where :math:`E` is the embedding dimension.
+                      Tensor of shape :math:`(N, ..., W * 2 * E)` storing past
+                      keys and values, where :math:`E` is the embedding
+                      dimension.
                   - cache_mask (Tensor):
-                      Boolean tensor of shape :math:`(W, N, 1)` indicating valid
-                      cache entries.
+                      Boolean tensor of shape :math:`(N, ..., W)` indicating
+                      valid cache entries.
             done (Tensor | None):
                 A boolean tensor of shape :math:`(L, N, 1)` indicating sequence
                 terminations.
@@ -170,12 +170,9 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
             seq_lens_mask = input.new_zeros(batch_size, dtype=torch.int32)
         else:
             # Concatenate past states and generate mask
-            input_cache = memory["input_cache"]
-            kv_cache = memory["kv_cache"]
-            cache_mask = memory["cache_mask"]
-            input_cache = input_cache.flatten(1, -2).transpose(0, 1)
-            kv_cache = kv_cache.flatten(1, -2).transpose(0, 1)
-            cache_mask = cache_mask.flatten(1, -2).transpose(0, 1).squeeze(-1)
+            input_cache = memory["input_cache"].reshape(batch_size, self.window_size, self.input_dim)
+            kv_cache = memory["kv_cache"].reshape(batch_size, self.window_size, 2 * self.embed_dim)
+            cache_mask = memory["cache_mask"].reshape(batch_size, self.window_size)
             full_input = torch.cat([input_cache, input], dim=1)
             self._inference = 0 if torch.is_grad_enabled() else self._inference + 1
 
@@ -195,7 +192,8 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
             seq_lens_k = seq_lens_mask + seq_len
         else:
             if len(batch_dims) > 1:
-                done = done.repeat(1, math.prod(batch_dims[:-1]), 1)
+                # Match the flattened batch order from input.flatten(1, -2).
+                done = done.repeat_interleave(batch_size // batch_dims[0], dim=1)
             seq_lens_q = compute_sequence_lengths(done)
             seq_indices = compute_sequence_indices(done)
             seq_lens_k = seq_lens_q.clone()
@@ -237,9 +235,6 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
 
         # Restore outputs to sequence first ( L, N, * )
         output = output.transpose(0, 1)
-        new_input_cache = new_input_cache.transpose(0, 1)
-        new_kv_cache = new_kv_cache.transpose(0, 1)
-        new_cache_mask = new_cache_mask.transpose(0, 1)
 
         # Update cache mask based on done tensor
         if done is not None:
@@ -252,18 +247,16 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
 
             cum_timesteps = compute_reverse_cumulative_timesteps(done).squeeze(-1)
             consecutive_timesteps = torch.arange(self.window_size - 1, -1, -1, device=done.device)
-            new_cache_mask = new_cache_mask.logical_and(cum_timesteps == consecutive_timesteps.unsqueeze(-1))
+            valid_cache_mask = cum_timesteps.transpose(0, 1) == consecutive_timesteps.unsqueeze(0)
+            new_cache_mask = new_cache_mask.logical_and(valid_cache_mask)
 
         output = output.unflatten(1, batch_dims)
-        new_input_cache = new_input_cache.unflatten(1, batch_dims)
-        new_kv_cache = new_kv_cache.unflatten(1, batch_dims)
-        new_cache_mask = new_cache_mask.unflatten(1, batch_dims)
         if seq_missing:
             output = output.squeeze(0)
         return output, {
-            "input_cache": new_input_cache,
-            "kv_cache": new_kv_cache,
-            "cache_mask": new_cache_mask.unsqueeze(-1),
+            "input_cache": new_input_cache.reshape(*batch_dims, self.window_size * self.input_dim),
+            "kv_cache": new_kv_cache.reshape(*batch_dims, self.window_size * 2 * self.embed_dim),
+            "cache_mask": new_cache_mask.reshape(*batch_dims, self.window_size),
         }
 
     def reset_memory(
@@ -299,9 +292,9 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         else:
             if isinstance(done, Tensor):
                 done = done.squeeze(-1)
-            input_cache[:, done, :] = 0.0
-            kv_cache[:, done, :] = 0.0
-            cache_mask[:, done, :] = False
+            input_cache[done] = 0.0
+            kv_cache[done] = 0.0
+            cache_mask[done] = False
 
     def _update_cos_sin_cache(self, seq_len, device):
         if self._rotary_sin is not None and self._rotary_sin.size(0) >= seq_len:
