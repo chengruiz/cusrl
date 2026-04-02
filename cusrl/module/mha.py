@@ -1,14 +1,14 @@
+from typing import Literal
+
 import torch
 from torch import Tensor, nn
 
 try:
     import flash_attn
-    from flash_attn import flash_attn_func, flash_attn_kvpacked_func, flash_attn_qkvpacked_func
 except ImportError:
-    flash_attn = flash_attn_func = flash_attn_kvpacked_func = flash_attn_qkvpacked_func = None
+    flash_attn = None
 
 from cusrl.module.encoding import RotaryEmbedding
-from cusrl.utils import CONFIG
 
 __all__ = [
     "FlashAttention",
@@ -16,6 +16,16 @@ __all__ = [
     "MultiheadCrossAttention",
     "MultiheadSelfAttention",
 ]
+
+
+def make_norm(norm: Literal["rms", "layer"] | None, head_dim: int) -> nn.Module:
+    if norm is None:
+        return nn.Identity()
+    if norm == "rms":
+        return nn.RMSNorm(head_dim, eps=1e-6)
+    if norm == "layer":
+        return nn.LayerNorm(head_dim, eps=1e-6)
+    raise ValueError(f"Unsupported qk_norm mode: {norm!r}")
 
 
 class FlashAttention(nn.Module):
@@ -36,9 +46,8 @@ class FlashAttention(nn.Module):
 class MultiheadAttention(nn.Module):
     """Implements a multi-head attention layer.
 
-    This module provides a multi-head attention mechanism that uses
-    FlashAttention when available for optimal performance, and falls back to
-    PyTorch's scaled_dot_product_attention otherwise.
+    This module provides a multi-head attention mechanism based on PyTorch's
+    scaled dot product attention.
 
     Args:
         embed_dim (int):
@@ -60,9 +69,8 @@ class MultiheadAttention(nn.Module):
             If ``True``, then the input and output tensors are provided as
             (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
-            The data type for the FlashAttention computation. Only
-            ``torch.float16`` and ``torch.bfloat16`` are supported for
-            FlashAttention. Defaults to ``torch.float16``.
+            The data type used for the attention computation. Defaults to
+            ``torch.float16``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -73,6 +81,7 @@ class MultiheadAttention(nn.Module):
         embed_dim: int,
         num_heads: int,
         dropout: float = 0.0,
+        qk_norm: Literal["rms", "layer"] | None = None,
         bias: bool = True,
         k_dim: int | None = None,
         v_dim: int | None = None,
@@ -91,11 +100,12 @@ class MultiheadAttention(nn.Module):
         self.dropout = dropout
         self.batch_first = batch_first
         self.dtype = dtype
-        self._flash = FlashAttention.is_available(dtype)
 
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.k_proj = nn.Linear(self.k_dim, embed_dim, bias=bias)
         self.v_proj = nn.Linear(self.v_dim, embed_dim, bias=bias)
+        self.q_norm = make_norm(qk_norm, self.head_dim)
+        self.k_norm = make_norm(qk_norm, self.head_dim)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.reset_parameters()
 
@@ -123,34 +133,21 @@ class MultiheadAttention(nn.Module):
         q = self.q_proj(q).unflatten(-1, (self.num_heads, self.head_dim))
         k = self.k_proj(k).unflatten(-1, (self.num_heads, self.head_dim))
         v = self.v_proj(v).unflatten(-1, (self.num_heads, self.head_dim))
+        q = self.q_norm(q)
+        k = self.k_norm(k)
 
-        if self._flash and CONFIG.flash_attention_enabled and q.device.type != "cpu":
-            assert flash_attn_func is not None
-            attn_out = flash_attn_func(
-                q.to(self.dtype),
-                k.to(self.dtype),
-                v.to(self.dtype),
-                dropout_p=self.dropout if self.training else 0.0,
-                causal=is_causal,
-                return_attn_probs=False,
-            )
-            assert isinstance(attn_out, Tensor)
-        else:
-            # Fallback to PyTorch's scaled_dot_product_attention
-            attn_out = torch.nn.functional.scaled_dot_product_attention(
-                q.to(self.dtype).transpose(-2, -3),
-                k.to(self.dtype).transpose(-2, -3),
-                v.to(self.dtype).transpose(-2, -3),
-                dropout_p=self.dropout if self.training else 0.0,
-                is_causal=is_causal,
-            ).transpose(-2, -3)
-
+        attn_out = torch.nn.functional.scaled_dot_product_attention(
+            q.to(self.dtype).transpose(-2, -3),
+            k.to(self.dtype).transpose(-2, -3),
+            v.to(self.dtype).transpose(-2, -3),
+            dropout_p=self.dropout if self.training else 0.0,
+            is_causal=is_causal,
+        ).transpose(-2, -3)
         attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(q))
 
         # Project back to (L, N, E) if batch_first=False
         if not self.batch_first:
             attn_out = attn_out.transpose(0, 1)
-
         return attn_out
 
 
@@ -159,9 +156,7 @@ class MultiheadCrossAttention(nn.Module):
 
     This module computes cross-attention between a query tensor ``q`` and a
     key/value tensor ``kv``. It uses a single linear projection for both key and
-    value from the ``kv`` input, which are then processed in a packed format by
-    the ``flash_attn_kvpacked_func`` for efficiency if FlashAttention is
-    enabled.
+    value from the ``kv`` input, and computes attention with PyTorch SDPA.
 
     Args:
         embed_dim (int):
@@ -179,9 +174,8 @@ class MultiheadCrossAttention(nn.Module):
             If ``True``, then the input and output tensors are provided as
             (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
-            The data type for the FlashAttention computation. Only
-            ``torch.float16`` and ``torch.bfloat16`` are supported for
-            FlashAttention. Defaults to ``torch.float16``.
+            The data type used for the attention computation. Defaults to
+            ``torch.float16``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -192,6 +186,7 @@ class MultiheadCrossAttention(nn.Module):
         embed_dim: int,
         num_heads: int,
         dropout: float = 0.0,
+        qk_norm: Literal["rms", "layer"] | None = None,
         bias: bool = True,
         kv_dim: int | None = None,
         batch_first: bool = True,
@@ -209,10 +204,11 @@ class MultiheadCrossAttention(nn.Module):
         self.dropout = dropout
         self.batch_first = batch_first
         self.dtype = dtype
-        self._flash = FlashAttention.is_available(dtype)
 
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.kv_proj = nn.Linear(self.kv_dim, 2 * embed_dim, bias=bias)
+        self.q_norm = make_norm(qk_norm, self.head_dim)
+        self.k_norm = make_norm(qk_norm, self.head_dim)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.reset_parameters()
 
@@ -236,37 +232,21 @@ class MultiheadCrossAttention(nn.Module):
 
         # Projections
         q = self.q_proj(q).unflatten(-1, (self.num_heads, self.head_dim))
-        kv = self.kv_proj(kv).unflatten(-1, (2, self.num_heads, self.head_dim))
+        k, v = self.kv_proj(kv).unflatten(-1, (2, self.num_heads, self.head_dim)).unbind(dim=-3)
+        q = self.q_norm(q)
+        k = self.k_norm(k)
 
-        if self._flash and CONFIG.flash_attention_enabled and q.device.type != "cpu":
-            # Compute cross-attention via FlashAttention with KV packed
-            assert flash_attn_kvpacked_func is not None
-            attn_out = flash_attn_kvpacked_func(
-                q.to(self.dtype),
-                kv.to(self.dtype),
-                dropout_p=self.dropout if self.training else 0.0,
-                causal=False,
-                return_attn_probs=False,
-            )
-            assert isinstance(attn_out, Tensor)
-        else:
-            # Fallback to PyTorch's scaled_dot_product_attention
-            k, v = kv.to(self.dtype).unbind(dim=-3)
-
-            attn_out = torch.nn.functional.scaled_dot_product_attention(
-                q.to(self.dtype).transpose(-2, -3),
-                k.transpose(-2, -3),
-                v.transpose(-2, -3),
-                dropout_p=self.dropout if self.training else 0.0,
-                is_causal=False,
-            ).transpose(-2, -3)
-
+        attn_out = torch.nn.functional.scaled_dot_product_attention(
+            q.to(self.dtype).transpose(-2, -3),
+            k.to(self.dtype).transpose(-2, -3),
+            v.to(self.dtype).transpose(-2, -3),
+            dropout_p=self.dropout if self.training else 0.0,
+            is_causal=False,
+        ).transpose(-2, -3)
         attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(q))
-
         # Project back to (L, N, E) if batch_first=False
         if not self.batch_first:
             attn_out = attn_out.transpose(0, 1)
-
         return attn_out
 
 
@@ -274,9 +254,8 @@ class MultiheadSelfAttention(nn.Module):
     """Multi-head self-attention module.
 
     This module implements a multi-head self-attention mechanism. It uses a
-    single linear projection for query, key and value from input, which are then
-    processed in a packed format by the ``flash_attn_qkvpacked_func`` for
-    efficiency if FlashAttention is enabled.
+    single linear projection for query, key and value from input, and computes
+    attention with PyTorch SDPA.
 
     Args:
         embed_dim (int):
@@ -295,9 +274,8 @@ class MultiheadSelfAttention(nn.Module):
             If ``True``, then the input and output tensors are provided as
             (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
-            The data type for the FlashAttention computation. Only
-            ``torch.float16`` and ``torch.bfloat16`` are supported for
-            FlashAttention. Defaults to ``torch.float16``.
+            The data type used for the attention computation. Defaults to
+            ``torch.float16``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -309,6 +287,7 @@ class MultiheadSelfAttention(nn.Module):
         num_heads: int,
         rope_base: float | None = None,
         dropout: float = 0.0,
+        qk_norm: Literal["rms", "layer"] | None = None,
         bias: bool = True,
         batch_first: bool = True,
         dtype: torch.dtype = torch.float16,
@@ -324,10 +303,11 @@ class MultiheadSelfAttention(nn.Module):
         self.dropout = dropout
         self.batch_first = batch_first
         self.dtype = dtype
-        self._flash = FlashAttention.is_available(dtype)
 
         self.rope = RotaryEmbedding(self.head_dim, base=rope_base) if rope_base is not None else None
         self.qkv_proj = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
+        self.q_norm = make_norm(qk_norm, self.head_dim)
+        self.k_norm = make_norm(qk_norm, self.head_dim)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.reset_parameters()
 
@@ -349,33 +329,20 @@ class MultiheadSelfAttention(nn.Module):
         qkv = self.qkv_proj(input).unflatten(-1, (3, self.num_heads, self.head_dim))
         if self.rope is not None:
             qkv = self.rope.apply_qkv(qkv)
+        q, k, v = qkv.unbind(dim=-3)
+        q = self.q_norm(q)
+        k = self.k_norm(k)
 
-        if self._flash and CONFIG.flash_attention_enabled and input.device.type != "cpu":
-            # Compute cross-attention via FlashAttention with QKV packed
-            assert flash_attn_qkvpacked_func is not None
-            attn_out = flash_attn_qkvpacked_func(
-                qkv.to(self.dtype),
-                dropout_p=self.dropout if self.training else 0.0,
-                causal=is_causal,
-                return_attn_probs=False,
-            )
-            assert isinstance(attn_out, Tensor)
-        else:
-            # Fallback to PyTorch's scaled_dot_product_attention
-            q, k, v = qkv.to(self.dtype).unbind(dim=-3)
-
-            attn_out = torch.nn.functional.scaled_dot_product_attention(
-                q.transpose(-2, -3),
-                k.transpose(-2, -3),
-                v.transpose(-2, -3),
-                dropout_p=self.dropout if self.training else 0.0,
-                is_causal=is_causal,
-            ).transpose(-2, -3)
-
-        attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(qkv))
+        attn_out = torch.nn.functional.scaled_dot_product_attention(
+            q.to(self.dtype).transpose(-2, -3),
+            k.to(self.dtype).transpose(-2, -3),
+            v.to(self.dtype).transpose(-2, -3),
+            dropout_p=self.dropout if self.training else 0.0,
+            is_causal=is_causal,
+        ).transpose(-2, -3)
+        attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(q))
 
         # Project back to (L, N, E) if batch_first=False
         if not self.batch_first:
             attn_out = attn_out.transpose(0, 1)
-
         return attn_out

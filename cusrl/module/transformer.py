@@ -5,7 +5,7 @@ import torch
 from torch import Tensor, nn
 
 from cusrl.module.gate import get_gate_cls
-from cusrl.module.mha import MultiheadSelfAttention
+from cusrl.module.mha import MultiheadSelfAttention, make_norm
 from cusrl.module.module import Module, ModuleFactory
 
 __all__ = ["FeedForward", "TransformerEncoderLayer"]
@@ -85,7 +85,9 @@ class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
     batch_first: bool = True
     dtype: torch.dtype = torch.float16
     gate_type: str | None = "residual"
-    layer_norm: Literal[None, "pre", "post"] = "post"
+    qk_norm: Literal["rms", "layer"] | None = None
+    block_norm: Literal["rms", "layer"] | None = None
+    block_norm_order: Literal[None, "pre", "post"] = "post"
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         return TransformerEncoderLayer(
@@ -98,7 +100,9 @@ class TransformerEncoderLayerFactory(ModuleFactory["TransformerEncoderLayer"]):
             batch_first=self.batch_first,
             dtype=self.dtype,
             gate_type=self.gate_type,
-            layer_norm=self.layer_norm,
+            qk_norm=self.qk_norm,
+            block_norm=self.block_norm,
+            block_norm_order=self.block_norm_order,
             input_dim=input_dim,
             output_dim=output_dim,
         )
@@ -118,12 +122,14 @@ class TransformerEncoderLayer(Module):
         batch_first: bool = True,
         dtype: torch.dtype = torch.float16,
         gate_type: str | None = "residual",
-        layer_norm: Literal[None, "pre", "post"] = "post",
+        qk_norm: Literal["rms", "layer"] | None = None,
+        block_norm: Literal["rms", "layer"] | None = None,
+        block_norm_order: Literal[None, "pre", "post"] = "post",
         input_dim: int | None = None,
         output_dim: int | None = None,
     ):
         self.embed_dim = embed_dim
-        self.layer_norm = layer_norm
+        self.block_norm_order = block_norm_order
         gate_cls = get_gate_cls(gate_type)
         super().__init__(
             input_dim=input_dim or embed_dim,
@@ -137,11 +143,12 @@ class TransformerEncoderLayer(Module):
         else:
             self.in_proj = nn.Identity()
 
-        self.norm1 = nn.LayerNorm(self.embed_dim)
+        self.norm1 = make_norm(block_norm, self.embed_dim)
         self.self_attn = MultiheadSelfAttention(
             embed_dim=embed_dim,
             num_heads=num_heads,
             rope_base=rope_base,
+            qk_norm=qk_norm,
             dropout=dropout,
             batch_first=batch_first,
             dtype=dtype,
@@ -149,7 +156,7 @@ class TransformerEncoderLayer(Module):
         self.dropout1 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
         self.gate1 = gate_cls(self.embed_dim)
 
-        self.norm2 = nn.LayerNorm(self.embed_dim)
+        self.norm2 = make_norm(block_norm, self.embed_dim)
         self.feedforward = FeedForward(
             input_dim=self.embed_dim,
             feedforward_dim=feedforward_dim,
@@ -167,14 +174,14 @@ class TransformerEncoderLayer(Module):
 
     def forward(self, input: Tensor, is_causal: bool = False) -> Tensor:
         input = self.in_proj(input)
-        if self.layer_norm == "pre":
+        if self.block_norm_order == "pre":
             # pre-norm: norm -> attn -> add -> norm -> ff -> add
             attn_out = self.self_attn(self.norm1(input), is_causal=is_causal)
             input = self.gate1(input, self.dropout1(attn_out))
 
             ff_out = self.feedforward(self.norm2(input))
             input = self.gate2(input, self.dropout2(ff_out))
-        elif self.layer_norm == "post":
+        elif self.block_norm_order == "post":
             # post-norm: attn -> add -> norm -> ff -> add -> norm
             attn_out = self.self_attn(input, is_causal=is_causal)
             input = self.norm1(self.gate1(input, self.dropout1(attn_out)))

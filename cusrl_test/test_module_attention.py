@@ -216,6 +216,51 @@ def test_cross_mha_consistency_with_torch(dtype):
     assert torch.allclose(out_flash, out_torch, atol=1e-6, rtol=1e-6)
 
 
+@torch.no_grad()
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+@pytest.mark.parametrize("is_causal", [False, True])
+@pytest.mark.parametrize("qk_norm", [True, "rms", "layer"])
+def test_mha_qk_norm_consistency_between_self_and_general(dtype, is_causal, qk_norm):
+    torch.manual_seed(0)
+    batch, seq, embed_dim, num_heads = 2, 9, 32, 4
+    device = cusrl.device()
+
+    mha = MultiheadAttention(
+        embed_dim,
+        num_heads,
+        dropout=0.0,
+        qk_norm=qk_norm,
+        batch_first=True,
+        dtype=dtype,
+    ).to(device)
+    mha.eval()
+
+    mhsa = MultiheadSelfAttention(
+        embed_dim,
+        num_heads,
+        dropout=0.0,
+        qk_norm=qk_norm,
+        batch_first=True,
+        dtype=dtype,
+    ).to(device)
+    mhsa.eval()
+
+    mhsa.qkv_proj.weight.copy_(torch.cat([mha.q_proj.weight, mha.k_proj.weight, mha.v_proj.weight], dim=0))
+    mhsa.qkv_proj.bias.copy_(torch.cat([mha.q_proj.bias, mha.k_proj.bias, mha.v_proj.bias], dim=0))
+    mhsa.q_norm.weight.copy_(mha.q_norm.weight)
+    mhsa.k_norm.weight.copy_(mha.k_norm.weight)
+    mhsa.out_proj.weight.copy_(mha.out_proj.weight)
+    mhsa.out_proj.bias.copy_(mha.out_proj.bias)
+
+    x = torch.randn(batch, seq, embed_dim, device=device, dtype=dtype)
+    with torch.autocast(device.type, dtype=dtype):
+        out_mha = mha(x, x, x, is_causal=is_causal)
+        out_mhsa = mhsa(x, is_causal=is_causal)
+
+    assert out_mha.shape == out_mhsa.shape
+    assert torch.allclose(out_mha, out_mhsa, atol=1e-6, rtol=1e-6)
+
+
 @pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
 def test_rope_correctness():
     x = torch.randn(2, 16, 4, 8).to("cuda")
