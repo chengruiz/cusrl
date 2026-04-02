@@ -1,6 +1,5 @@
 from collections.abc import Callable, Iterator, MutableMapping
-from dataclasses import dataclass
-from typing import Any, TypeAlias, TypeVar
+from typing import Any, TypeVar
 
 import numpy as np
 import torch
@@ -9,12 +8,6 @@ from cusrl.utils.nest import get_schema, iterate_nested, reconstruct_nested
 from cusrl.utils.typing import Nested, NestedArray, NestedTensor
 
 __all__ = ["Buffer", "Sampler"]
-
-
-@dataclass(slots=True)
-class FieldSpec:
-    temporal: bool = True
-    custom: bool = False
 
 
 _T = TypeVar("_T")
@@ -40,8 +33,6 @@ class Buffer(MutableMapping[str, NestedTensor]):
     sampling.
     """
 
-    FieldSpec: TypeAlias = FieldSpec
-
     def __init__(self, capacity: int, parallelism: int | None, device: str | torch.device):
         self.capacity = capacity
         self.device = torch.device(device)
@@ -51,7 +42,6 @@ class Buffer(MutableMapping[str, NestedTensor]):
         self.full = False
 
         self.schema: dict[str, Nested[str]] = {}
-        self.spec: dict[str, FieldSpec] = {}
         self.storage: dict[str, torch.Tensor] = {}
 
     def get_parallelism(self) -> int:
@@ -66,7 +56,6 @@ class Buffer(MutableMapping[str, NestedTensor]):
         self.full = False
         self.storage.clear()
         self.schema.clear()
-        self.spec.clear()
 
     def reset_cursor(self):
         """Resets the buffer's step counter to zero."""
@@ -87,18 +76,29 @@ class Buffer(MutableMapping[str, NestedTensor]):
     def __getitem__(self, key):
         return reconstruct_nested(self.storage, self.schema[key])
 
-    def __setitem__(self, name, data):
-        if (spec := self.spec.get(name)) is None or spec.custom:
-            self.add_field(name, data)
+    def __setitem__(self, name, data: NestedArray):
+        """Register or overwrite a custom field.
+
+        Args:
+            name (str):
+                Top-level field name.
+            data (NestedArray):
+                Nested array-like payload for the field.
+
+        Raises:
+            ValueError:
+                If the schema changes, the temporal flag conflicts with a
+                previous registration, the field does not match the buffer
+                capacity, or `name` already belongs to a field populated by
+                `push()`.
+        """
+        if data is None:
             return
-        # Enable to modify the buffer directly
+
         self._check_data_schema(name, data)
         for key, value in iterate_nested(data, name):
-            if value.size(0) != self.capacity:
-                raise ValueError(f"Capacity mismatch: expected {self.capacity}, got {value.size(0)}")
             if (storage := self.storage.get(key)) is None:
-                # If the field is not custom, it should be temporal
-                storage = self._create_storage(value, temporal=True, sequential=True)
+                storage = self._create_storage(value, sequential=True)
                 self.storage[key] = storage
             storage.copy_(self._as_tensor(value))
 
@@ -143,10 +143,6 @@ class Buffer(MutableMapping[str, NestedTensor]):
             if nested_value is None:
                 continue
             self._check_data_schema(name, nested_value)
-            if (spec := self.spec.get(name)) is None:
-                self.spec[name] = FieldSpec(temporal=True, custom=False)
-            elif spec.custom:
-                raise KeyError(f"Field '{name}' was already added with 'add_field'")
             for key, value in iterate_nested(nested_value, name):
                 if (storage := self.storage.get(key)) is None:
                     try:
@@ -160,52 +156,15 @@ class Buffer(MutableMapping[str, NestedTensor]):
         if not self.full and self.cursor == self.capacity:
             self.full = True
 
-    def add_field(self, name: str, data: NestedArray, temporal: bool = True):
-        """Register or overwrite a custom field.
-
-        Args:
-            name (str):
-                Top-level field name.
-            data (NestedArray):
-                Nested array-like payload for the field.
-            temporal (bool, optional):
-                Whether `data` includes a leading time axis of length
-                `capacity`. Static fields are stored without a capacity axis.
-                Defaults to ``True``.
-
-        Raises:
-            ValueError:
-                If the schema changes, the temporal flag conflicts with a
-                previous registration, the field does not match the buffer
-                capacity, or `name` already belongs to a field populated by
-                `push()`.
-        """
-        if data is None:
-            return
-
-        self._check_data_schema(name, data)
-        if (spec := self.spec.get(name)) is None:
-            self.spec[name] = FieldSpec(temporal=temporal, custom=True)
-        elif spec.temporal != temporal:
-            raise ValueError(f"Field '{name}' was already added with a different temporal setting")
-        elif not spec.custom:
-            raise ValueError(f"Field '{name}' was already added by 'push'")
-
-        for key, value in iterate_nested(data, name):
-            if (storage := self.storage.get(key)) is None:
-                storage = self._create_storage(value, temporal=temporal, sequential=True)
-                self.storage[key] = storage
-            storage.copy_(self._as_tensor(value))
-
-    def sample(self, sampler: Callable[[str, FieldSpec, torch.Tensor], torch.Tensor]) -> dict[str, NestedTensor]:
+    def sample(self, sampler: Callable[[str, torch.Tensor], torch.Tensor]) -> dict[str, NestedTensor]:
         """Apply `sampler` to every stored leaf and rebuild the nested result.
 
-        The callback receives the flattened leaf name, the top-level `FieldSpec`
-        for that field, and the backing storage tensor. Its return value
-        replaces the stored tensor in the sampled batch.
+        The callback receives the flattened leaf name and the backing storage
+        tensor. Its return value replaces the stored tensor in the sampled
+        batch.
         """
 
-        batch = {key: sampler(key, self.spec[key.split(".", 1)[0]], self.storage[key]) for key in self.storage}
+        batch = {key: sampler(key, self.storage[key]) for key in self.storage}
         return reconstruct_nested(batch, self.schema)
 
     def _as_tensor(self, data) -> torch.Tensor:
