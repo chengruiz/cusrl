@@ -127,7 +127,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
         Each leaf must have shape `[..., parallelism, channels]`. The first
         write for a field fixes its nested schema and allocates storage of shape
         `[capacity, *leaf.shape]`. Once `capacity` steps have been written, the
-        next call wraps around to index `0`.
+        buffer is marked full and the cursor wraps back to index `0`.
 
         Raises:
             KeyError:
@@ -136,9 +136,6 @@ class Buffer(MutableMapping[str, NestedTensor]):
             ValueError:
                 If a leaf shape is incompatible or the nested schema changes.
         """
-        if self.cursor == self.capacity:
-            self.cursor = 0
-
         for name, nested_value in data.items():
             if nested_value is None:
                 continue
@@ -153,8 +150,9 @@ class Buffer(MutableMapping[str, NestedTensor]):
                 storage[self.cursor] = self._as_tensor(value)
 
         self.cursor += 1
-        if not self.full and self.cursor == self.capacity:
+        if self.cursor == self.capacity:
             self.full = True
+            self.cursor = 0
 
     def sample(self, sampler: Callable[[str, torch.Tensor], torch.Tensor]) -> dict[str, NestedTensor]:
         """Apply `sampler` to every stored leaf and rebuild the nested result.

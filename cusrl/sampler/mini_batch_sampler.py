@@ -10,6 +10,19 @@ __all__ = ["AutoMiniBatchSampler", "MiniBatchSampler", "TemporalMiniBatchSampler
 
 
 class MiniBatchSampler(Sampler):
+    """Iterate over shuffled mini-batches of individual transitions from a full
+    buffer.
+
+    Args:
+        num_epochs (int, optional):
+            Number of passes over the buffer.
+        num_mini_batches (int | Sequence[int], optional):
+            Number of mini-batches per epoch. When a sequence is provided, it
+            must contain one value per epoch.
+        shuffle (bool, optional):
+            Whether to reshuffle indices between epochs. Defaults to ``True``.
+    """
+
     def __init__(self, num_epochs: int = 1, num_mini_batches: int | Sequence[int] = 1, shuffle: bool = True):
         self.num_epochs = num_epochs
         if isinstance(num_mini_batches, int):
@@ -25,8 +38,8 @@ class MiniBatchSampler(Sampler):
         self.shuffle = shuffle
 
     def __call__(self, buffer: Buffer):
-        if not buffer.full:
-            raise RuntimeError("MiniBatchSampler can sample only from a full buffer")
+        if not (buffer.full and buffer.cursor == 0):
+            raise RuntimeError("MiniBatchSampler requires a full buffer with cursor reset to 0")
         num_samples = self._get_num_samples(buffer)
         epoch_indices = torch.randperm(num_samples, device=buffer.device)
         for epoch in range(self.num_epochs):
@@ -60,6 +73,20 @@ class MiniBatchSampler(Sampler):
 
 
 class TemporalMiniBatchSampler(MiniBatchSampler):
+    """Iterate over shuffled mini-batches of full temporal sequences from a full
+    buffer.
+
+    Args:
+        num_epochs (int, optional):
+            Number of passes over the buffer.
+        num_mini_batches (int | Sequence[int], optional):
+            Number of mini-batches per epoch. When a sequence is provided, it
+            must contain one value per epoch.
+        shuffle (bool, optional):
+            Whether to reshuffle sequence indices between epochs. Defaults to
+            ``True``.
+    """
+
     def _get_metadata(self) -> dict[str, Any]:
         return {"temporal": True}
 
@@ -74,6 +101,19 @@ class TemporalMiniBatchSampler(MiniBatchSampler):
 
 
 class AutoMiniBatchSampler(Sampler):
+    """Dispatch to the temporal or non-temporal mini-batch sampler based on
+    buffer contents.
+
+    Args:
+        num_epochs (int, optional):
+            Number of passes over the buffer.
+        num_mini_batches (int | Sequence[int], optional):
+            Number of mini-batches per epoch. When a sequence is provided, it
+            must contain one value per epoch.
+        shuffle (bool, optional):
+            Whether to reshuffle indices between epochs. Defaults to ``True``.
+    """
+
     def __init__(self, num_epochs: int = 1, num_mini_batches: int | Sequence[int] = 1, shuffle: bool = True):
         self.num_epochs = num_epochs
         self.num_mini_batches = num_mini_batches
