@@ -25,7 +25,7 @@ def make_norm(norm: Literal["rms", "layer"] | None, head_dim: int) -> nn.Module:
         return nn.RMSNorm(head_dim, eps=1e-6)
     if norm == "layer":
         return nn.LayerNorm(head_dim, eps=1e-6)
-    raise ValueError(f"Unsupported qk_norm mode: {norm!r}")
+    raise ValueError(f"Unsupported normalization type: {norm!r}")
 
 
 class FlashAttention(nn.Module):
@@ -70,7 +70,7 @@ class MultiheadAttention(nn.Module):
             (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
             The data type used for the attention computation. Defaults to
-            ``torch.float16``.
+            ``torch.float32``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -86,7 +86,7 @@ class MultiheadAttention(nn.Module):
         k_dim: int | None = None,
         v_dim: int | None = None,
         batch_first: bool = True,
-        dtype: torch.dtype = torch.float16,
+        dtype: torch.dtype = torch.float32,
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
@@ -175,7 +175,7 @@ class MultiheadCrossAttention(nn.Module):
             (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
             The data type used for the attention computation. Defaults to
-            ``torch.float16``.
+            ``torch.float32``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -190,7 +190,7 @@ class MultiheadCrossAttention(nn.Module):
         bias: bool = True,
         kv_dim: int | None = None,
         batch_first: bool = True,
-        dtype: torch.dtype = torch.float16,
+        dtype: torch.dtype = torch.float32,
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
@@ -275,7 +275,7 @@ class MultiheadSelfAttention(nn.Module):
             (batch, sequence, channel). Defaults to ``True``.
         dtype (torch.dtype, optional):
             The data type used for the attention computation. Defaults to
-            ``torch.float16``.
+            ``torch.float32``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -290,7 +290,7 @@ class MultiheadSelfAttention(nn.Module):
         qk_norm: Literal["rms", "layer"] | None = None,
         bias: bool = True,
         batch_first: bool = True,
-        dtype: torch.dtype = torch.float16,
+        dtype: torch.dtype = torch.float32,
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
