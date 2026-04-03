@@ -8,8 +8,10 @@ __all__ = ["configure_parser", "main"]
 
 def configure_parser(parser: argparse.ArgumentParser):
     # fmt: off
-    parser.add_argument("query", metavar="QUERY",
-                        help="An experiment path or an experiment name under '--log-dir'")
+    parser.add_argument("environment", metavar="ENVIRONMENT",
+                        help="Environment name used for training")
+    parser.add_argument("algorithm", metavar="ALGORITHM",
+                        help="Algorithm name used for training")
     parser.add_argument("--log-dir", type=str, default="logs", metavar="DIR",
                         help="Root logs directory (default: logs)")
     parser.add_argument("--name", type=str, default=None, metavar="NAME",
@@ -33,19 +35,20 @@ def print_trial_path(trial: Path, *, print_ckpt: bool = False, print_basename: b
 
 
 def main(args: argparse.Namespace):
-    query = Path(args.query)
+    experiment_homes = [
+        (Path(args.log_dir) / f"{args.environment}_{args.algorithm}").absolute(),
+        (Path(args.log_dir) / f"{args.environment}:{args.algorithm}").absolute(),
+    ]
+    experiment_homes = list(dict.fromkeys(experiment_homes))
+    existing_experiment_homes = [path for path in experiment_homes if path.exists()]
+    if not existing_experiment_homes:
+        attempted = " or ".join(f"'{path}'" for path in experiment_homes)
+        raise FileNotFoundError(f"No experiment directory was found at {attempted}")
 
-    # Get the experiment home directory from the query
-    if query.exists():
-        experiment_home = query.absolute()
-    else:
-        experiment_home = (Path(args.log_dir) / query).absolute()
-        if not experiment_home.exists():
-            raise FileNotFoundError(f"No experiment directory was found at '{query}' or '{experiment_home}'")
-
-    # Find trial directories under the experiment home
+    # Find trial directories under the matching experiment homes
     trial_dirs: list[Path] = [
         path
+        for experiment_home in existing_experiment_homes
         for path in experiment_home.iterdir()
         if path.is_dir() and not path.is_symlink() and (path / "ckpt").exists()
     ]
@@ -54,7 +57,8 @@ def main(args: argparse.Namespace):
         trial_dirs = [path for path in trial_dirs if args.name in path.name]
     if not trial_dirs:
         name_hint = f" with name containing '{args.name}'" if args.name else ""
-        raise FileNotFoundError(f"No trial directories were found under '{experiment_home}'{name_hint}")
+        homes = ", ".join(f"'{path}'" for path in existing_experiment_homes)
+        raise FileNotFoundError(f"No trial directories were found under {homes}{name_hint}")
 
     if args.list:
         for path in trial_dirs:
