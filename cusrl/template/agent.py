@@ -28,8 +28,8 @@ class AgentFactory(ABC, Generic[AgentType]):
     """Name of the agent."""
     device: torch.device | str | None = None
     """Device on which to place the agent's tensors and modules."""
-    compile: bool = False
-    """Whether to use torch.compile on the agent's modules."""
+    compile: bool | str = False
+    """Whether to use torch.compile, or which torch.compile mode to use."""
     autocast: bool | None | str | torch.dtype = False
     """Whether to enable automatic mixed precision. If a string or torch.dtype
     is provided, it specifies the dtype for autocasting."""
@@ -71,7 +71,7 @@ class Agent(ABC):
             A list of attribute names that correspond to :cls:`torch.nn.Module`
             instances. These modules will be automatically handled by methods
             like :meth:`state_dict`, :meth:`load_state_dict`, and
-            :meth:`_set_training_mode`.
+            :meth:`training_mode`.
         OPTIMIZERS (list[str]):
             A list of attribute names that correspond to
             :cls:`torch.optim.Optimizer` instances. These optimizers will be
@@ -88,9 +88,10 @@ class Agent(ABC):
         device (torch.device | str | None):
             The device (e.g., ``"cpu"``, ``"cuda"``) on which to place tensors
             and models.
-        compile (bool):
-            If ``True``, :func:`torch.compile` will be used on the modules to
-            optimize performance.
+        compile (bool | str):
+            If ``True``, compilation uses the default :func:`torch.compile`
+            configuration. If a string is provided, it must be a supported
+            :func:`torch.compile` mode.
         autocast (bool | str | torch.dtype):
             Enables automatic mixed precision. If ``True``, defaults to
             ``torch.float16``. Can be set to a specific ``torch.dtype``. If
@@ -107,7 +108,7 @@ class Agent(ABC):
         num_steps_per_update: int,
         name: str = "Agent",
         device: torch.device | str | None = None,
-        compile: bool = False,
+        compile: bool | str = False,
         autocast: bool | None | str | torch.dtype = False,
     ):
         self.observation_dim = environment_spec.observation_dim
@@ -302,20 +303,23 @@ class Agent(ABC):
         ):
             yield
 
+    def _get_compile_kwargs(self) -> dict[str, str]:
+        if isinstance(self.compile, str):
+            return {"mode": self.compile}
+        return {}
+
     def _set_training_mode(self, mode: bool = True):
         for name in self.MODULES:
             if (module := getattr(self, name, None)) is not None:
                 module.train(mode)
 
-    @classmethod
-    def _decorator_update__set_training_mode(cls, update_method):
-        def wrapped_update(self):
-            self._set_training_mode(True)
-            result = update_method(self)
+    @contextmanager
+    def _training_mode(self):
+        self._set_training_mode(True)
+        try:
+            yield
+        finally:
             self._set_training_mode(False)
-            return result
-
-        return wrapped_update
 
     @classmethod
     def _decorator_act__preserve_io_format(cls, act_method):

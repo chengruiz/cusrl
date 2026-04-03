@@ -35,8 +35,8 @@ def configure_parser(parser: argparse.ArgumentParser):
                         help="Device to use for training")
     parser.add_argument("--autocast", nargs="?", const=True, metavar="DTYPE",
                         help="Datatype for automatic mixed precision (default: disabled)")
-    parser.add_argument("--compile", action="store_true",
-                        help="Whether to use `torch.compile`")
+    parser.add_argument("--compile", nargs="?", const=True, default=False, type=str, metavar="MODE",
+                        help="Enable `torch.compile`, optionally with compile mode (default: disabled)")
     parser.add_argument("--environment-args", type=str, metavar="ARG",
                         help="Additional arguments for the environment")
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, metavar="MODULE [ARG ...]",

@@ -1,7 +1,7 @@
-from dataclasses import dataclass
 import itertools
 import os
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any, Literal
 
 import torch
@@ -164,7 +164,7 @@ class ActorCritic(Agent):
         num_steps_per_update: int,
         name: str = "Agent",
         device: torch.device | str | None = None,
-        compile: bool = False,
+        compile: bool | str = False,
         autocast: bool | None | str | torch.dtype = False,
     ):
         super().__init__(
@@ -198,7 +198,7 @@ class ActorCritic(Agent):
         self.actor = self.setup_module(self.actor)
         self.critic = self.setup_module(self.critic)
         if self.compile:
-            self.hook.objective = torch.compile(self.hook.objective)
+            self.hook.objective = torch.compile(self.hook.objective, **self._get_compile_kwargs())
         self.optimizer = self.optimizer_factory(
             itertools.chain(
                 self.actor.named_parameters(prefix="actor"),
@@ -282,11 +282,11 @@ class ActorCritic(Agent):
             **kwargs,
         )
 
-    @Agent._decorator_update__set_training_mode
     def update(self):
         self.hook.pre_update(self.buffer)
-        for metadata, batch in self.sampler(self.buffer):
-            self._train_step(metadata, batch)
+        with self._training_mode():
+            for metadata, batch in self.sampler(self.buffer):
+                self._train_step(metadata, batch)
         self.hook.post_update()
         self.hook.apply_schedule(self.iteration + 1)
         return super().update()
