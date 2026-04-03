@@ -24,7 +24,7 @@ def test_temporal_random_sampler_trims_unfilled_tail():
 
     assert metadata["temporal"] is True
     assert torch.equal(batch["observation"].squeeze(-1).squeeze(-1), torch.tensor([0.0, 1.0, 2.0]))
-    assert torch.equal(batch["actor_memory"].squeeze(-1), torch.tensor([100.0]))
+    assert torch.equal(batch["actor_memory"].squeeze(-1).squeeze(-1), torch.tensor([100.0, 101.0, 102.0]))
 
 
 def test_temporal_random_sampler_uses_valid_chronological_window():
@@ -37,7 +37,7 @@ def test_temporal_random_sampler_uses_valid_chronological_window():
 
     assert metadata["temporal"] is True
     assert torch.equal(batch["observation"].squeeze(-1).squeeze(-1), torch.tensor([2.0, 3.0, 4.0, 5.0]))
-    assert torch.equal(batch["actor_memory"].squeeze(-1), torch.tensor([102.0]))
+    assert torch.equal(batch["actor_memory"].squeeze(-1).squeeze(-1), torch.tensor([102.0, 103.0, 104.0, 105.0]))
 
 
 def test_temporal_random_sampler_sequence_len_trims_partial_buffer():
@@ -50,7 +50,7 @@ def test_temporal_random_sampler_sequence_len_trims_partial_buffer():
 
     sequence = tuple(batch["observation"].squeeze(-1).squeeze(-1).tolist())
     assert sequence in {(0.0, 1.0), (1.0, 2.0)}
-    assert batch["actor_memory"].item() == sequence[0] + 100.0
+    assert tuple(batch["actor_memory"].squeeze(-1).squeeze(-1).tolist()) == tuple(value + 100.0 for value in sequence)
 
 
 def test_temporal_random_sampler_sequence_len_uses_random_wrapped_window():
@@ -63,7 +63,7 @@ def test_temporal_random_sampler_sequence_len_uses_random_wrapped_window():
 
     sequence = tuple(batch["observation"].squeeze(-1).squeeze(-1).tolist())
     assert sequence in {(2.0, 3.0), (3.0, 4.0), (4.0, 5.0)}
-    assert batch["actor_memory"].item() == sequence[0] + 100.0
+    assert tuple(batch["actor_memory"].squeeze(-1).squeeze(-1).tolist()) == tuple(value + 100.0 for value in sequence)
 
 
 def test_temporal_random_sampler_samples_start_and_env_per_sample():
@@ -84,9 +84,9 @@ def test_temporal_random_sampler_samples_start_and_env_per_sample():
         (14.0, 15.0),
     }
     sampled_sequences = batch["observation"].squeeze(-1).T.tolist()
-    sampled_memories = batch["actor_memory"].squeeze(-1).tolist()
+    sampled_memories = batch["actor_memory"].squeeze(-1).T.tolist()
 
     for sequence, memory in zip(sampled_sequences, sampled_memories):
         sequence_tuple = tuple(sequence)
         assert sequence_tuple in valid_sequences
-        assert memory == sequence_tuple[0] + 100.0
+        assert tuple(memory) == tuple(value + 100.0 for value in sequence_tuple)

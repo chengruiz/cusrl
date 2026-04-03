@@ -1,6 +1,9 @@
 import torch
 from torch import Tensor
 
+from cusrl.utils.nest import map_nested
+from cusrl.utils.typing import Memory
+
 __all__ = [
     "compute_cumulative_sequence_lengths",
     "compute_cumulative_timesteps",
@@ -8,6 +11,7 @@ __all__ = [
     "compute_sequence_lengths",
     "compute_reverse_cumulative_timesteps",
     "cumulate_sequence_lengths",
+    "select_initial_memory",
     "split_and_pad_sequences",
     "unpad_and_merge_sequences",
 ]
@@ -82,6 +86,19 @@ def cumulate_sequence_lengths(sequence_lens: Tensor) -> Tensor:
 def compute_cumulative_sequence_lengths(done: Tensor) -> Tensor:
     """Computes cumulative sequence lengths based on a ``done`` tensor."""
     return cumulate_sequence_lengths(compute_sequence_lengths(done))
+
+
+def select_initial_memory(memory: Memory, expected_shape: torch.Size | tuple[int, ...]) -> Memory:
+    """Selects the initial memory state from sequence-aligned memory tensors."""
+    if memory is None:
+        return None
+
+    def _select_initial_memory(mem: Tensor) -> Tensor:
+        if mem.shape[:-1] == expected_shape:
+            return mem[0]
+        return mem
+
+    return map_nested(_select_initial_memory, memory)
 
 
 def split_and_pad_sequences(compact_sequences: Tensor, done: Tensor) -> tuple[Tensor, Tensor]:

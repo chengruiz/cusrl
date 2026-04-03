@@ -7,7 +7,12 @@ from torch import Tensor, nn
 
 from cusrl.module.module import Module, ModuleFactory
 from cusrl.utils.nest import map_nested
-from cusrl.utils.recurrent import compute_sequence_lengths, split_and_pad_sequences, unpad_and_merge_sequences
+from cusrl.utils.recurrent import (
+    compute_sequence_lengths,
+    select_initial_memory,
+    split_and_pad_sequences,
+    unpad_and_merge_sequences,
+)
 from cusrl.utils.typing import Memory
 
 __all__ = ["Gru", "Lstm", "Rnn", "VanillaRnn", "concat_memory", "scatter_memory", "gather_memory"]
@@ -234,6 +239,8 @@ class Rnn(Module):
             - **memory** (Memory):
                 The updated recurrent state.
         """
+        if sequential and input.dim() >= 3:
+            memory = select_initial_memory(memory, input.shape[:-1])
         if done is not None:
             if not sequential:
                 raise ValueError("'done' can be provided only when 'sequential' is True")
@@ -321,6 +328,8 @@ class Rnn(Module):
 
     def step_memory(self, input: Tensor, memory: Memory = None, sequential: bool = True, **kwargs):
         original_input_shape = input.shape
+        if sequential and input.dim() >= 3:
+            memory = select_initial_memory(memory, input.shape[:-1])
         input, memory = self._reshape_input(input, memory, sequential=sequential)
         latent, memory = self.rnn(input, memory)
         _, memory = self._reshape_output(latent, memory, original_input_shape, sequential=sequential)

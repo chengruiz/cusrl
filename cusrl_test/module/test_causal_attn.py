@@ -5,6 +5,7 @@ import cusrl
 from cusrl.module import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer
 from cusrl.module.encoding import RotaryEmbedding
 from cusrl.module.mha import FlashAttention
+from cusrl.utils.nest import map_nested
 from cusrl_test import test_module_consistency
 
 
@@ -148,3 +149,61 @@ def test_causal_self_mha_done_with_extra_batch_dims_matches_flattened_batch():
     assert torch.allclose(next_memory_flat["input_cache"], next_memory_multi["input_cache"].flatten(0, 1))
     assert torch.allclose(next_memory_flat["kv_cache"], next_memory_multi["kv_cache"].flatten(0, 1))
     assert torch.equal(next_memory_flat["cache_mask"], next_memory_multi["cache_mask"].flatten(0, 1))
+
+
+@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+def test_causal_self_mha_accepts_sequential_memory():
+    torch.manual_seed(0)
+
+    batch, seq_len, embed_dim, num_heads, window_size = 4, 6, 16, 4, 4
+    warmup_len = 3
+    attn = CausalMultiheadSelfAttention(embed_dim, num_heads, window_size).to(device="cuda", dtype=torch.bfloat16)
+
+    warmup = torch.randn(warmup_len, batch, embed_dim, device="cuda", dtype=torch.bfloat16)
+    observation = torch.randn(seq_len, batch, embed_dim, device="cuda", dtype=torch.bfloat16)
+    done = torch.zeros(seq_len, batch, 1, device="cuda", dtype=torch.bool)
+    done[2, 1] = True
+    done[4, 3] = True
+
+    _, initial_memory = attn(warmup)
+
+    memory = map_nested(torch.clone, initial_memory)
+    rollout_memories = []
+    outputs = []
+    for t in range(seq_len):
+        rollout_memories.append(map_nested(torch.clone, memory))
+        output, memory = attn(observation[t], memory=memory)
+        attn.reset_memory(memory, done[t])
+        outputs.append(output)
+
+    sequential_memory = {
+        key: torch.stack([step_memory[key] for step_memory in rollout_memories], dim=0) for key in rollout_memories[0]
+    }
+    output_seq = torch.stack(outputs, dim=0)
+    output, _ = attn(observation, memory=sequential_memory, done=done)
+
+    assert torch.allclose(output_seq, output, atol=1e-2)
+
+
+@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+def test_causal_self_mha_non_sequential_keeps_batch_shaped_memory():
+    torch.manual_seed(0)
+
+    num_batches1, num_batches2, embed_dim, num_heads, window_size = 2, 3, 16, 4, 4
+    attn = CausalMultiheadSelfAttention(embed_dim, num_heads, window_size).to(device="cuda", dtype=torch.bfloat16)
+
+    input_multi = torch.randn(num_batches1, num_batches2, embed_dim, device="cuda", dtype=torch.bfloat16)
+    warmup_multi = torch.randn(num_batches1, num_batches2, embed_dim, device="cuda", dtype=torch.bfloat16)
+    _, memory_multi = attn(warmup_multi, sequential=False)
+
+    output_multi, next_memory_multi = attn(input_multi, memory=memory_multi, sequential=False)
+    output_flat, next_memory_flat = attn(
+        input_multi.flatten(0, 1),
+        memory=map_nested(lambda mem: mem.flatten(0, 1), memory_multi),
+        sequential=False,
+    )
+
+    assert torch.allclose(output_multi.flatten(0, 1), output_flat, atol=1e-2)
+    assert torch.allclose(next_memory_multi["input_cache"].flatten(0, 1), next_memory_flat["input_cache"])
+    assert torch.allclose(next_memory_multi["kv_cache"].flatten(0, 1), next_memory_flat["kv_cache"])
+    assert torch.equal(next_memory_multi["cache_mask"].flatten(0, 1), next_memory_flat["cache_mask"])

@@ -94,10 +94,7 @@ class TemporalMiniBatchSampler(MiniBatchSampler):
         return buffer.get_parallelism()
 
     def _sample(self, name: str, data: torch.Tensor, indices):
-        result = data[:, indices]
-        if name.split(".")[0].endswith("memory"):
-            result = result[0, ...]
-        return result
+        return data[:, indices]
 
 
 class AutoMiniBatchSampler(Sampler):

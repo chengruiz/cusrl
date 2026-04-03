@@ -107,11 +107,7 @@ class TemporalRandomSampler(Sampler):
             yield metadata, mini_batch
 
     def _sample(self, name: str, data: torch.Tensor, env_indices, time_indices):
-        result = data[time_indices, env_indices.unsqueeze(0)]
-        if name.split(".")[0].endswith("memory"):
-            # Recurrent memory corresponds to the first step of each sampled sequence
-            result = result[0, ...]
-        return result
+        return data[time_indices, env_indices.unsqueeze(0)]
 
 
 class AutoRandomSampler(Sampler):

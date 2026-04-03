@@ -20,6 +20,14 @@ def clone_memory(memory):
     return map_nested(torch.clone, memory)
 
 
+def stack_memories(memories):
+    if memories[0] is None:
+        return None
+    if isinstance(memories[0], dict):
+        return {key: stack_memories([memory[key] for memory in memories]) for key in memories[0]}
+    return torch.stack(memories, dim=0)
+
+
 @pytest.mark.parametrize(
     ("rnn_type", "memory_keys"),
     [
@@ -210,3 +218,59 @@ def test_step_memory(rnn_type):
         _, memory1 = rnn(observation[i], memory=memory1)
         memory2 = rnn.step_memory(observation[i], memory=memory2)
         assert_memory_allclose(memory1, memory2)
+
+
+@pytest.mark.parametrize("rnn_type", ["RNN", "GRU", "LSTM"])
+def test_rnn_accepts_sequential_memory(rnn_type):
+    input_dim = 10
+    hidden_size = 32
+    num_seqs = 8
+    seq_len = 16
+    warmup_len = 4
+
+    rnn = cusrl.Rnn.Factory(rnn_type, num_layers=2, hidden_size=hidden_size)(input_dim)
+    warmup = torch.randn(warmup_len, num_seqs, input_dim)
+    observation = torch.randn(seq_len, num_seqs, input_dim)
+    done = torch.rand(seq_len, num_seqs, 1) > 0.75
+
+    _, initial_memory = rnn(warmup)
+
+    memory = clone_memory(initial_memory)
+    rollout_memories = []
+    output_step = torch.zeros(seq_len, num_seqs, hidden_size)
+    for i in range(seq_len):
+        rollout_memories.append(clone_memory(memory))
+        output, memory = rnn(observation[i], memory=memory)
+        rnn.reset_memory(memory, done=done[i])
+        output_step[i] = output
+
+    sequential_memory = stack_memories(rollout_memories)
+    output, _ = rnn(observation, memory=sequential_memory, done=done)
+
+    assert torch.allclose(output_step, output, atol=1e-5)
+
+
+@pytest.mark.parametrize("rnn_type", ["RNN", "GRU", "LSTM"])
+def test_rnn_non_sequential_keeps_batch_shaped_memory(rnn_type):
+    input_dim = 10
+    hidden_size = 32
+    seq_len = 4
+    num_seqs = 3
+
+    rnn = cusrl.Rnn.Factory(rnn_type, num_layers=2, hidden_size=hidden_size)(input_dim)
+    input_multi = torch.randn(seq_len, num_seqs, input_dim)
+    memory_multi = rnn.step_memory(torch.randn(seq_len, num_seqs, input_dim), sequential=False)
+
+    output_multi, next_memory_multi = rnn(input_multi, memory=memory_multi, sequential=False)
+    output_flat, next_memory_flat = rnn(
+        input_multi.flatten(0, 1),
+        memory=map_nested(lambda mem: mem.flatten(0, 1), memory_multi),
+        sequential=False,
+    )
+
+    assert torch.allclose(output_multi.flatten(0, 1), output_flat, atol=1e-5)
+    assert_memory_allclose(
+        next_memory_multi,
+        map_nested(lambda mem: mem.unflatten(0, (seq_len, num_seqs)), next_memory_flat),
+        atol=1e-5,
+    )

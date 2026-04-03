@@ -58,5 +58,6 @@ def test_temporal_mini_batch_sampler_samples_sequences_and_memories():
         "temporal": True,
     }
     sampled_sequences = {tuple(sequence.tolist()) for sequence in batch["observation"].squeeze(-1).T}
+    sampled_memories = {tuple(sequence.tolist()) for sequence in batch["actor_memory"].squeeze(-1).T}
     assert sampled_sequences == {(0.0, 1.0, 2.0), (10.0, 11.0, 12.0)}
-    assert set(batch["actor_memory"].squeeze(-1).tolist()) == {100.0, 110.0}
+    assert sampled_memories == {(100.0, 101.0, 102.0), (110.0, 111.0, 112.0)}

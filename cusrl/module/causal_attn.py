@@ -13,6 +13,7 @@ from cusrl.utils.recurrent import (
     compute_sequence_indices,
     compute_sequence_lengths,
     cumulate_sequence_lengths,
+    select_initial_memory,
 )
 from cusrl.utils.typing import Memory, Slice
 
@@ -147,6 +148,8 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         """
         if seq_missing := (input.dim() == 2 or not sequential):
             input = input.unsqueeze(0)
+        if sequential and input.dim() >= 3:
+            memory = select_initial_memory(memory, input.shape[:-1])
         batch_dims = input.shape[1:-1]
         input = input.flatten(1, -2)
 

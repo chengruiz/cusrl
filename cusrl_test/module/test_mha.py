@@ -150,7 +150,7 @@ def test_transformer_decoder_factory_forward():
 
     target = torch.randn(batch, target_len, input_dim)
     context = torch.randn(batch, context_len, context_dim)
-    output = decoder(target, context, is_causal=True)
+    output = decoder(target, context)
 
     assert output.shape == (batch, target_len, output_dim)
 
