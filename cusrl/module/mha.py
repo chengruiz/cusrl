@@ -124,7 +124,36 @@ class MultiheadAttention(nn.Module):
         if self.out_proj.bias is not None:
             nn.init.constant_(self.out_proj.bias, 0.0)
 
-    def forward(self, q: Tensor, k: Tensor, v: Tensor, is_causal: bool = False) -> Tensor:
+    def forward(
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        attn_mask: Tensor | None = None,
+        is_causal: bool = False,
+    ) -> Tensor:
+        """Computes multi-head attention from query, key, and value tensors.
+
+        Args:
+            q (Tensor):
+                Query tensor of shape :math:`(N, L_q, C)` if ``batch_first`` is
+                ``True``, otherwise :math:`(L_q, N, C)`.
+            k (Tensor):
+                Key tensor of shape :math:`(N, L_k, C_k)` if ``batch_first`` is
+                ``True``, otherwise :math:`(L_k, N, C_k)`.
+            v (Tensor):
+                Value tensor of shape :math:`(N, L_k, C_v)` if ``batch_first``
+                is ``True``, otherwise :math:`(L_k, N, C_v)`.
+            attn_mask (Tensor | None):
+                Optional attention mask of shape :math:`(L_q, L_k)`,
+                :math:`(N, L_q, L_k)`, or :math:`(N, H, L_q, L_k)`.
+            is_causal (bool):
+                Whether to apply causal masking.
+
+        Returns:
+            Tensor:
+                Attention output with the same leading dimensions as ``q``.
+        """
         # Transpose inputs to (N, L, E)
         if not self.batch_first:
             q, k, v = q.transpose(0, 1), k.transpose(0, 1), v.transpose(0, 1)
@@ -140,6 +169,7 @@ class MultiheadAttention(nn.Module):
             q.to(self.dtype).transpose(-2, -3),
             k.to(self.dtype).transpose(-2, -3),
             v.to(self.dtype).transpose(-2, -3),
+            attn_mask=attn_mask,
             dropout_p=self.dropout if self.training else 0.0,
             is_causal=is_causal,
         ).transpose(-2, -3)
@@ -224,7 +254,31 @@ class MultiheadCrossAttention(nn.Module):
         if self.out_proj.bias is not None:
             nn.init.constant_(self.out_proj.bias, 0.0)
 
-    def forward(self, q: Tensor, kv: Tensor) -> Tensor:
+    def forward(
+        self,
+        q: Tensor,
+        kv: Tensor,
+        attn_mask: Tensor | None = None,
+        is_causal: bool = False,
+    ) -> Tensor:
+        """Computes multi-head cross-attention from query and context tensors.
+
+        Args:
+            q (Tensor):
+                Query tensor of shape :math:`(N, L_q, C)` if ``batch_first`` is
+                ``True``, otherwise :math:`(L_q, N, C)`.
+            kv (Tensor):
+                Context tensor providing keys and values, of shape
+                :math:`(N, L_k, C_{kv})` if ``batch_first`` is ``True``,
+                otherwise :math:`(L_k, N, C_{kv})`.
+            attn_mask (Tensor | None):
+                Optional attention mask of shape :math:`(L_q, L_k)`,
+                :math:`(N, L_q, L_k)`, or :math:`(N, H, L_q, L_k)`.
+
+        Returns:
+            Tensor:
+                Attention output with the same leading dimensions as ``q``.
+        """
         # Transpose inputs to (N, L, E)
         if not self.batch_first:
             q = q.transpose(0, 1)
@@ -240,8 +294,9 @@ class MultiheadCrossAttention(nn.Module):
             q.to(self.dtype).transpose(-2, -3),
             k.to(self.dtype).transpose(-2, -3),
             v.to(self.dtype).transpose(-2, -3),
+            attn_mask=attn_mask,
             dropout_p=self.dropout if self.training else 0.0,
-            is_causal=False,
+            is_causal=is_causal,
         ).transpose(-2, -3)
         attn_out = self.out_proj(attn_out.flatten(-2, -1).type_as(q))
         # Project back to (L, N, E) if batch_first=False
@@ -320,7 +375,28 @@ class MultiheadSelfAttention(nn.Module):
         if self.out_proj.bias is not None:
             nn.init.constant_(self.out_proj.bias, 0.0)
 
-    def forward(self, input: Tensor, is_causal: bool = False) -> Tensor:
+    def forward(
+        self,
+        input: Tensor,
+        attn_mask: Tensor | None = None,
+        is_causal: bool = False,
+    ) -> Tensor:
+        """Computes multi-head self-attention over the input sequence.
+
+        Args:
+            input (Tensor):
+                Input tensor of shape :math:`(N, L, C)` if ``batch_first`` is
+                ``True``, otherwise :math:`(L, N, C)`.
+            attn_mask (Tensor | None):
+                Optional attention mask of shape :math:`(L, L)`,
+                :math:`(N, L, L)`, or :math:`(N, H, L, L)`.
+            is_causal (bool):
+                Whether to apply causal masking.
+
+        Returns:
+            Tensor:
+                Attention output with the same shape as ``input``.
+        """
         # Transpose inputs to (N, L, E)
         if not self.batch_first:
             input = input.transpose(0, 1)
@@ -337,6 +413,7 @@ class MultiheadSelfAttention(nn.Module):
             q.to(self.dtype).transpose(-2, -3),
             k.to(self.dtype).transpose(-2, -3),
             v.to(self.dtype).transpose(-2, -3),
+            attn_mask=attn_mask,
             dropout_p=self.dropout if self.training else 0.0,
             is_causal=is_causal,
         ).transpose(-2, -3)

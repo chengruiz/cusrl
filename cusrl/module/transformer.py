@@ -115,18 +115,18 @@ class TransformerEncoderLayer(nn.Module):
         else:
             self.out_proj = nn.Identity()
 
-    def forward(self, input: Tensor, is_causal: bool = False) -> Tensor:
+    def forward(self, input: Tensor, attn_mask: Tensor | None = None, is_causal: bool = False) -> Tensor:
         input = self.in_proj(input)
         if self.block_norm_order == "pre":
             # pre-norm: norm -> attn -> add -> norm -> ff -> add
-            attn_out = self.self_attn(self.norm1(input), is_causal=is_causal)
+            attn_out = self.self_attn(self.norm1(input), attn_mask=attn_mask, is_causal=is_causal)
             input = self.gate1(input, self.dropout1(attn_out))
 
             ff_out = self.feedforward(self.norm2(input))
             input = self.gate2(input, self.dropout2(ff_out))
         else:
             # post-norm: attn -> add -> norm -> ff -> add -> norm
-            attn_out = self.self_attn(input, is_causal=is_causal)
+            attn_out = self.self_attn(input, attn_mask=attn_mask, is_causal=is_causal)
             input = self.norm1(self.gate1(input, self.dropout1(attn_out)))
 
             ff_out = self.feedforward(input)
@@ -209,25 +209,51 @@ class TransformerDecoderLayer(nn.Module):
         else:
             self.out_proj = nn.Identity()
 
-    def forward(self, input: Tensor, context: Tensor, is_causal: bool = False) -> Tensor:
-        input = self.in_proj(input)
+    def forward(
+        self,
+        target: Tensor,
+        context: Tensor,
+        target_attn_mask: Tensor | None = None,
+        context_attn_mask: Tensor | None = None,
+        target_is_causal: bool = False,
+        context_is_causal: bool = False,
+    ) -> Tensor:
+        target = self.in_proj(target)
         if self.block_norm_order == "pre":
-            self_attn_out = self.self_attn(self.norm1(input), is_causal=is_causal)
-            input = self.gate1(input, self.dropout1(self_attn_out))
+            self_attn_out = self.self_attn(
+                self.norm1(target),
+                attn_mask=target_attn_mask,
+                is_causal=target_is_causal,
+            )
+            target = self.gate1(target, self.dropout1(self_attn_out))
 
-            cross_attn_out = self.cross_attn(self.norm2(input), context)
-            input = self.gate2(input, self.dropout2(cross_attn_out))
+            cross_attn_out = self.cross_attn(
+                self.norm2(target),
+                context,
+                attn_mask=context_attn_mask,
+                is_causal=context_is_causal,
+            )
+            target = self.gate2(target, self.dropout2(cross_attn_out))
 
-            ff_out = self.feedforward(self.norm3(input))
-            input = self.gate3(input, self.dropout3(ff_out))
+            ff_out = self.feedforward(self.norm3(target))
+            target = self.gate3(target, self.dropout3(ff_out))
         else:
-            self_attn_out = self.self_attn(input, is_causal=is_causal)
-            input = self.norm1(self.gate1(input, self.dropout1(self_attn_out)))
+            self_attn_out = self.self_attn(
+                target,
+                attn_mask=target_attn_mask,
+                is_causal=target_is_causal,
+            )
+            target = self.norm1(self.gate1(target, self.dropout1(self_attn_out)))
 
-            cross_attn_out = self.cross_attn(input, context)
-            input = self.norm2(self.gate2(input, self.dropout2(cross_attn_out)))
+            cross_attn_out = self.cross_attn(
+                target,
+                context,
+                attn_mask=context_attn_mask,
+                is_causal=context_is_causal,
+            )
+            target = self.norm2(self.gate2(target, self.dropout2(cross_attn_out)))
 
-            ff_out = self.feedforward(input)
-            input = self.norm3(self.gate3(input, self.dropout3(ff_out)))
+            ff_out = self.feedforward(target)
+            target = self.norm3(self.gate3(target, self.dropout3(ff_out)))
 
-        return self.out_proj(input)
+        return self.out_proj(target)
