@@ -1,3 +1,5 @@
+from contextlib import nullcontext
+
 import pytest
 import torch
 
@@ -10,6 +12,10 @@ from cusrl.module import (
 )
 from cusrl.module.encoding import RotaryEmbedding
 from cusrl.module.mha import FlashAttention
+
+
+def _autocast_if_cuda(device: torch.device):
+    return torch.autocast(device.type) if device.type == "cuda" else nullcontext()
 
 
 @torch.no_grad()
@@ -61,7 +67,7 @@ def test_mha_consistency_with_torch(is_causal):
     x = torch.randn(batch, seq, embed_dim, device=device)
 
     # forward
-    with torch.autocast(device.type):
+    with _autocast_if_cuda(device):
         out_flash = mha(x, x, x, is_causal=is_causal)
         out_flash2 = mhsa(x, is_causal=is_causal)
         # Build causal mask for PyTorch MHA to avoid relying on is_causal arg
@@ -119,7 +125,7 @@ def test_cross_mha_consistency_with_torch():
 
     q = torch.randn(batch, q_len, embed_dim, device=device)
     kv = torch.randn(batch, kv_len, kv_dim, device=device)
-    with torch.autocast(device.type):
+    with _autocast_if_cuda(device):
         out_flash = mha(q, kv)
         out_torch, _ = mha_torch(q, kv, kv, need_weights=False, average_attn_weights=False)
 
@@ -183,7 +189,7 @@ def test_mha_qk_norm_consistency_between_self_and_general(is_causal, qk_norm):
     mhsa.out_proj.bias.copy_(mha.out_proj.bias)
 
     x = torch.randn(batch, seq, embed_dim, device=device)
-    with torch.autocast(device.type):
+    with _autocast_if_cuda(device):
         out_mha = mha(x, x, x, is_causal=is_causal)
         out_mhsa = mhsa(x, is_causal=is_causal)
 

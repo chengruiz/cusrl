@@ -2,35 +2,121 @@ import time
 from collections import defaultdict
 from contextlib import contextmanager
 
+import torch
+
+import cusrl
+
 __all__ = ["Timer", "Rate"]
 
 
-class Timer:
-    """A utility class for measuring and accumulating execution time of code
-    blocks, functions, or named sections."""
-
+class _TimerImpl:
     def __init__(self):
         self.start_time = {}
-        self.total_time = defaultdict(int)
+        self.total_time = defaultdict(float)
 
+    def start(self, name):
+        raise NotImplementedError
+
+    def stop(self, name):
+        raise NotImplementedError
+
+    def get(self, name):
+        raise NotImplementedError
+
+    def clear(self):
+        self.start_time.clear()
+        self.total_time.clear()
+
+
+class _CpuTimerImpl(_TimerImpl):
     def start(self, name):
         if name in self.start_time:
             raise RuntimeError(f"Timer '{name}' has already been started")
-        self.start_time[name] = time.time()
+        self.start_time[name] = time.perf_counter()
 
     def stop(self, name):
         try:
             start_time = self.start_time.pop(name)
         except KeyError as error:
             raise RuntimeError(f"Timer '{name}' has not been started") from error
-        self.total_time[name] += time.time() - start_time
+        self.total_time[name] += time.perf_counter() - start_time
 
-    def __getitem__(self, item):
-        return self.total_time[item]
+    def get(self, name):
+        return self.total_time[name]
+
+
+class _CudaTimerImpl(_TimerImpl):
+    def __init__(self, device: torch.device | str | None = None):
+        super().__init__()
+        self.device = cusrl.device(device)
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA timing requires an available CUDA device")
+        if self.device.type != "cuda":
+            raise ValueError(f"CUDA timing requires a CUDA device, got '{self.device}'")
+        self.pending_time = defaultdict(list)
+
+    def start(self, name):
+        if name in self.start_time:
+            raise RuntimeError(f"Timer '{name}' has already been started")
+        with torch.cuda.device(self.device):
+            event = torch.cuda.Event(enable_timing=True)
+            event.record()
+        self.start_time[name] = event
+
+    def stop(self, name):
+        try:
+            start_event = self.start_time.pop(name)
+        except KeyError as error:
+            raise RuntimeError(f"Timer '{name}' has not been started") from error
+        with torch.cuda.device(self.device):
+            end_event = torch.cuda.Event(enable_timing=True)
+            end_event.record()
+        self.pending_time[name].append((start_event, end_event))
+
+    def get(self, name):
+        self._flush(name)
+        return self.total_time[name]
 
     def clear(self):
-        self.start_time.clear()
-        self.total_time.clear()
+        super().clear()
+        self.pending_time.clear()
+
+    def _flush(self, name: str | None = None):
+        names = [name] if name is not None else list(self.pending_time)
+        for key in names:
+            pending = self.pending_time[key]
+            if not pending:
+                continue
+            for start_event, end_event in pending:
+                end_event.synchronize()
+                self.total_time[key] += start_event.elapsed_time(end_event) / 1000.0
+            pending.clear()
+
+
+class Timer:
+    """A utility class for measuring and accumulating execution time of code
+    blocks, functions, or named sections."""
+
+    impl: _TimerImpl
+
+    def __init__(self, device: torch.device | str | None = None):
+        device = cusrl.device(device)
+        if device.type == "cuda":
+            self.impl = _CudaTimerImpl(device=device)
+        else:
+            self.impl = _CpuTimerImpl()
+
+    def start(self, name):
+        self.impl.start(name)
+
+    def stop(self, name):
+        self.impl.stop(name)
+
+    def __getitem__(self, item):
+        return self.impl.get(item)
+
+    def clear(self):
+        self.impl.clear()
 
     def wrap(self, name, func):
         def wrapper(*args, **kwargs):

@@ -284,7 +284,7 @@ class Trainer:
         for callback in self.callbacks:
             callback(self)
 
-        self.timer = Timer()
+        self.timer = Timer(self.agent.device)
         self._last_checkpoint_iteration: int | None = None
         self._save_trial_info()
 
