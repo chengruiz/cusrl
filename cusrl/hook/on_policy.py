@@ -73,11 +73,10 @@ class OnPolicyPreparation(Hook[ActorCritic]):
     def objective(self, metadata, batch):
         actor = self.agent.actor
 
-        with self.agent.autocast():
-            action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
-            action_logp = actor.compute_logp(action_dist, batch["action"])
-            entropy = actor.compute_entropy(action_dist)
-            logp_ratio = action_logp - cast(torch.Tensor, batch["action_logp"])
+        action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
+        action_logp = actor.compute_logp(action_dist, batch["action"])
+        entropy = actor.compute_entropy(action_dist)
+        logp_ratio = action_logp - cast(torch.Tensor, batch["action_logp"])
 
         batch["curr_action_dist"] = action_dist
         batch["curr_action_logp"] = action_logp
@@ -125,8 +124,7 @@ class OnPolicyStatistics(Hook[ActorCritic]):
     def post_update(self):
         actor = self.agent.actor
         for _, batch in self.sampler(self.agent.buffer):
-            with self.agent.autocast():
-                action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
+            action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
             self.agent.record(kl_divergence=actor.compute_kl_div(batch["action_dist"], action_dist))
             if "std" in action_dist:
                 self.agent.record(action_std=action_dist["std"])

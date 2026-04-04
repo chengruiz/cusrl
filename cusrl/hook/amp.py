@@ -144,8 +144,7 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         transition["agent_transition"] = agent_transition
         transition["expert_transition"] = expert_transition
 
-        with self.agent.autocast():
-            logit = self.discriminator(agent_transition)
+        logit = self.discriminator(agent_transition)
         style_reward = self.reward_scale * -torch.log(torch.clamp(1 - 1 / (1 + torch.exp(-logit)), min=1e-4))
 
         cast(Tensor, transition["reward"]).add_(style_reward)
@@ -162,14 +161,13 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
         else:
             batch_size = agent_transition.size(0)
 
-        with self.agent.autocast():
-            expert_transition.requires_grad_(True)
-            agent_logit = self.discriminator(agent_transition)
-            agent_disc_loss = self.criterion(agent_logit, torch.zeros_like(agent_logit))
-            expert_logit = self.discriminator(expert_transition)
-            expert_disc_loss = self.criterion(expert_logit, torch.ones_like(expert_logit))
-            discrimination_loss = (agent_disc_loss + expert_disc_loss) / 2
-            grad_penalty_loss = self.grad_penalty(expert_logit, expert_transition)
+        expert_transition.requires_grad_(True)
+        agent_logit = self.discriminator(agent_transition)
+        agent_disc_loss = self.criterion(agent_logit, torch.zeros_like(agent_logit))
+        expert_logit = self.discriminator(expert_transition)
+        expert_disc_loss = self.criterion(expert_logit, torch.ones_like(expert_logit))
+        discrimination_loss = (agent_disc_loss + expert_disc_loss) / 2
+        grad_penalty_loss = self.grad_penalty(expert_logit, expert_transition)
 
         return {
             "amp_discrimination_loss": discrimination_loss * self.loss_weight,

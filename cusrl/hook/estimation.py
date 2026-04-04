@@ -84,12 +84,11 @@ class StateEstimation(Hook[ActorCritic]):
 
     def pre_act(self, transition):
         source = cast(Tensor, transition[self.source_name])[..., self.source_indices]
-        with self.agent.autocast():
-            estimation, next_estimator_memory = self.estimator(
-                source,
-                memory=self._estimator_memory,
-                sequential=False,
-            )
+        estimation, next_estimator_memory = self.estimator(
+            source,
+            memory=self._estimator_memory,
+            sequential=False,
+        )
 
         transition[self.estimation_name] = estimation
         transition["estimator_memory"] = self._estimator_memory
@@ -101,7 +100,6 @@ class StateEstimation(Hook[ActorCritic]):
     def objective(self, metadata, batch):
         source = cast(Tensor, batch[self.source_name])[..., self.source_indices]
         target = cast(Tensor, batch[self.target_name])[..., self.target_indices]
-        with self.agent.autocast():
-            estimation, _ = self.estimator(source, memory=batch["estimator_memory"], done=batch["done"])
-            state_estimation_loss = self.criterion(estimation, target)
+        estimation, _ = self.estimator(source, memory=batch["estimator_memory"], done=batch["done"])
+        state_estimation_loss = self.criterion(estimation, target)
         return {"state_estimation_loss": state_estimation_loss * self.weight}

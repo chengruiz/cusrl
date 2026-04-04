@@ -127,12 +127,11 @@ class SymmetryLoss(SymmetryHook):
 
         mirrored_observation = self.mirror_observation(observation)
         transition["mirrored_actor_memory"] = self.mirrored_actor_memory
-        with self.agent.autocast():
-            self.mirrored_actor_memory = actor.step_memory(
-                mirrored_observation,
-                memory=self.mirrored_actor_memory,
-            )
-            actor.reset_memory(self.mirrored_actor_memory, done)
+        self.mirrored_actor_memory = actor.step_memory(
+            mirrored_observation,
+            memory=self.mirrored_actor_memory,
+        )
+        actor.reset_memory(self.mirrored_actor_memory, done)
 
     def objective(self, metadata, batch):
         if self.weight is None:
@@ -140,12 +139,11 @@ class SymmetryLoss(SymmetryHook):
 
         actor = self.agent.actor
         observation = cast(Tensor, batch["observation"])
-        with self.agent.autocast():
-            mirrored_action_dist, _ = actor(
-                self.mirror_observation(observation),
-                memory=batch.get("mirrored_actor_memory"),
-                done=batch["done"],
-            )
+        mirrored_action_dist, _ = actor(
+            self.mirror_observation(observation),
+            memory=batch.get("mirrored_actor_memory"),
+            done=batch["done"],
+        )
 
         losses = {}
         curr_action_dist = cast(MeanStdDict, batch["curr_action_dist"])
@@ -238,17 +236,16 @@ class SymmetricDataAugmentation(SymmetryHook):
         # Augment memory for actor
         actor, critic = self.agent.actor, self.agent.critic
         done = cast(Tensor, transition["done"])
-        with self.agent.autocast():
-            if self.mirrored_actor_memory is not None:
-                transition["augmented_actor_memory"] = concat_memory(
-                    cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["actor_memory"])),
-                    self.mirrored_actor_memory,
-                    dim=-2,
-                )
-            self.mirrored_actor_memory = actor.step_memory(
-                mirrored_observation, self.mirrored_actor_memory, sequential=False
+        if self.mirrored_actor_memory is not None:
+            transition["augmented_actor_memory"] = concat_memory(
+                cast(Memory, map_nested(lambda x: x.unsqueeze(1), transition["actor_memory"])),
+                self.mirrored_actor_memory,
+                dim=-2,
             )
-            actor.reset_memory(self.mirrored_actor_memory, done)
+        self.mirrored_actor_memory = actor.step_memory(
+            mirrored_observation, self.mirrored_actor_memory, sequential=False
+        )
+        actor.reset_memory(self.mirrored_actor_memory, done)
 
         # Augment memory for critic if needed
         if self.augments_value:

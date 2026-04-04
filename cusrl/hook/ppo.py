@@ -61,8 +61,7 @@ class PpoSurrogateLoss(Hook):
         if (advantage := cast(torch.Tensor, batch["advantage"])).size(-1) != 1:
             raise ValueError(f"Expected advantage to have shape [..., 1], got {advantage.shape}")
         action_prob_ratio = cast(torch.Tensor, batch["action_prob_ratio"])
-        with self.agent.autocast():
-            surrogate_loss = _ppo_surrogate_loss(advantage, action_prob_ratio, self.clip_ratio)
+        surrogate_loss = _ppo_surrogate_loss(advantage, action_prob_ratio, self.clip_ratio)
         return {"surrogate_loss": surrogate_loss * self.weight}
 
 

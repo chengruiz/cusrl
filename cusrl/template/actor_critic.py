@@ -151,7 +151,7 @@ class ActorCritic(Agent):
 
     Factory = ActorCriticFactory
     MODULES = ["actor", "critic", "hook"]
-    OPTIMIZERS = ["optimizer"]
+    STATEFULS = ["optimizer", "grad_scaler"]
 
     def __init__(
         self,
@@ -190,7 +190,7 @@ class ActorCritic(Agent):
         )
         self.buffer = Buffer(self.buffer_capacity, self.parallelism, device=self.device)
         self.sampler = sampler
-        self.grad_scaler = torch.GradScaler(enabled=self.autocast_enabled)
+        self.grad_scaler = torch.GradScaler(device=self.device, enabled=self.autocast_enabled)
 
         self.actor_memory = None
         self.hook.init()
@@ -224,13 +224,12 @@ class ActorCritic(Agent):
         # enable hook to preprocess the observation and state
         self.hook.pre_act(self.transition)
 
-        with self.autocast():
-            action_dist, (action, action_logp), next_actor_memory = self.actor.explore(
-                self.transition["observation"],
-                memory=self.actor_memory,
-                deterministic=self.deterministic,
-                backbone_kwargs={"sequential": False},
-            )
+        action_dist, (action, action_logp), next_actor_memory = self.actor.explore(
+            self.transition["observation"],
+            memory=self.actor_memory,
+            deterministic=self.deterministic,
+            backbone_kwargs={"sequential": False},
+        )
 
         self._save_transition(
             actor_memory=self.actor_memory,
@@ -295,7 +294,9 @@ class ActorCritic(Agent):
         self.actor.clear_intermediate_repr()
         self.critic.clear_intermediate_repr()
         self.hook.pre_objective(metadata, batch)
-        if (objectives := self.hook.objective(metadata, batch)) is not None:
+        with self._autocast():
+            objectives = self.hook.objective(metadata, batch)
+        if objectives is not None:
             loss = sum(objectives.values())
             self.optimizer.zero_grad()
             scaled_loss = self.grad_scaler.scale(loss)

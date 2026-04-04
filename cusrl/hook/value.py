@@ -52,8 +52,7 @@ class ValueComputation(Hook[ActorCritic]):
     def post_act(self, transition):
         critic = self.agent.critic
         state = cast(Tensor, get_first(transition, "state", "observation"))
-        with self.agent.autocast():
-            value, next_critic_memory = critic(state, memory=self._critic_memory, sequential=False)
+        value, next_critic_memory = critic(state, memory=self._critic_memory, sequential=False)
 
         transition["value"] = value
         transition["critic_memory"] = self._critic_memory
@@ -76,8 +75,7 @@ class ValueComputation(Hook[ActorCritic]):
         truncated = cast(Tensor, buffer["truncated"]).squeeze(-1)
 
         next_value[:-1] = value[1:]
-        with self.agent.autocast():
-            next_value[-1] = critic.evaluate(next_state[-1], memory=self._critic_memory)
+        next_value[-1] = critic.evaluate(next_state[-1], memory=self._critic_memory)
         termination_value = value.new_full([value.size(-1)], self.termination_value)
         next_value[terminated] = termination_value
         if truncated.any():
@@ -85,8 +83,7 @@ class ValueComputation(Hook[ActorCritic]):
                 if (next_memory := buffer.get("next_critic_memory")) is not None:
                     next_memory = map_nested(lambda memory: memory[truncated], next_memory)
                 truncated_next_state = next_state[truncated]
-                with self.agent.autocast():
-                    truncated_next_value = critic.evaluate(truncated_next_state, memory=next_memory)
+                truncated_next_value = critic.evaluate(truncated_next_state, memory=next_memory)
                 next_value[truncated] = truncated_next_value
             else:
                 next_value[truncated] = value[truncated]
@@ -144,15 +141,14 @@ class ValueLoss(Hook[ActorCritic]):
         value = cast(Tensor, batch["value"])
         return_ = cast(Tensor, batch["return"])
 
-        with self.agent.autocast():
-            curr_value = critic.evaluate(state, memory=batch.get("critic_memory"), done=done)
-            batch["curr_value"] = curr_value
+        curr_value = critic.evaluate(state, memory=batch.get("critic_memory"), done=done)
+        batch["curr_value"] = curr_value
 
-            value_loss = (
-                nn.functional.mse_loss(return_, curr_value)
-                if self.loss_clip is None
-                else _clipped_value_loss(value, curr_value, return_, self.loss_clip)
-            )
+        value_loss = (
+            nn.functional.mse_loss(return_, curr_value)
+            if self.loss_clip is None
+            else _clipped_value_loss(value, curr_value, return_, self.loss_clip)
+        )
 
         return {"value_loss": value_loss * self.weight}
 

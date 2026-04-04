@@ -72,10 +72,9 @@ class Agent(ABC):
             instances. These modules will be automatically handled by methods
             like :meth:`state_dict`, :meth:`load_state_dict`, and
             :meth:`training_mode`.
-        OPTIMIZERS (list[str]):
-            A list of attribute names that correspond to
-            :cls:`torch.optim.Optimizer` instances. These optimizers will be
-            automatically handled by :meth:`state_dict` and
+        STATEFULS (list[str]):
+            A list of attribute names that correspond to stateful objects. These
+            statefuls will be automatically handled by :meth:`state_dict` and
             :meth:`load_state_dict`.
 
     Args:
@@ -100,7 +99,7 @@ class Agent(ABC):
 
     Factory = AgentFactory
     MODULES: list[str] = []
-    OPTIMIZERS: list[str] = []
+    STATEFULS: list[str] = []
 
     def __init__(
         self,
@@ -265,14 +264,14 @@ class Agent(ABC):
 
     def state_dict(self):
         state_dict = {}
-        for name in self.MODULES + self.OPTIMIZERS:
+        for name in self.MODULES + self.STATEFULS:
             if (module := getattr(self, name, None)) is not None:
                 state_dict[name] = module.state_dict()
         return state_dict
 
     def load_state_dict(self, state_dict: dict[str, Any]):
         keys = set(state_dict.keys())
-        for name in self.MODULES + self.OPTIMIZERS:
+        for name in self.MODULES + self.STATEFULS:
             module: nn.Module | torch.optim.Optimizer | None = getattr(self, name, None)
             if module is None:
                 continue
@@ -295,7 +294,7 @@ class Agent(ABC):
         distributed.print_rank0(f"\033[1;33mAgent: {info_str}\033[0m")
 
     @contextmanager
-    def autocast(self):
+    def _autocast(self):
         with torch.autocast(
             device_type=self.device.type,
             dtype=self.dtype,
