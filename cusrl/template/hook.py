@@ -175,11 +175,11 @@ class Hook(Generic[AgentType]):
         if keys:
             self.warn(f"Unused state_dict keys: {keys}.")
 
-    def compile(self):
+    def compile(self, **kwargs):
         """Compiles the hook's modules using `torch.compile`."""
         for module in self._modules.values():
             if module is not None and hasattr(module, "compile"):
-                module.compile()
+                module.compile(**kwargs)
 
     def train(self, mode: bool = True):
         """Sets the hook's modules to training mode.
@@ -385,9 +385,9 @@ class HookComposite(Hook):
         if keys:
             self.warn(f"Unused state_dict keys: {keys}.")
 
-    def compile(self):
+    def compile(self, **kwargs):
         for hook in self:
-            hook.compile()
+            hook.compile(**kwargs)
 
     def train(self, mode=True):
         for hook in self.active_hooks():

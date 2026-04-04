@@ -298,7 +298,8 @@ class ActorCritic(Agent):
         if (objectives := self.hook.objective(metadata, batch)) is not None:
             loss = sum(objectives.values())
             self.optimizer.zero_grad()
-            self.grad_scaler.scale(loss).backward()
+            scaled_loss = self.grad_scaler.scale(loss)
+            scaled_loss.backward()
             self.grad_scaler.unscale_(self.optimizer)
             reduce_gradients(self.optimizer)
             self.hook.pre_optim(self.optimizer)

@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+import cusrl
 from cusrl.template.environment import Environment
 
 __all__ = [
@@ -37,19 +38,20 @@ class DummyTorchEnvironment(Environment):
         num_instances = self.num_instances
         if indices is not None:
             num_instances = torch.zeros(num_instances)[indices].numel()
+        device = cusrl.device()
         return (
-            torch.randn(num_instances, self.observation_dim),
-            None if self.state_dim is None else torch.randn(num_instances, self.state_dim),
+            torch.randn(num_instances, self.observation_dim, device=device),
+            None if self.state_dim is None else torch.randn(num_instances, self.state_dim, device=device),
             {},
         )
 
     def step(self, action):
         assert isinstance(action, torch.Tensor)
         return (
-            torch.randn(self.num_instances, self.observation_dim),
-            None if self.state_dim is None else torch.randn(self.num_instances, self.state_dim),
-            torch.randn(self.num_instances, self.spec.reward_dim),
-            torch.rand(self.num_instances, 1) > 0.9,
-            torch.rand(self.num_instances, 1) > 0.9,
+            torch.randn(self.num_instances, self.observation_dim, device=action.device),
+            None if self.state_dim is None else torch.randn(self.num_instances, self.state_dim, device=action.device),
+            torch.randn(self.num_instances, self.spec.reward_dim, device=action.device),
+            torch.rand(self.num_instances, 1, device=action.device) > 0.9,
+            torch.rand(self.num_instances, 1, device=action.device) > 0.9,
             {},
         )
