@@ -65,7 +65,6 @@ class TransformerEncoderLayer(nn.Module):
         rope_base: float | None = None,
         dropout: float = 0.0,
         batch_first: bool = True,
-        dtype: torch.dtype = torch.float32,
         gate_type: str | None = "residual",
         qk_norm: Literal["rms", "layer"] | None = None,
         block_norm: Literal["rms", "layer"] | None = None,
@@ -94,7 +93,6 @@ class TransformerEncoderLayer(nn.Module):
             qk_norm=qk_norm,
             dropout=dropout,
             batch_first=batch_first,
-            dtype=dtype,
         )
         self.dropout1 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
         self.gate1 = gate_cls(self.embed_dim)
@@ -146,7 +144,6 @@ class TransformerDecoderLayer(nn.Module):
         rope_base: float | None = None,
         dropout: float = 0.0,
         batch_first: bool = True,
-        dtype: torch.dtype = torch.float32,
         gate_type: str | None = "residual",
         qk_norm: Literal["rms", "layer"] | None = None,
         block_norm: Literal["rms", "layer"] | None = None,
@@ -175,7 +172,6 @@ class TransformerDecoderLayer(nn.Module):
             qk_norm=qk_norm,
             dropout=dropout,
             batch_first=batch_first,
-            dtype=dtype,
         )
         self.dropout1 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
         self.gate1 = gate_cls(self.embed_dim)
@@ -188,7 +184,6 @@ class TransformerDecoderLayer(nn.Module):
             dropout=dropout,
             kv_dim=self.context_dim,
             batch_first=batch_first,
-            dtype=dtype,
         )
         self.dropout2 = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
         self.gate2 = gate_cls(self.embed_dim)

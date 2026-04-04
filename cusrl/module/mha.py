@@ -68,9 +68,6 @@ class MultiheadAttention(nn.Module):
         batch_first (bool, optional):
             If ``True``, then the input and output tensors are provided as
             (batch, sequence, channel). Defaults to ``True``.
-        dtype (torch.dtype, optional):
-            The data type used for the attention computation. Defaults to
-            ``torch.float32``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -86,7 +83,6 @@ class MultiheadAttention(nn.Module):
         k_dim: int | None = None,
         v_dim: int | None = None,
         batch_first: bool = True,
-        dtype: torch.dtype = torch.float32,
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
@@ -99,7 +95,6 @@ class MultiheadAttention(nn.Module):
 
         self.dropout = dropout
         self.batch_first = batch_first
-        self.dtype = dtype
 
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.k_proj = nn.Linear(self.k_dim, embed_dim, bias=bias)
@@ -166,9 +161,9 @@ class MultiheadAttention(nn.Module):
         k = self.k_norm(k)
 
         attn_out = torch.nn.functional.scaled_dot_product_attention(
-            q.to(self.dtype).transpose(-2, -3),
-            k.to(self.dtype).transpose(-2, -3),
-            v.to(self.dtype).transpose(-2, -3),
+            q.transpose(-2, -3),
+            k.transpose(-2, -3),
+            v.transpose(-2, -3),
             attn_mask=attn_mask,
             dropout_p=self.dropout if self.training else 0.0,
             is_causal=is_causal,
@@ -203,9 +198,6 @@ class MultiheadCrossAttention(nn.Module):
         batch_first (bool, optional):
             If ``True``, then the input and output tensors are provided as
             (batch, sequence, channel). Defaults to ``True``.
-        dtype (torch.dtype, optional):
-            The data type used for the attention computation. Defaults to
-            ``torch.float32``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -220,7 +212,6 @@ class MultiheadCrossAttention(nn.Module):
         bias: bool = True,
         kv_dim: int | None = None,
         batch_first: bool = True,
-        dtype: torch.dtype = torch.float32,
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
@@ -233,7 +224,6 @@ class MultiheadCrossAttention(nn.Module):
 
         self.dropout = dropout
         self.batch_first = batch_first
-        self.dtype = dtype
 
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.kv_proj = nn.Linear(self.kv_dim, 2 * embed_dim, bias=bias)
@@ -291,9 +281,9 @@ class MultiheadCrossAttention(nn.Module):
         k = self.k_norm(k)
 
         attn_out = torch.nn.functional.scaled_dot_product_attention(
-            q.to(self.dtype).transpose(-2, -3),
-            k.to(self.dtype).transpose(-2, -3),
-            v.to(self.dtype).transpose(-2, -3),
+            q.transpose(-2, -3),
+            k.transpose(-2, -3),
+            v.transpose(-2, -3),
             attn_mask=attn_mask,
             dropout_p=self.dropout if self.training else 0.0,
             is_causal=is_causal,
@@ -328,9 +318,6 @@ class MultiheadSelfAttention(nn.Module):
         batch_first (bool, optional):
             If ``True``, then the input and output tensors are provided as
             (batch, sequence, channel). Defaults to ``True``.
-        dtype (torch.dtype, optional):
-            The data type used for the attention computation. Defaults to
-            ``torch.float32``.
 
     Raises:
         ValueError: If ``embed_dim`` is not divisible by ``num_heads``.
@@ -345,7 +332,6 @@ class MultiheadSelfAttention(nn.Module):
         qk_norm: Literal["rms", "layer"] | None = None,
         bias: bool = True,
         batch_first: bool = True,
-        dtype: torch.dtype = torch.float32,
     ):
         super().__init__()
         if embed_dim % num_heads != 0:
@@ -357,7 +343,6 @@ class MultiheadSelfAttention(nn.Module):
 
         self.dropout = dropout
         self.batch_first = batch_first
-        self.dtype = dtype
 
         self.rope = RotaryEmbedding(self.head_dim, base=rope_base) if rope_base is not None else None
         self.qkv_proj = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
@@ -410,9 +395,9 @@ class MultiheadSelfAttention(nn.Module):
         k = self.k_norm(k)
 
         attn_out = torch.nn.functional.scaled_dot_product_attention(
-            q.to(self.dtype).transpose(-2, -3),
-            k.to(self.dtype).transpose(-2, -3),
-            v.to(self.dtype).transpose(-2, -3),
+            q.transpose(-2, -3),
+            k.transpose(-2, -3),
+            v.transpose(-2, -3),
             attn_mask=attn_mask,
             dropout_p=self.dropout if self.training else 0.0,
             is_causal=is_causal,

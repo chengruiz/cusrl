@@ -13,9 +13,8 @@ from cusrl.module.mha import FlashAttention
 
 
 @torch.no_grad()
-@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
 @pytest.mark.parametrize("is_causal", [False, True])
-def test_mha_consistency_with_torch(dtype, is_causal):
+def test_mha_consistency_with_torch(is_causal):
     torch.manual_seed(0)
     batch, seq, embed_dim, num_heads = 2, 9, 32, 4
     device = cusrl.device()
@@ -25,7 +24,6 @@ def test_mha_consistency_with_torch(dtype, is_causal):
         num_heads,
         dropout=0.0,
         batch_first=True,
-        dtype=dtype,
     ).to(device)
     mha.eval()
 
@@ -34,7 +32,6 @@ def test_mha_consistency_with_torch(dtype, is_causal):
         num_heads,
         dropout=0.0,
         batch_first=True,
-        dtype=dtype,
     ).to(device)
     mhsa.eval()
 
@@ -61,10 +58,10 @@ def test_mha_consistency_with_torch(dtype, is_causal):
     mhsa.out_proj.bias.copy_(mha.out_proj.bias)
     mha_torch.out_proj.bias.copy_(mha.out_proj.bias)
 
-    x = torch.randn(batch, seq, embed_dim, device=device, dtype=dtype)
+    x = torch.randn(batch, seq, embed_dim, device=device)
 
     # forward
-    with torch.autocast(device.type, dtype=dtype):
+    with torch.autocast(device.type):
         out_flash = mha(x, x, x, is_causal=is_causal)
         out_flash2 = mhsa(x, is_causal=is_causal)
         # Build causal mask for PyTorch MHA to avoid relying on is_causal arg
@@ -80,8 +77,7 @@ def test_mha_consistency_with_torch(dtype, is_causal):
 
 
 @torch.no_grad()
-@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
-def test_cross_mha_consistency_with_torch(dtype):
+def test_cross_mha_consistency_with_torch():
     torch.manual_seed(0)
     batch, q_len, kv_len = 2, 5, 7
     embed_dim, num_heads, kv_dim = 32, 4, 24
@@ -93,7 +89,6 @@ def test_cross_mha_consistency_with_torch(dtype):
         dropout=0.0,
         kv_dim=kv_dim,
         batch_first=True,
-        dtype=dtype,
     ).to(device)
     mha.eval()
 
@@ -122,9 +117,9 @@ def test_cross_mha_consistency_with_torch(dtype):
     mha_torch.out_proj.weight.copy_(mha.out_proj.weight)
     mha_torch.out_proj.bias.copy_(mha.out_proj.bias)
 
-    q = torch.randn(batch, q_len, embed_dim, device=device, dtype=dtype)
-    kv = torch.randn(batch, kv_len, kv_dim, device=device, dtype=dtype)
-    with torch.autocast(device.type, dtype=dtype):
+    q = torch.randn(batch, q_len, embed_dim, device=device)
+    kv = torch.randn(batch, kv_len, kv_dim, device=device)
+    with torch.autocast(device.type):
         out_flash = mha(q, kv)
         out_torch, _ = mha_torch(q, kv, kv, need_weights=False, average_attn_weights=False)
 
@@ -145,7 +140,6 @@ def test_transformer_decoder_factory_forward():
         context_dim=context_dim,
         block_norm="layer",
         block_norm_order="post",
-        dtype=torch.float32,
     ).eval()
 
     target = torch.randn(batch, target_len, input_dim)
@@ -156,10 +150,9 @@ def test_transformer_decoder_factory_forward():
 
 
 @torch.no_grad()
-@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
 @pytest.mark.parametrize("is_causal", [False, True])
 @pytest.mark.parametrize("qk_norm", ["rms", "layer"])
-def test_mha_qk_norm_consistency_between_self_and_general(dtype, is_causal, qk_norm):
+def test_mha_qk_norm_consistency_between_self_and_general(is_causal, qk_norm):
     torch.manual_seed(0)
     batch, seq, embed_dim, num_heads = 2, 9, 32, 4
     device = cusrl.device()
@@ -170,7 +163,6 @@ def test_mha_qk_norm_consistency_between_self_and_general(dtype, is_causal, qk_n
         dropout=0.0,
         qk_norm=qk_norm,
         batch_first=True,
-        dtype=dtype,
     ).to(device)
     mha.eval()
 
@@ -180,7 +172,6 @@ def test_mha_qk_norm_consistency_between_self_and_general(dtype, is_causal, qk_n
         dropout=0.0,
         qk_norm=qk_norm,
         batch_first=True,
-        dtype=dtype,
     ).to(device)
     mhsa.eval()
 
@@ -191,8 +182,8 @@ def test_mha_qk_norm_consistency_between_self_and_general(dtype, is_causal, qk_n
     mhsa.out_proj.weight.copy_(mha.out_proj.weight)
     mhsa.out_proj.bias.copy_(mha.out_proj.bias)
 
-    x = torch.randn(batch, seq, embed_dim, device=device, dtype=dtype)
-    with torch.autocast(device.type, dtype=dtype):
+    x = torch.randn(batch, seq, embed_dim, device=device)
+    with torch.autocast(device.type):
         out_mha = mha(x, x, x, is_causal=is_causal)
         out_mhsa = mhsa(x, is_causal=is_causal)
 
