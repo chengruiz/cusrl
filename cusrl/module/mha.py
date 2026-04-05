@@ -388,11 +388,12 @@ class MultiheadSelfAttention(nn.Module):
 
         # Projections
         qkv = self.qkv_proj(input).unflatten(-1, (3, self.num_heads, self.head_dim))
-        if self.rope is not None:
-            qkv = self.rope.apply_qkv(qkv)
         q, k, v = qkv.unbind(dim=-3)
         q = self.q_norm(q)
         k = self.k_norm(k)
+        if self.rope is not None:
+            q = self.rope(q)
+            k = self.rope(k)
 
         attn_out = torch.nn.functional.scaled_dot_product_attention(
             q.transpose(-2, -3),
