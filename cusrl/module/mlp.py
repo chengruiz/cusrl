@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 import torch
@@ -11,7 +11,7 @@ __all__ = ["Mlp"]
 
 @dataclass(slots=True)
 class MlpFactory(ModuleFactory["Mlp"]):
-    hidden_dims: Iterable[int]
+    hidden_dims: Sequence[int]
     activation_fn: str | type[nn.Module] = "ReLU"
     ends_with_activation: bool = False
     dropout: float = 0.0

@@ -12,6 +12,7 @@ from typing_extensions import Self
 import cusrl
 from cusrl.template.environment import Environment, EnvironmentSpec
 from cusrl.utils import Metrics, distributed
+from cusrl.utils.str_utils import parse_torch_dtype
 from cusrl.utils.typing import Array, ArrayType, ListOrTuple, Nested, NestedArray, NestedTensor
 
 __all__ = ["Agent", "AgentType", "AgentFactory"]
@@ -30,7 +31,7 @@ class AgentFactory(ABC, Generic[AgentType]):
     """Device on which to place the agent's tensors and modules."""
     compile: bool | str = False
     """Whether to use torch.compile, or which torch.compile mode to use."""
-    autocast: bool | None | str | torch.dtype = False
+    autocast: bool | None | torch.dtype | str = False
     """Whether to enable automatic mixed precision. If a string or torch.dtype
     is provided, it specifies the dtype for autocasting."""
 
@@ -108,7 +109,7 @@ class Agent(ABC):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool | str = False,
-        autocast: bool | None | str | torch.dtype = False,
+        autocast: bool | None | torch.dtype | str = False,
     ):
         self.observation_dim = environment_spec.observation_dim
         self.action_dim = environment_spec.action_dim
@@ -122,13 +123,11 @@ class Agent(ABC):
         self.device = cusrl.device(device)
         self.compile = compile
         if isinstance(autocast, str):
-            self.dtype = getattr(torch, autocast, None)
-            if self.dtype is None or not isinstance(self.dtype, torch.dtype):
-                raise ValueError(f"Unsupported autocast dtype '{autocast}'")
+            self.dtype = parse_torch_dtype(autocast)
             self.autocast_enabled = True
         elif isinstance(autocast, torch.dtype):
-            self.autocast_enabled = True
             self.dtype = autocast
+            self.autocast_enabled = True
         else:
             self.autocast_enabled = bool(autocast)
             self.dtype = torch.float16 if self.autocast_enabled else torch.float32

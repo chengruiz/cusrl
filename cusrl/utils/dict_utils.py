@@ -1,7 +1,7 @@
 import inspect
 from collections.abc import Mapping
-from dataclasses import fields, is_dataclass, make_dataclass
-from typing import Any, TypeVar, get_type_hints, overload
+from dataclasses import fields, is_dataclass
+from typing import Any, TypeVar, overload
 
 import torch
 
@@ -12,7 +12,6 @@ __all__ = [
     "from_dict",
     "get_first",
     "prefix_dict_keys",
-    "to_dataclass",
     "to_dict",
 ]
 
@@ -159,56 +158,6 @@ def get_first(data: Mapping[_K, _V], *keys, default: _V | _D = MISSING) -> _V | 
 def prefix_dict_keys(data: Mapping[str, _T], prefix: str) -> dict[str, _T]:
     """Adds a prefix to all keys in the dictionary."""
     return {f"{prefix}{key}": value for key, value in data.items()}
-
-
-def to_dataclass(obj):
-    if isinstance(obj, type):
-        return get_class_str(obj)
-    if hasattr(obj, "to_dict"):
-        obj_dict = obj.to_dict()
-    elif isinstance(obj, (list, tuple)):
-        return type(obj)(to_dataclass(item) for item in obj)
-    elif inspect.isfunction(obj):
-        return get_function_str(obj)
-    elif isinstance(obj, (str, int, float, bool, type(None))):
-        return obj
-
-    elif isinstance(obj, slice):
-        obj_dict = {"start": obj.start, "stop": obj.stop, "step": obj.step}
-    elif is_dataclass(obj):
-        obj_dict = {field.name: getattr(obj, field.name) for field in fields(obj)}
-    elif isinstance(obj, Mapping):
-        obj_dict = dict(obj)
-    else:
-        obj_dict = {}
-        for slot in getattr(obj, "__slots__", ()):
-            if hasattr(obj, slot):
-                obj_dict[slot] = getattr(obj, slot)
-        for key, value in getattr(obj, "__dict__", {}).items():
-            if not key.startswith("_"):
-                obj_dict[key] = value
-        if not obj_dict:
-            obj_dict = {"__str__": str(obj)}
-
-    obj_dict = {key: to_dataclass(value) for key, value in obj_dict.items()}
-    obj_hints = get_type_hints(type(obj))
-    anno_dict = {}
-
-    for key, value in obj_dict.items():
-        if is_dataclass(value):
-            anno_dict[key] = type(value)
-            continue
-        anno_dict[key] = obj_hints.get(key, type(value))
-
-    try:
-        datacls = make_dataclass(f"_{type(obj).__name__}DataClass", anno_dict.items())
-        datacls._original_class = type(obj)
-        datacls.__annotations__ = anno_dict
-        datacls_obj = datacls(**obj_dict)
-        datacls_obj._original_obj = obj
-        return datacls_obj
-    except TypeError:
-        return obj_dict
 
 
 def to_dict(obj) -> dict[str, Any] | Any:

@@ -1,4 +1,5 @@
 import math
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import cast
 
@@ -16,17 +17,6 @@ __all__ = [
 
 
 class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
-    @dataclass
-    class Factory(HookFactory["KLDivergenceBasedLRSchedule"]):
-        desired_kl_divergence: float = 0.01
-        scale_all_params: bool = False
-        warmup_iterations: int = 0
-        initial_scale: float = 0.0
-
-        @classmethod
-        def get_hook_type(cls):
-            return KLDivergenceBasedLRSchedule
-
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
@@ -74,6 +64,7 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
         self._apply_lr_scale()
         self.agent.record(lr_scale=self._lr_scale)
 
+    @abstractmethod
     def _compute_scale(self, kl_divergence: float) -> float | None:
         raise NotImplementedError
 

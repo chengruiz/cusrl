@@ -2,6 +2,8 @@ import re
 from types import FunctionType
 from typing import Any
 
+import torch
+
 from cusrl.utils.misc import import_obj
 
 __all__ = [
@@ -68,6 +70,28 @@ def parse_class(name: str) -> type | None:
         class_name, module_name = match.groups()
         return import_obj(module_name, class_name)
     return None
+
+
+def parse_torch_dtype(name: str) -> torch.dtype:
+    """Parses a torch dtype from its string representation (e.g.
+    "float32" or "torch.float32").
+
+    Args:
+        name (str):
+            The string representation of the torch dtype.
+
+    Returns:
+        torch.dtype:
+            The parsed torch dtype.
+
+    Raises:
+        ValueError:
+            If the string does not represent a valid torch dtype.
+    """
+    dtype = getattr(torch, name.removeprefix("torch."), None)
+    if not isinstance(dtype, torch.dtype):
+        raise ValueError(f"Unsupported torch.dtype '{name}'")
+    return dtype
 
 
 def parse_function(name: str) -> type | None:

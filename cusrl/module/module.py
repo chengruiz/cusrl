@@ -156,7 +156,7 @@ class Module(nn.Module):
 
 def resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:
     if isinstance(activation_fn, str):
-        activation_name = activation_fn
+        activation_name = activation_fn.removeprefix("torch.").removeprefix("nn.")
         activation_fn = getattr(nn, activation_name, None)
         if activation_fn is None:
             raise ValueError(f"No activation function named '{activation_name}' was found in torch.nn")

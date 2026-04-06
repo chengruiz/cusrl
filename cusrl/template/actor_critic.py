@@ -15,6 +15,7 @@ from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
+from cusrl.utils.dict_utils import from_dict, to_dict
 from cusrl.utils.distributed import broadcast_parameters, reduce_gradients
 from cusrl.utils.typing import ArrayType, Nested, NestedArray, NestedTensor, Observation, State
 
@@ -45,6 +46,23 @@ class HookList(list[Hook]):
                 return hook
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
+    @classmethod
+    def coerce(cls, data: Any) -> "HookList":
+        """Normalizes serialized / CLI-expanded hook data back into HookList."""
+        if isinstance(data, cls):
+            return cls(data)
+        if isinstance(data, list):
+            return cls(data)
+
+        restored = from_dict(None, to_dict(data))
+        if isinstance(restored, cls):
+            return restored
+        if isinstance(restored, dict):
+            return cls.from_dict(restored)
+        if isinstance(restored, list):
+            return cls(restored)
+        raise TypeError(f"Unsupported hooks payload: {type(data)!r}")
+
 
 @dataclass(kw_only=True)
 class ActorCriticFactory(AgentFactory["ActorCritic"]):
@@ -60,7 +78,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
     """A list of hooks to be called during the agent's lifecycle."""
 
     def __post_init__(self):
-        self.hooks = HookList(self.hooks)
+        self.hooks = HookList.coerce(self.hooks)
 
     def __call__(self, environment_spec: EnvironmentSpec):
         """Instantiate an Actor-Critic agent with the given environment spec."""
@@ -165,7 +183,7 @@ class ActorCritic(Agent):
         name: str = "Agent",
         device: torch.device | str | None = None,
         compile: bool | str = False,
-        autocast: bool | None | str | torch.dtype = False,
+        autocast: bool | None | torch.dtype | str = False,
     ):
         super().__init__(
             environment_spec=environment_spec,
