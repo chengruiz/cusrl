@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from dataclasses import MISSING
 from dataclasses import field as dataclass_field
 from dataclasses import fields, is_dataclass, make_dataclass
-from typing import Any, get_type_hints
+from typing import Annotated, Any, get_args, get_origin, get_type_hints
 
 from cusrl.utils.str_utils import get_class_str, get_function_str
 
@@ -62,7 +62,7 @@ def to_dataclass(obj):
             obj_dict = {"__str__": str(obj)}
 
     obj_dict = {key: to_dataclass(value) for key, value in obj_dict.items()}
-    obj_hints = get_type_hints(type(obj))
+    obj_hints = get_type_hints(type(obj), include_extras=True)
     anno_dict = {}
 
     for key, value in obj_dict.items():
@@ -94,22 +94,6 @@ def _is_dataclass_instance(obj: Any) -> bool:
     return is_dataclass(obj) and not isinstance(obj, type)
 
 
-def _copy_field_with_type(source_field, field_type: type[Any]):
-    kwargs = {
-        "init": source_field.init,
-        "repr": source_field.repr,
-        "hash": source_field.hash,
-        "compare": source_field.compare,
-        "metadata": source_field.metadata,
-        "kw_only": source_field.kw_only,
-    }
-    if source_field.default is not MISSING:
-        kwargs["default"] = source_field.default
-    if source_field.default_factory is not MISSING:
-        kwargs["default_factory"] = source_field.default_factory
-    return (source_field.name, field_type, dataclass_field(**kwargs))
-
-
 def _strictify_field_value(value: Any) -> tuple[Any, type[Any] | None]:
     if _is_dataclass_instance(value):
         strict_value = to_strict_typed_dataclass(value)
@@ -124,6 +108,22 @@ def _strictify_field_value(value: Any) -> tuple[Any, type[Any] | None]:
     return value, None
 
 
+def _get_field_kwargs(field: Any) -> dict[str, Any]:
+    field_kwargs = {
+        "init": field.init,
+        "repr": field.repr,
+        "hash": field.hash,
+        "compare": field.compare,
+        "metadata": field.metadata,
+        "kw_only": field.kw_only,
+    }
+    if field.default is not MISSING:
+        field_kwargs["default"] = field.default
+    if field.default_factory is not MISSING:
+        field_kwargs["default_factory"] = field.default_factory
+    return field_kwargs
+
+
 def to_strict_typed_dataclass(obj):
     """Returns a dataclass instance whose dataclass-valued fields are narrowed
     to the runtime dataclass types of their current values.
@@ -136,14 +136,21 @@ def to_strict_typed_dataclass(obj):
         return obj
 
     obj_type = type(obj)
+    obj_hints = get_type_hints(obj_type, include_extras=True)
     obj_field_values = {}
     strict_fields = []
 
     for source_field in fields(obj_type):
+        source_type = obj_hints.get(source_field.name, source_field.type)
         value = getattr(obj, source_field.name)
         value, strict_type = _strictify_field_value(value)
         if strict_type is not None:
-            strict_fields.append(_copy_field_with_type(source_field, strict_type))
+            field_type = strict_type
+            if get_origin(source_type) is Annotated:
+                _, *metadata = get_args(source_type)
+                field_type = Annotated[(field_type, *metadata)]
+
+            strict_fields.append((source_field.name, field_type, dataclass_field(**_get_field_kwargs(source_field))))
         obj_field_values[source_field.name] = value
 
     if not strict_fields:

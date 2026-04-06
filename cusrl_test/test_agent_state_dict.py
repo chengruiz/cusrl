@@ -93,7 +93,7 @@ def test_trainer_save_state_dict():
         agent_factory,
         logger_factory=cusrl.Logger.Factory("/tmp/cusrl/trainer"),
         num_iterations=10,
-        save_interval=5,
+        checkpoint_interval=5,
     )
     trainer.run_training_loop()
     trial = cusrl.Trial(trainer.logger.log_dir)
@@ -106,7 +106,7 @@ def test_trainer_saves_final_checkpoint(tmp_path):
         agent_factory,
         logger_factory=cusrl.Logger.Factory(tmp_path / "trainer"),
         num_iterations=7,
-        save_interval=5,
+        checkpoint_interval=5,
     )
     trainer.run_training_loop()
     trial = cusrl.Trial(trainer.logger.log_dir)

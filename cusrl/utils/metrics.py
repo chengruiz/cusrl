@@ -1,6 +1,6 @@
+import itertools
 from collections.abc import Mapping
 from dataclasses import dataclass
-import itertools
 from typing import Any
 
 import torch

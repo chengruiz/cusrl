@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import torch
@@ -40,7 +40,7 @@ def hook_suite(
 class AgentFactory(AgentFactoryBase["ActorCritic"]):
     num_steps_per_update: int = 24
     """Number of steps to collect before each update."""
-    actor_hidden_dims: Iterable[int] = (256, 128)
+    actor_hidden_dims: Sequence[int] = (256, 128)
     """Hidden dimensions of the actor network."""
     activation_fn: str | type[torch.nn.Module] = "ReLU"
     """Activation function to use in the actor network."""

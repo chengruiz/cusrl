@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, get_args
+import json
+from typing import Annotated, Any, TypeAlias, get_args
 
 import torch
 import tyro
@@ -11,7 +12,29 @@ from tyro.constructors import ConstructorRegistry, PrimitiveConstructorSpec, Pri
 from cusrl.utils.dataclass_utils import to_strict_typed_dataclass
 from cusrl.utils.str_utils import parse_torch_dtype
 
-__all__ = ["TYRO_REGISTRY", "cli", "parse_torch_module_type"]
+__all__ = ["TYRO_REGISTRY", "JsonDict", "cli", "parse_torch_module_type"]
+
+
+# A dictionary type, but `tyro` will expect a JSON string from the CLI.
+JsonDict: TypeAlias = Annotated[
+    dict,
+    tyro.constructors.PrimitiveConstructorSpec(
+        # Number of arguments to consume.
+        nargs=1,
+        # Argument name in usage messages.
+        metavar="JSON",
+        # Convert a list of strings to an instance. The length of the list
+        # should match `nargs`.
+        instance_from_str=lambda args: json.loads(args[0]),
+        # Check if an instance is of the expected type. This is only used for
+        # helptext formatting in the presence of union types.
+        is_instance=lambda instance: isinstance(instance, dict),
+        # Convert an instance to a list of strings. This is used for handling
+        # default values that are set in Python. The length of the list should
+        # match `nargs`.
+        str_from_instance=lambda instance: [json.dumps(instance)],
+    ),
+]
 
 
 def parse_torch_module_type(name: str, expected_type: type[nn.Module] = nn.Module) -> type[nn.Module]:
@@ -63,11 +86,20 @@ def _torch_module_type_rule(type_info: PrimitiveTypeInfo) -> PrimitiveConstructo
     )
 
 
-def cli(f=None, *, default=None, **kwargs: Any) -> Any:
+def cli(
+    f=None,
+    *,
+    prog: None | str = None,
+    default=None,
+    config=(),
+    **kwargs: Any,
+) -> Any:
     kwargs.setdefault("registry", TYRO_REGISTRY)
     if default is not None:
         strict_default = to_strict_typed_dataclass(default)
         if strict_default is not default:
             default = strict_default
             f = type(strict_default)
-    return tyro.cli(f, default=default, **kwargs)
+    config = list(config)
+    config.extend([tyro.conf.AvoidSubcommands, tyro.conf.FlagConversionOff])
+    return tyro.cli(f, prog=prog, config=config, default=default, **kwargs)

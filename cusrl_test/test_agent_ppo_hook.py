@@ -9,7 +9,7 @@ from cusrl_test import create_dummy_env
 
 @pytest.mark.parametrize("with_state", [False, True])
 @pytest.mark.parametrize(
-    "agent_factory_cls",
+    "agent_meta_factory",
     [
         partial(
             ppo.AgentFactory,
@@ -31,14 +31,14 @@ from cusrl_test import create_dummy_env
 @pytest.mark.parametrize("autocast", [False, True] if cusrl.utils.is_autocast_available() else [False])
 def test_ppo_options(
     with_state,
-    agent_factory_cls,
+    agent_meta_factory,
     normalize_observation,
     gae_lamda_value,
     max_grad_norm,
     autocast,
 ):
     environment = create_dummy_env(with_state=with_state)
-    agent_factory = agent_factory_cls(
+    agent_factory = agent_meta_factory(
         normalize_observation=normalize_observation,
         gae_lamda_value=gae_lamda_value,
         max_grad_norm=max_grad_norm,

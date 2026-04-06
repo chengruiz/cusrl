@@ -1,5 +1,5 @@
 from cusrl.environment import make_mjlab_env
-from cusrl.environment.mjlab import MjlabPlayer
+from cusrl.environment.mjlab import MjlabPlayer, make_mjlab_env_config
 from cusrl.preset import ppo
 from cusrl.zoo.registry import register_experiment
 
@@ -9,8 +9,8 @@ register_experiment(
         "Mjlab-Tracking-Flat-Unitree-G1-No-State-Estimation",
     ],
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=24,
         actor_hidden_dims=(512, 256, 128),
         critic_hidden_dims=(512, 256, 128),
@@ -27,8 +27,9 @@ register_experiment(
         desired_kl_divergence=0.015,
     ),
     training_env_factory=make_mjlab_env,
-    player_class=MjlabPlayer,
-    playing_env_kwargs={"play": True},
+    training_env_config_factory=make_mjlab_env_config,
+    player_factory=MjlabPlayer,
+    playing_env_config_factory_kwargs={"play": True},
     num_iterations=30000,
-    save_interval=500,
+    checkpoint_interval=500,
 )

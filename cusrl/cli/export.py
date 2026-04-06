@@ -1,13 +1,21 @@
+"""Export an agent for deployment."""
+
 import argparse
+import sys
+from collections.abc import Sequence
 
 import cusrl
-from cusrl.cli import utils as cli_utils
-from cusrl.template import Agent
+from cusrl.template.agent import Agent
+from cusrl.utils import cli_utils
+from cusrl.utils.tyro_utils import cli as tyro_cli
 
-__all__ = ["configure_parser", "main"]
+__all__ = ["parse_args", "main"]
+
+PROGRAM_NAME = "python -m cusrl export"
 
 
-def configure_parser(parser: argparse.ArgumentParser):
+def parse_args(argv: Sequence[str] | None = None):
+    parser = argparse.ArgumentParser(prog=PROGRAM_NAME, description=__doc__)
     # fmt: off
     parser.add_argument("-env", "--environment", type=str, metavar="NAME",
                         help="Name of the environment used during training")
@@ -29,25 +37,29 @@ def configure_parser(parser: argparse.ArgumentParser):
                         help="ONNX opset version to use for export")
     parser.add_argument("--dynamo", action="store_true",
                         help="Whether to use PyTorch Dynamo for onnx export")
-    parser.add_argument("--load-experiment-spec", action="store_true",
-                        help="Whether to load experiment spec from checkpoint directory")
-    parser.add_argument("--environment-args", type=str, metavar="ARG",
-                        help="Additional arguments for the environment")
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, metavar="MODULE [ARG ...]",
                         help="Run library module as a script, with its arguments")
     parser.add_argument("script", nargs=argparse.REMAINDER, metavar="SCRIPT [ARG ...]",
                         help="Script to run, with its arguments")
     # fmt: on
+    parser.epilog = "Pass tyro overrides after '--'"
+    if argv is None:
+        argv = sys.argv[1:]
+    args, extra_args = cli_utils.split_double_dash(argv)
+    return parser.parse_args(args), extra_args
 
 
-def main(args: argparse.Namespace):
+def main(argv: Sequence[str] | None = None):
+    args, extra_args = parse_args(argv)
     cusrl.config.enable_flash_attention(False)
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)
-    experiment = cli_utils.load_experiment_spec_from_args(args, trial)
-    environment = experiment.make_training_env(cli_utils.process_environment_args(args))
-    agent_factory = experiment.make_agent_factory()
-    agent: Agent = agent_factory.from_environment(environment)
+    experiment = cli_utils.load_experiment_spec_from_args(args)
+    trainer_factory = experiment.to_training_factory()
+    prog = f"{PROGRAM_NAME} --environment {args.environment} --algorithm {args.algorithm} --"
+    trainer_factory = tyro_cli(prog=prog, default=trainer_factory, args=extra_args)
+    environment = trainer_factory.make_environment()
+    agent: Agent = trainer_factory.agent_factory.from_environment(environment)
     if trial is not None:
         checkpoint = trial.load_checkpoint(map_location=agent.device)
         agent.load_state_dict(checkpoint["agent"])
@@ -68,6 +80,4 @@ def main(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Export an agent for deployment")
-    configure_parser(parser)
-    main(parser.parse_args())
+    main()

@@ -1,16 +1,17 @@
 import argparse
 import importlib
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, fields
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import gymnasium as gym
 import torch
 
 import cusrl.utils
-from cusrl.template import Environment
-from cusrl.template.trainer import TrainerFactory
+from cusrl.template import AgentFactory, Environment, Trainer
+from cusrl.template.environment import EnvironmentFactoryLike
+from cusrl.template.logger import LoggerFactoryLike
 from cusrl.utils import from_dict, to_dict
 from cusrl.utils.typing import Slice
 
@@ -211,7 +212,33 @@ def make_isaaclab_env(
 
 
 @dataclass
-class TrainerCfg(TrainerFactory):
+class TrainerCfg:
+    environment_factory: EnvironmentFactoryLike | None = None
+    agent_factory: AgentFactory | None = None
+    num_iterations: int | None = None
+    checkpoint_interval: int | None = None
+    checkpoint_path: str | None = None
+    callbacks: Iterable[Callable[["Trainer"], None]] = ()
+
+    max_iterations: int | None = None  # For compatibility with IsaacLab environments
+    experiment_name: str | None = None  # For compatibility with IsaacLab environments
+    run_name: str | None = None  # For compatibility with rsl_rl configurations
+
+    def __init_subclass__(cls):
+        """Enables direct assignment of default values to dataclass fields
+        without the need for annotating again."""
+        super().__init_subclass__()
+        for field in fields(cls):
+            if field.name in cls.__annotations__:  # will be processed by dataclass
+                continue
+            if (value := getattr(cls, field.name, None)) is None:
+                continue
+            field.default = value
+            try:
+                delattr(cls, field.name)
+            except AttributeError:
+                pass
+
     def __post_init__(self):
         # Manually set the serialization methods to each instance
         self.to_dict = self._to_dict
@@ -231,3 +258,53 @@ class TrainerCfg(TrainerFactory):
         for field in fields(self):
             setattr(self, field.name, getattr(updated_obj, field.name))
         self.from_dict = self._update_from_dict
+
+    def __call__(
+        self,
+        environment: Environment | EnvironmentFactoryLike | None = None,
+        agent_factory: AgentFactory | None = None,
+        logger_factory: LoggerFactoryLike | None = None,
+        num_iterations: int | None = None,
+        init_iteration: int | None = None,
+        checkpoint_interval: int | None = None,
+        checkpoint_path: str | None | Literal[False] = False,
+        verbose: bool = True,
+        callbacks: Iterable[Callable[["Trainer"], None]] = (),
+    ) -> "Trainer":
+        if environment is None:
+            if self.environment_factory is None:
+                raise ValueError("Provide 'environment' because 'environment_factory' is not set")
+            environment = self.environment_factory
+        if agent_factory is None:
+            if self.agent_factory is None:
+                raise ValueError("Provide 'agent_factory' because it was not set during initialization")
+            agent_factory = self.agent_factory
+        if num_iterations is None:
+            if self.num_iterations is not None:
+                num_iterations = self.num_iterations
+            elif self.max_iterations is not None:
+                num_iterations = self.max_iterations
+            if num_iterations is None:
+                raise ValueError(
+                    "Provide 'num_iterations' because neither 'num_iterations' "
+                    "nor 'max_iterations' was set during initialization"
+                )
+        if checkpoint_interval is None:
+            if self.checkpoint_interval is None:
+                raise ValueError("Provide 'checkpoint_interval' because it was not set during initialization")
+            checkpoint_interval = self.checkpoint_interval
+        if checkpoint_path is False:
+            checkpoint_path = self.checkpoint_path
+        callbacks = list(self.callbacks) + list(callbacks)
+
+        return Trainer(
+            environment=environment,
+            agent_factory=agent_factory,
+            logger_factory=logger_factory,
+            num_iterations=num_iterations,
+            init_iteration=init_iteration,
+            checkpoint_interval=checkpoint_interval,
+            checkpoint_path=checkpoint_path,
+            verbose=verbose,
+            callbacks=callbacks,
+        )

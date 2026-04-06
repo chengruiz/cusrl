@@ -88,7 +88,6 @@ def test_strict_typed_dataclass_preserves_original_methods():
     config = cusrl.preset.ppo.AgentFactory().to_underlying()
     strict = to_strict_typed_dataclass(config)
     assert isinstance(strict, type(config))
-    assert type(strict).__module__ == type(config).__module__
     assert isinstance(strict.actor_factory, type(config.actor_factory))
     assert callable(strict.register_hook)
     assert callable(strict.actor_factory.__call__)

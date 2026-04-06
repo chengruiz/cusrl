@@ -15,8 +15,8 @@ register_experiment(
         "Isaac-Velocity-Flat-Spot-v0",
     ],
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=24,
         actor_hidden_dims=(128, 128, 128),
         critic_hidden_dims=(128, 128, 128),
@@ -29,9 +29,9 @@ register_experiment(
         desired_kl_divergence=0.015,
     ),
     training_env_factory=make_isaaclab_env,
-    playing_env_kwargs={"play": True},
+    playing_env_factory_kwargs={"play": True},
     num_iterations=300,
-    save_interval=100,
+    checkpoint_interval=100,
 )
 
 register_experiment(
@@ -44,8 +44,8 @@ register_experiment(
         "Isaac-Velocity-Rough-Unitree-Go2-v0",
     ],
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=24,
         actor_hidden_dims=(512, 256, 128),
         critic_hidden_dims=(512, 256, 128),
@@ -58,7 +58,7 @@ register_experiment(
         desired_kl_divergence=0.015,
     ),
     training_env_factory=make_isaaclab_env,
-    playing_env_kwargs={"play": True},
+    playing_env_factory_kwargs={"play": True},
     num_iterations=1500,
-    save_interval=100,
+    checkpoint_interval=100,
 )

@@ -7,8 +7,8 @@ __all__ = []
 register_experiment(
     environment_name="Acrobot-v1",
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=16,
         actor_hidden_dims=(64, 64),
         critic_hidden_dims=(64, 64),
@@ -25,18 +25,18 @@ register_experiment(
         max_grad_norm=0.5,
     ),
     training_env_factory=make_gym_vec,
-    training_env_kwargs={"num_envs": 16},
+    training_env_factory_kwargs={"num_envs": 16},
     playing_env_factory=make_gym_env,
-    playing_env_kwargs={"render_mode": "human"},
+    playing_env_factory_kwargs={"render_mode": "human"},
     num_iterations=500,
-    save_interval=50,
+    checkpoint_interval=50,
 )
 
 register_experiment(
     environment_name="CartPole-v1",
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=32,
         actor_hidden_dims=(64, 64),
         critic_hidden_dims=(64, 64),
@@ -51,18 +51,18 @@ register_experiment(
         max_grad_norm=0.5,
     ),
     training_env_factory=make_gym_vec,
-    training_env_kwargs={"num_envs": 8, "vectorization_mode": "sync"},
+    training_env_factory_kwargs={"num_envs": 8, "vectorization_mode": "sync"},
     playing_env_factory=make_gym_env,
-    playing_env_kwargs={"render_mode": "human"},
+    playing_env_factory_kwargs={"render_mode": "human"},
     num_iterations=400,
-    save_interval=50,
+    checkpoint_interval=50,
 )
 
 register_experiment(
     environment_name="MountainCar-v0",
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=16,
         actor_hidden_dims=(64, 64),
         critic_hidden_dims=(64, 64),
@@ -79,18 +79,18 @@ register_experiment(
         max_grad_norm=0.5,
     ),
     training_env_factory=make_gym_vec,
-    training_env_kwargs={"num_envs": 16},
+    training_env_factory_kwargs={"num_envs": 16},
     playing_env_factory=make_gym_env,
-    playing_env_kwargs={"render_mode": "human"},
+    playing_env_factory_kwargs={"render_mode": "human"},
     num_iterations=2000,
-    save_interval=500,
+    checkpoint_interval=500,
 )
 
 register_experiment(
     environment_name="MountainCarContinuous-v0",
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=8,
         actor_hidden_dims=(64, 64),
         critic_hidden_dims=(64, 64),
@@ -109,18 +109,18 @@ register_experiment(
         max_grad_norm=5.0,
     ),
     training_env_factory=make_gym_vec,
-    training_env_kwargs={"num_envs": 1},
+    training_env_factory_kwargs={"num_envs": 1},
     playing_env_factory=make_gym_env,
-    playing_env_kwargs={"render_mode": "human"},
+    playing_env_factory_kwargs={"render_mode": "human"},
     num_iterations=2500,
-    save_interval=500,
+    checkpoint_interval=500,
 )
 
 register_experiment(
     environment_name="Pendulum-v1",
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         actor_hidden_dims=(64, 64),
         critic_hidden_dims=(64, 64),
         activation_fn="Tanh",
@@ -134,9 +134,9 @@ register_experiment(
         max_grad_norm=0.5,
     ),
     training_env_factory=make_gym_vec,
-    training_env_kwargs={"num_envs": 4},
+    training_env_factory_kwargs={"num_envs": 4},
     playing_env_factory=make_gym_env,
-    playing_env_kwargs={"render_mode": "human"},
+    playing_env_factory_kwargs={"render_mode": "human"},
     num_iterations=50,
-    save_interval=25,
+    checkpoint_interval=25,
 )

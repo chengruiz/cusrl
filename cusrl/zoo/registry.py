@@ -2,9 +2,7 @@ import importlib
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
-from cusrl.template import Environment, Trainer
-from cusrl.template.agent import AgentFactory
-from cusrl.template.player import PlayerHook
+from cusrl.template import AgentFactory, Environment, Player, PlayerHook, Trainer
 from cusrl.zoo.experiment import ExperimentSpec
 
 __all__ = [
@@ -29,19 +27,27 @@ experiment_modules = [
 def register_experiment(
     environment_name: str | Sequence[str],
     algorithm_name: str,
-    agent_factory_cls: type[AgentFactory],
-    agent_factory_kwargs: dict[str, Any],
+    agent_meta_factory: Callable[..., AgentFactory],
     training_env_factory: Callable[..., Environment],
-    training_env_args: tuple[Any, ...] | None = None,
-    training_env_kwargs: dict[str, Any] | None = None,
+    agent_meta_factory_kwargs: dict[str, Any] | None = None,
+    training_env_config_factory: Callable[..., Any] | None = None,
+    training_env_config_factory_kwargs: dict[str, Any] | None = None,
+    training_env_factory_kwargs: dict[str, Any] | None = None,
     trainer_callbacks: Iterable[Callable[["Trainer"], None]] = (),
-    player_class: type | None = None,
+    player_factory: Callable[..., Player] = Player,
     playing_env_factory: Callable[..., Environment] | None = None,
-    playing_env_args: tuple[Any, ...] | None = None,
-    playing_env_kwargs: dict[str, Any] | None = None,
+    playing_env_config_factory: Callable[..., Any] | None = None,
+    playing_env_config_factory_kwargs: dict[str, Any] | None = None,
+    playing_env_factory_kwargs: dict[str, Any] | None = None,
     player_hooks: Iterable[PlayerHook] = (),
+    benchmarker_factory: Callable[..., Player] = Player,
+    benchmarking_env_factory: Callable[..., Environment] | None = None,
+    benchmarking_env_config_factory: Callable[..., Any] | None = None,
+    benchmarking_env_config_factory_kwargs: dict[str, Any] | None = None,
+    benchmarking_env_factory_kwargs: dict[str, Any] | None = None,
+    benchmarking_hooks: Iterable[PlayerHook] = (),
     num_iterations: int = 1000,
-    save_interval: int = 50,
+    checkpoint_interval: int = 50,
 ):
     if isinstance(environment_name, str):
         environment_name = [environment_name]
@@ -49,23 +55,31 @@ def register_experiment(
         spec = ExperimentSpec(
             environment_name=env_name,
             algorithm_name=algorithm_name,
-            agent_factory_cls=agent_factory_cls,
-            agent_factory_kwargs=agent_factory_kwargs,
+            agent_meta_factory=agent_meta_factory,
+            agent_meta_factory_kwargs=agent_meta_factory_kwargs or {},
             training_env_factory=training_env_factory,
-            training_env_args=training_env_args,
-            training_env_kwargs=training_env_kwargs or {},
-            trainer_callbacks=trainer_callbacks,
-            player_class=player_class,
+            training_env_config_factory=training_env_config_factory,
+            training_env_config_factory_kwargs=training_env_config_factory_kwargs or {},
+            training_env_factory_kwargs=training_env_factory_kwargs or {},
+            trainer_callbacks=tuple(trainer_callbacks),
+            player_factory=player_factory,
             playing_env_factory=playing_env_factory,
-            playing_env_args=playing_env_args,
-            playing_env_kwargs=playing_env_kwargs,
-            player_hooks=player_hooks,
+            playing_env_config_factory=playing_env_config_factory,
+            playing_env_config_factory_kwargs=playing_env_config_factory_kwargs,
+            playing_env_factory_kwargs=playing_env_factory_kwargs,
+            player_hooks=tuple(player_hooks),
+            benchmarker_factory=benchmarker_factory,
+            benchmarking_env_factory=benchmarking_env_factory,
+            benchmarking_env_config_factory=benchmarking_env_config_factory,
+            benchmarking_env_config_factory_kwargs=benchmarking_env_config_factory_kwargs,
+            benchmarking_env_factory_kwargs=benchmarking_env_factory_kwargs,
+            benchmarker_hooks=tuple(benchmarking_hooks),
             num_iterations=num_iterations,
-            save_interval=save_interval,
+            checkpoint_interval=checkpoint_interval,
         )
-        if spec.name in registry:
-            raise ValueError(f"Experiment '{spec.name}' is already registered")
-        registry[spec.name] = spec
+        if spec.experiment_name in registry:
+            raise ValueError(f"Experiment '{spec.experiment_name}' is already registered")
+        registry[spec.experiment_name] = spec
 
 
 def add_experiment_modules(*lib: str):

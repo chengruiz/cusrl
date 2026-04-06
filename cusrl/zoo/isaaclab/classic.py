@@ -7,8 +7,8 @@ __all__ = []
 register_experiment(
     environment_name="Isaac-Ant-v0",
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=32,
         actor_hidden_dims=(512, 256, 128),
         critic_hidden_dims=(512, 256, 128),
@@ -22,14 +22,14 @@ register_experiment(
     ),
     training_env_factory=make_isaaclab_env,
     num_iterations=1000,
-    save_interval=100,
+    checkpoint_interval=100,
 )
 
 register_experiment(
     environment_name="Isaac-Cartpole-v0",
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=16,
         actor_hidden_dims=(32, 32),
         critic_hidden_dims=(32, 32),
@@ -43,14 +43,14 @@ register_experiment(
     ),
     training_env_factory=make_isaaclab_env,
     num_iterations=150,
-    save_interval=50,
+    checkpoint_interval=50,
 )
 
 register_experiment(
     environment_name="Isaac-Humanoid-v0",
     algorithm_name="ppo",
-    agent_factory_cls=ppo.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=32,
         actor_hidden_dims=(512, 256, 128),
         critic_hidden_dims=(512, 256, 128),
@@ -65,5 +65,5 @@ register_experiment(
     ),
     training_env_factory=make_isaaclab_env,
     num_iterations=1000,
-    save_interval=200,
+    checkpoint_interval=200,
 )

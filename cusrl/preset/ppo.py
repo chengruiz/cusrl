@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 import torch
@@ -72,9 +72,9 @@ def get_distribution_factory(action_space_type: str):
 class AgentFactory(AgentFactoryBase[ActorCritic]):
     num_steps_per_update: int = 24
     """Number of environment steps to collect before performing an update."""
-    actor_hidden_dims: Iterable[int] = (256, 128)
+    actor_hidden_dims: Sequence[int] = (256, 128)
     """Hidden layer dimensions for the actor network."""
-    critic_hidden_dims: Iterable[int] = (256, 128)
+    critic_hidden_dims: Sequence[int] = (256, 128)
     """Hidden layer dimensions for the critic network."""
     activation_fn: str | type[torch.nn.Module] = "ReLU"
     """Activation function for the actor and critic networks."""

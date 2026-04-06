@@ -1,16 +1,23 @@
+"""Find a cusrl trial directory or checkpoint path."""
+
 import argparse
+import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import cusrl
 
-__all__ = ["configure_parser", "main"]
+__all__ = ["parse_args", "main"]
+
+PROGRAM_NAME = "python -m cusrl find-trial"
 
 
-def configure_parser(parser: argparse.ArgumentParser):
+def parse_args(argv: Sequence[str] | None = None):
+    parser = argparse.ArgumentParser(prog=PROGRAM_NAME, description=__doc__)
     # fmt: off
-    parser.add_argument("environment", metavar="ENVIRONMENT",
+    parser.add_argument("-env","--environment", required=True, metavar="NAME",
                         help="Environment name used for training")
-    parser.add_argument("algorithm", metavar="ALGORITHM",
+    parser.add_argument("-alg","--algorithm", required=True, metavar="NAME",
                         help="Algorithm name used for training")
     parser.add_argument("--log-dir", type=str, default="logs", metavar="DIR",
                         help="Root logs directory (default: logs)")
@@ -23,6 +30,9 @@ def configure_parser(parser: argparse.ArgumentParser):
     parser.add_argument("--ckpt", action="store_true",
                         help="Whether to print latest checkpoint path under the selected trial directory")
     # fmt: on
+    if argv is None:
+        argv = sys.argv[1:]
+    return parser.parse_args(argv)
 
 
 def print_trial_path(trial: Path, *, print_ckpt: bool = False, print_basename: bool = False):
@@ -34,7 +44,8 @@ def print_trial_path(trial: Path, *, print_ckpt: bool = False, print_basename: b
     print(trial.name if print_basename else str(trial))
 
 
-def main(args: argparse.Namespace):
+def main(argv: Sequence[str] | None = None):
+    args = parse_args(argv)
     experiment_homes = [
         (Path(args.log_dir) / f"{args.environment}_{args.algorithm}").absolute(),
         (Path(args.log_dir) / f"{args.environment}:{args.algorithm}").absolute(),
@@ -69,6 +80,4 @@ def main(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Find a cusrl trial directory or checkpoint path")
-    configure_parser(parser)
-    main(parser.parse_args())
+    main()

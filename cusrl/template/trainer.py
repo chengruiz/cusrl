@@ -3,9 +3,7 @@ import pickle
 import subprocess
 import sys
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Any, Literal
 
 import git
 import numpy as np
@@ -14,7 +12,12 @@ import torch
 
 import cusrl
 from cusrl.template.agent import Agent, AgentFactory
-from cusrl.template.environment import Environment, EnvironmentFactory, get_done_indices, update_observation_and_state
+from cusrl.template.environment import (
+    Environment,
+    EnvironmentFactoryLike,
+    get_done_indices,
+    update_observation_and_state,
+)
 from cusrl.template.logger import LoggerFactoryLike
 from cusrl.template.trial import Trial
 from cusrl.utils import CONFIG, Timer, distributed, is_main_process
@@ -129,88 +132,6 @@ def save_version_info(output_dir: str | os.PathLike, workspace: str | os.PathLik
         f.write(version)
 
 
-@dataclass
-class TrainerFactory:
-    environment_factory: EnvironmentFactory | None = None
-    agent_factory: AgentFactory | None = None
-    num_iterations: int | None = None
-    save_interval: int | None = None
-    checkpoint_path: str | None = None
-    callbacks: Iterable[Callable[["Trainer"], None]] = ()
-
-    max_iterations: int | None = None  # For compatibility with IsaacLab environments
-    experiment_name: str | None = None  # For compatibility with IsaacLab environments
-    run_name: str | None = None  # For compatibility with rsl_rl configurations
-
-    def __init_subclass__(cls):
-        """Enables direct assignment of default values to dataclass fields
-        without the need for annotating again."""
-        super().__init_subclass__()
-        for field in fields(cls):
-            if field.name in cls.__annotations__:  # will be processed by dataclass
-                continue
-            if (value := getattr(cls, field.name, None)) is None:
-                continue
-            field.default = value
-            try:
-                delattr(cls, field.name)
-            except AttributeError:
-                pass
-
-    def __call__(
-        self,
-        environment: Environment | EnvironmentFactory | None = None,
-        agent_factory: AgentFactory | None = None,
-        logger_factory: LoggerFactoryLike | None = None,
-        num_iterations: int | None = None,
-        init_iteration: int | None = None,
-        save_interval: int | None = None,
-        checkpoint_path: str | None | Literal[False] = False,
-        verbose: bool = True,
-        callbacks: Iterable[Callable[["Trainer"], None]] = (),
-        agent_overrides: dict[str, Any] | None = None,
-    ) -> "Trainer":
-        if environment is None:
-            if self.environment_factory is None:
-                raise ValueError("Provide 'environment' because 'environment_factory' is not set")
-            environment = self.environment_factory
-        if agent_factory is None:
-            if self.agent_factory is None:
-                raise ValueError("Provide 'agent_factory' because it was not set during initialization")
-            agent_factory = self.agent_factory
-        if agent_overrides is not None:
-            agent_factory.override(**agent_overrides)
-        if num_iterations is None:
-            if self.num_iterations is not None:
-                num_iterations = self.num_iterations
-            elif self.max_iterations is not None:
-                num_iterations = self.max_iterations
-            if num_iterations is None:
-                raise ValueError(
-                    "Provide 'num_iterations' because neither 'num_iterations' "
-                    "nor 'max_iterations' was set during initialization"
-                )
-        if save_interval is None:
-            if self.save_interval is None:
-                raise ValueError("Provide 'save_interval' because it was not set during initialization")
-            save_interval = self.save_interval
-        if checkpoint_path is False:
-            checkpoint_path = self.checkpoint_path
-        callbacks = list(self.callbacks) + list(callbacks)
-
-        return Trainer(
-            environment=environment,
-            agent_factory=agent_factory,
-            logger_factory=logger_factory,
-            num_iterations=num_iterations,
-            init_iteration=init_iteration,
-            save_interval=save_interval,
-            checkpoint_path=checkpoint_path,
-            verbose=verbose,
-            callbacks=callbacks,
-        )
-
-
 class Trainer:
     """Orchestrates and manages a reinforcement learning training loop.
 
@@ -221,9 +142,9 @@ class Trainer:
       - Updates the agent when ready, logging metrics, and saving checkpoints.
 
     Args:
-        environment (Environment | Environment.Factory):
+        environment (Environment | EnvironmentFactoryLike):
             Either an instantiated Environment or a factory that produces one.
-        agent_factory (Agent.Factory):
+        agent_factory (AgentFactory):
             Factory that creates an Agent compatible with the environment.
         logger_factory (LoggerFactoryLike | None):
             Factory for a logger to persist checkpoints and metrics; active on
@@ -233,7 +154,7 @@ class Trainer:
         init_iteration (int | None):
             If provided, resume training from this iteration (overrides any
             loaded checkpoint).
-        save_interval (int):
+        checkpoint_interval (int):
             Number of iterations between automatic checkpoints.
         checkpoint_path (str | None):
             Path to load a previous training checkpoint from.
@@ -254,16 +175,14 @@ class Trainer:
             Execute the training loop until reaching num_iterations.
     """
 
-    Factory = TrainerFactory
-
     def __init__(
         self,
-        environment: Environment | EnvironmentFactory,
+        environment: Environment | EnvironmentFactoryLike,
         agent_factory: AgentFactory,
         logger_factory: LoggerFactoryLike | None = None,
         num_iterations: int = 1000,
         init_iteration: int | None = None,
-        save_interval: int = 50,
+        checkpoint_interval: int = 50,
         checkpoint_path: str | None = None,
         verbose: bool = True,
         callbacks: Iterable[Callable[["Trainer"], None]] = (),
@@ -279,7 +198,7 @@ class Trainer:
         self.logger = None if logger_factory is None or not is_main_process() else logger_factory()
 
         self.num_iterations = num_iterations
-        self.save_interval = save_interval
+        self.checkpoint_interval = checkpoint_interval
         self.callbacks: list[Callable[[Trainer], None]] = list(callbacks)
         for callback in self.callbacks:
             callback(self)
@@ -318,7 +237,7 @@ class Trainer:
                 for callback in self.callbacks:
                     callback(self)
                 self.iteration += 1
-                if self.iteration % self.save_interval == 0:
+                if self.iteration % self.checkpoint_interval == 0:
                     self._save_checkpoint()
             if self.iteration != self._last_checkpoint_iteration:
                 self._save_checkpoint()

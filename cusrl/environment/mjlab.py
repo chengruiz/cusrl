@@ -1,14 +1,13 @@
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any, Literal, cast
 
 import torch
+import tyro
 
-import cusrl.utils
-from cusrl.template import Agent, Environment, Player, Trial
-from cusrl.template.agent import AgentFactory
-from cusrl.template.environment import EnvironmentFactory, get_done_indices
-from cusrl.template.player import PlayerHook
+import cusrl
+from cusrl.template import Agent, AgentFactory, Environment, Player, PlayerHook, Trial
+from cusrl.template.environment import EnvironmentFactoryLike, get_done_indices
 from cusrl.utils.typing import Slice
 
 __all__ = [
@@ -138,7 +137,7 @@ class MjlabPlayer(Player):
 
     def __init__(
         self,
-        environment: Environment | EnvironmentFactory,
+        environment: Environment | EnvironmentFactoryLike,
         agent: Agent | AgentFactory,
         checkpoint_path: str | Trial | None = None,
         num_steps: int | None = None,
@@ -212,31 +211,29 @@ class MjlabPlayer(Player):
         return action
 
 
-def make_mjlab_env(
-    id: str,
-    argv: Sequence[str] = (),
-    play: bool = False,
-    device: str | torch.device | None = None,
-    **kwargs: Any,
-) -> MjlabEnvAdapter:
-    import mjlab
-    import tyro
-    from mjlab.envs import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
+def make_mjlab_env_config(id: str, play: bool = False) -> MjlabEnvAdapter:
+    from mjlab.envs import ManagerBasedRlEnvCfg
     from mjlab.tasks.registry import load_env_cfg
 
     @dataclass
-    class ManagerBasedRlEnvPlayCfg(ManagerBasedRlEnvCfg):
+    class ManagerBasedRlEnvCfgWithDevice(ManagerBasedRlEnvCfg):
+        device: str | torch.device | None = None
+
+    @dataclass
+    class ManagerBasedRlEnvPlayCfg(ManagerBasedRlEnvCfgWithDevice):
         headless: bool = False
         viewer_type: Literal[None, "native", "viser"] = "viser"
 
-    config_class = ManagerBasedRlEnvPlayCfg if play else ManagerBasedRlEnvCfg
+    config_class = ManagerBasedRlEnvPlayCfg if play else ManagerBasedRlEnvCfgWithDevice
     env_cfg = load_env_cfg(id, play=play)
-    env_cfg = tyro.cli(
-        config_class,
-        args=argv,
-        default=env_cfg,
-        config=mjlab.TYRO_FLAGS,
-    )
+    config_kwargs = {field.name: getattr(env_cfg, field.name) for field in fields(env_cfg)}
+    return config_class(**config_kwargs)
 
-    env = ManagerBasedRlEnv(env_cfg, device=str(cusrl.utils.device(device)), **kwargs)
+
+def make_mjlab_env(id: str, config, argv: Sequence[str] = (), **kwargs: Any) -> MjlabEnvAdapter:
+    import mjlab
+    from mjlab.envs import ManagerBasedRlEnv
+
+    config = tyro.cli(type(config), args=argv, default=config, config=mjlab.TYRO_FLAGS)
+    env = ManagerBasedRlEnv(config, device=str(cusrl.device(config.device)), **kwargs)
     return MjlabEnvAdapter(env)

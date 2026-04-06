@@ -1,4 +1,4 @@
-from cusrl import environment, hook, logger, module, preset, sampler, testing, template, utils, zoo
+from cusrl import environment, hook, logger, module, preset, sampler, template, testing, utils, zoo
 from cusrl.environment import make_gym_env, make_gym_vec, make_isaaclab_env, make_mjlab_env
 from cusrl.module import (
     Actor,
@@ -7,10 +7,8 @@ from cusrl.module import (
     CausalTransformerEncoderLayer,
     Cnn,
     Distribution,
-    DistributionFactoryLike,
     FeedForward,
     Gru,
-    LayerFactoryLike,
     Lstm,
     Mlp,
     Module,
@@ -70,8 +68,8 @@ __all__ = [
     "nn",
     "preset",
     "sampler",
-    "testing",
     "template",
+    "testing",
     "utils",
     "zoo",
     "environment",

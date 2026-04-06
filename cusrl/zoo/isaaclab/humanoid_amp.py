@@ -12,8 +12,8 @@ register_experiment(
         "Isaac-Humanoid-AMP-Walk-Direct-v0",
     ],
     algorithm_name="amp",
-    agent_factory_cls=amp.AgentFactory,
-    agent_factory_kwargs=dict(
+    agent_meta_factory=amp.AgentFactory,
+    agent_meta_factory_kwargs=dict(
         num_steps_per_update=16,
         actor_hidden_dims=(512, 256),
         critic_hidden_dims=(512, 256),
@@ -30,5 +30,5 @@ register_experiment(
     ),
     training_env_factory=make_isaaclab_env,
     num_iterations=3000,
-    save_interval=500,
+    checkpoint_interval=500,
 )

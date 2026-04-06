@@ -1,4 +1,4 @@
-"""Evaluate an agent with a registered experiment."""
+"""Benchmark an agent with a registered experiment."""
 
 import argparse
 import sys
@@ -10,19 +10,18 @@ from cusrl.utils.tyro_utils import cli as tyro_cli
 
 __all__ = ["main"]
 
-
-PROGRAM_NAME = "python -m cusrl play"
+PROGRAM_NAME = "python -m cusrl benchmark"
 
 
 def parse_args(argv: Sequence[str] | None = None):
     parser = argparse.ArgumentParser(prog=PROGRAM_NAME, description=__doc__)
     # fmt: off
     parser.add_argument("-env", "--environment", type=str, metavar="NAME",
-                        help="Name of the environment for playing")
+                        help="Name of the environment for benchmarking")
     parser.add_argument("-alg", "--algorithm", type=str, metavar="NAME",
                         help="Name of the algorithm used during training")
     parser.add_argument("--checkpoint", type=str, metavar="PATH",
-                        help="Path to a checkpoint to play")
+                        help="Path to a checkpoint to benchmark")
     parser.add_argument("--seed", type=int, metavar="N",
                         help="Seed for reproducibility (default: random)")
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, default=(), metavar="MODULE [ARG ...]",
@@ -43,10 +42,10 @@ def main(argv: Sequence[str] | None = None):
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)
     experiment = cli_utils.load_experiment_spec_from_args(args)
-    player_factory = experiment.to_playing_factory()
+    benchmarker_factory = experiment.to_benchmarking_factory()
     prog = f"{PROGRAM_NAME} --environment {args.environment} --algorithm {args.algorithm} --"
-    player_factory = tyro_cli(prog=prog, default=player_factory, args=extra_args)
-    player_factory(trial).run_playing_loop()
+    benchmarker_factory = tyro_cli(prog=prog, default=benchmarker_factory, args=extra_args)
+    benchmarker_factory(trial).run_playing_loop()
 
 
 if __name__ == "__main__":

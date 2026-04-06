@@ -35,13 +35,6 @@ class AgentFactory(ABC, Generic[AgentType]):
     """Whether to enable automatic mixed precision. If a string or torch.dtype
     is provided, it specifies the dtype for autocasting."""
 
-    def override(self, **kwargs: Any) -> Self:
-        for key, value in kwargs.items():
-            if not hasattr(self, key):
-                raise ValueError(f"Unsupported override argument '{key}' for {self.__class__.__name__}")
-            setattr(self, key, value)
-        return self
-
     @abstractmethod
     def __call__(self, environment_spec: EnvironmentSpec) -> AgentType:
         raise NotImplementedError

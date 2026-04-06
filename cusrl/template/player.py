@@ -7,7 +7,12 @@ from typing_extensions import Self
 
 from cusrl import utils
 from cusrl.template.agent import Agent, AgentFactory
-from cusrl.template.environment import Environment, EnvironmentFactory, get_done_indices, update_observation_and_state
+from cusrl.template.environment import (
+    Environment,
+    EnvironmentFactoryLike,
+    get_done_indices,
+    update_observation_and_state,
+)
 from cusrl.template.trainer import EnvironmentStats
 from cusrl.template.trial import Trial
 from cusrl.utils.typing import Array, Slice
@@ -89,9 +94,9 @@ class Player:
     manages initialization, checkpoint loading, stepping, and hook callbacks.
 
     Args:
-        environment (Environment | Environment.Factory):
+        environment (Environment | EnvironmentFactoryLike):
             An Environment instance or a factory that produces one.
-        agent (Agent | Agent.Factory):
+        agent (Agent | AgentFactory):
             An Agent instance or a factory that produces one for the given
             environment.
         checkpoint_path (str | Trial | None, optional):
@@ -134,7 +139,7 @@ class Player:
 
     def __init__(
         self,
-        environment: Environment | EnvironmentFactory,
+        environment: Environment | EnvironmentFactoryLike,
         agent: Agent | AgentFactory,
         checkpoint_path: str | Trial | None = None,
         num_steps: int | None = None,

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Environment",
-    "EnvironmentFactory",
+    "EnvironmentFactoryLike",
     "EnvironmentSpec",
     "get_done_indices",
     "update_observation_and_state",
@@ -182,7 +182,7 @@ class EnvironmentSpec:
             self.extras[key] = value
 
 
-EnvironmentFactory: TypeAlias = Callable[[], "Environment"]
+EnvironmentFactoryLike: TypeAlias = Callable[[], "Environment"]
 
 
 class Environment(ABC, Generic[ArrayType]):
@@ -202,7 +202,6 @@ class Environment(ABC, Generic[ArrayType]):
             for details.
     """
 
-    Factory = EnvironmentFactory
     Spec: TypeAlias = EnvironmentSpec
 
     def __init__(

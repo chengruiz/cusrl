@@ -1,8 +1,8 @@
 import atexit
-from datetime import datetime
 import os
 import re
 import socket
+from datetime import datetime
 
 import torch
 from torch.distributed import GroupMember
@@ -39,18 +39,18 @@ class Configurations:
                 self.device = torch.device(f"cuda:{self._local_rank}")
 
             # Set unique directories for each process to avoid conflicts
-            idenfier = self._get_distributed_identifier()
+            identifier = self._get_distributed_identifier()
             torchinductor_root = os.getenv("TORCHINDUCTOR_CACHE_DIR", f"/tmp/cache/torchinductor/{torch.__version__}")
-            os.environ["TORCHINDUCTOR_CACHE_DIR"] = os.path.join(torchinductor_root, idenfier)
+            os.environ["TORCHINDUCTOR_CACHE_DIR"] = os.path.join(torchinductor_root, identifier)
             if (triton_root := os.getenv("TRITON_CACHE_DIR")) is None:
                 os.environ["TRITON_CACHE_DIR"] = os.path.join(os.environ["TORCHINDUCTOR_CACHE_DIR"], "triton")
             else:
-                os.environ["TRITON_CACHE_DIR"] = os.path.join(triton_root, idenfier)
+                os.environ["TRITON_CACHE_DIR"] = os.path.join(triton_root, identifier)
             try:
                 import warp as wp
 
                 warp_root = os.getenv("WARP_CACHE_PATH", f"/tmp/cache/warp/{wp.__version__}")
-                os.environ["WARP_CACHE_PATH"] = os.path.join(warp_root, idenfier)
+                os.environ["WARP_CACHE_PATH"] = os.path.join(warp_root, identifier)
             except ImportError:
                 pass
         else:
