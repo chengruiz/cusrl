@@ -59,7 +59,7 @@ Or if you have [IssacLab](https://github.com/isaac-sim/IsaacLab) installed:
 
 ```bash
 python -m cusrl train -env Isaac-Velocity-Rough-Anymal-C-v0 -alg ppo \
-    --logger tensorboard --environment-args="--headless"
+    --logger tensorboard --env-args="--headless"
 python -m cusrl play --checkpoint logs/Isaac-Velocity-Rough-Anymal-C-v0_ppo
 ```
 
@@ -67,7 +67,7 @@ Try distributed training:
 
 ```bash
 torchrun --nproc-per-node=2 -m cusrl train -env Isaac-Velocity-Rough-Anymal-C-v0 \
-    -alg ppo --logger tensorboard --environment-args="--headless"
+    -alg ppo --logger tensorboard --env-args="--headless"
 ```
 
 ## Highlights
@@ -88,9 +88,9 @@ CusRL provides a modular and extensible framework for RL with the following key 
 - [Proximal Policy Optimization (PPO)](https://arxiv.org/abs/1707.06347) with recurrent policy support
 - [Random Network Distillation (RND)](https://arxiv.org/abs/1810.12894)
 - Symmetry Augmentations:
-  [Symmetric Architecture](https://dl.acm.org/doi/abs/10.1145/3359566.3360070),
-  [Symmetric Data Augmentation](https://ieeexplore.ieee.org/abstract/document/10611493),
-  [Symmetry Loss](https://dl.acm.org/doi/abs/10.1145/3197517.3201397)
+  - [Symmetric Architecture](https://dl.acm.org/doi/abs/10.1145/3359566.3360070)
+  - [Symmetric Data Augmentation](https://ieeexplore.ieee.org/abstract/document/10611493)
+  - [Symmetry Loss](https://dl.acm.org/doi/abs/10.1145/3197517.3201397)
 
 ## Cite
 

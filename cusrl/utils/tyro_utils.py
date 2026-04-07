@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import json
+from collections.abc import Sequence
 from typing import Annotated, Any, TypeAlias, get_args
 
 import torch
@@ -91,15 +92,22 @@ def cli(
     *,
     prog: None | str = None,
     default=None,
-    config=(),
+    config: Sequence[tyro.conf._markers.Marker] | None = (tyro.conf.AvoidSubcommands, tyro.conf.FlagConversionOff),
+    compact_help: bool = True,
+    registry: None | ConstructorRegistry = TYRO_REGISTRY,
     **kwargs: Any,
 ) -> Any:
-    kwargs.setdefault("registry", TYRO_REGISTRY)
     if default is not None:
         strict_default = to_strict_typed_dataclass(default)
         if strict_default is not default:
             default = strict_default
             f = type(strict_default)
-    config = list(config)
-    config.extend([tyro.conf.AvoidSubcommands, tyro.conf.FlagConversionOff])
-    return tyro.cli(f, prog=prog, config=config, default=default, **kwargs)
+    return tyro.cli(
+        f,
+        prog=prog,
+        config=config,
+        default=default,
+        compact_help=compact_help,
+        registry=registry,
+        **kwargs,
+    )

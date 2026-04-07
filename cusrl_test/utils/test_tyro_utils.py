@@ -54,7 +54,7 @@ def test_tyro_cli_parses_named_hook_fields():
 def test_tyro_cli_help_lists_named_hook_fields(capsys):
     config = cusrl.preset.PpoAgentFactory().to_underlying()
     with pytest.raises(SystemExit):
-        cli(type(config), default=config, args=["--help"])
+        cli(type(config), default=config, args=["-H"])
     captured = capsys.readouterr()
     help_text = captured.out + captured.err
     assert "--hooks.entropy-loss.weight" in help_text

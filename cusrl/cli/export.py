@@ -39,14 +39,15 @@ def parse_args(argv: Sequence[str] | None = None):
                         help="Whether to use PyTorch Dynamo for onnx export")
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, metavar="MODULE [ARG ...]",
                         help="Run library module as a script, with its arguments")
-    parser.add_argument("script", nargs=argparse.REMAINDER, metavar="SCRIPT [ARG ...]",
+    parser.add_argument("-s", "--script", nargs=argparse.REMAINDER, metavar="SCRIPT [ARG ...]",
                         help="Script to run, with its arguments")
     # fmt: on
     parser.epilog = "Pass tyro overrides after '--'"
     if argv is None:
         argv = sys.argv[1:]
     args, extra_args = cli_utils.split_double_dash(argv)
-    return parser.parse_args(args), extra_args
+    known_args, unknown_args = parser.parse_known_args(args)
+    return known_args, unknown_args + extra_args
 
 
 def main(argv: Sequence[str] | None = None):

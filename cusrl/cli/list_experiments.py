@@ -18,7 +18,7 @@ def parse_args(argv: Sequence[str] | None = None):
     # fmt: off
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, metavar="MODULE [ARG ...]",
                         help="Run library module as a script, with its arguments")
-    parser.add_argument("script", nargs=argparse.REMAINDER, metavar="SCRIPT [ARG ...]",
+    parser.add_argument("-s", "--script", nargs=argparse.REMAINDER, metavar="SCRIPT [ARG ...]",
                         help="Script to run, with its arguments")
     # fmt: on
     if argv is None:
