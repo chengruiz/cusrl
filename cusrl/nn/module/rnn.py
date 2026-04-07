@@ -140,6 +140,7 @@ class RnnFactory(ModuleFactory["Rnn"]):
     dropout: float = 0.0
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
+        assert input_dim is not None
         module_type = self.module_type.lower()
         if module_type == "rnn" or module_type == "vanilla":
             module = _VanillaRnn(

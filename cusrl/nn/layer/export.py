@@ -31,8 +31,8 @@ class FlowGraph(nn.Module):
         super().__init__()
         self.graph_name = graph_name
         self.output_names = list(output_names)
-        self.info = {}
-        self.named_nodes = {}
+        self.info: dict[str, Any] = {}
+        self.named_nodes: dict[str, nn.Module] = {}
 
     def forward(self, *args, **kwargs):
         if args:

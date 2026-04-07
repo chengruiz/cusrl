@@ -129,7 +129,7 @@ class Configurations:
         return self._flash_attention_enabled
 
     @flash_attention_enabled.setter
-    def _(self, value: bool):
+    def flash_attention_enabled(self, value: bool):
         self.enable_flash_attention(value)
 
     def enable_flash_attention(self, enabled: bool = True):

@@ -25,6 +25,7 @@ class MiniBatchSampler(Sampler):
 
     def __init__(self, num_epochs: int = 1, num_mini_batches: int | Sequence[int] = 1, shuffle: bool = True):
         self.num_epochs = num_epochs
+        self.num_mini_batches: int | tuple[int, ...]
         if isinstance(num_mini_batches, int):
             self.num_mini_batches = num_mini_batches
         else:

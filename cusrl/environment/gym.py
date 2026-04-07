@@ -64,8 +64,8 @@ class GymEnvAdapter(Environment[np.ndarray]):
         observation, reward, terminated, truncated, info = self.wrapped.step(action)
         observation = observation.reshape(1, -1)
         reward = np.array([[reward]], dtype=np.float32)
-        terminated = np.array([[terminated]])
-        truncated = np.array([[truncated]])
+        terminated = np.array([[terminated]], dtype=np.bool_)
+        truncated = np.array([[truncated]], dtype=np.bool_)
         if self.wrapped.render_mode is not None:
             self.wrapped.render()
         # TODO: process arrays in info
@@ -135,8 +135,8 @@ class GymVectorEnvAdapter(Environment[np.ndarray]):
         if isinstance(reward, np.ndarray):
             reward = reward.astype(np.float32)
         reward = reward.reshape(-1, 1)
-        terminated = terminated.reshape(-1, 1)
-        truncated = truncated.reshape(-1, 1)
+        terminated = np.asarray(terminated, dtype=np.bool_).reshape(-1, 1)
+        truncated = np.asarray(truncated, dtype=np.bool_).reshape(-1, 1)
         if self.wrapped.render_mode is not None:
             self.wrapped.render()
         # TODO: process arrays in info

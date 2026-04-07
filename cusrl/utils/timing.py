@@ -1,6 +1,7 @@
 import time
 from collections import defaultdict
 from contextlib import contextmanager
+from typing import DefaultDict
 
 import torch
 
@@ -53,7 +54,7 @@ class _CudaTimerImpl(_TimerImpl):
             raise RuntimeError("CUDA timing requires an available CUDA device")
         if self.device.type != "cuda":
             raise ValueError(f"CUDA timing requires a CUDA device, got '{self.device}'")
-        self.pending_time = defaultdict(list)
+        self.pending_time: DefaultDict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]] = defaultdict(list)
 
     def start(self, name):
         if name in self.start_time:

@@ -49,7 +49,7 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
     ):
         super().__init__(training_only=True)
         self.named_conditions = (named_conditions or {}) | kwargs
-        self._named_activation = {}
+        self._named_activation: dict[str, bool] = {}
 
     def pre_update(self, buffer):
         # Store the current activation state of the hooks

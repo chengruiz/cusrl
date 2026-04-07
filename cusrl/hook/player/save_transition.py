@@ -3,6 +3,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
+from typing import DefaultDict
 
 import numpy as np
 
@@ -54,7 +55,7 @@ class SaveTransition(PlayerHook):
         self.save_interval: int | None = save_interval
 
         self.shard_index: int = 0
-        self.buffer = defaultdict(list)
+        self.buffer: DefaultDict[str, list[np.ndarray]] = defaultdict(list)
 
     def init(self, player: Player):
         super().init(player)

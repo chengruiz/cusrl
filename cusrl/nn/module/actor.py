@@ -85,7 +85,8 @@ class Actor(Module):
         if forward_type == "act":
             return self._act_impl(*args, **kwargs)
         if forward_type == "act_deterministic":
-            return self._act_impl(*args, **kwargs, deterministic=True)
+            kwargs["deterministic"] = True
+            return self._act_impl(*args, **kwargs)
         raise ValueError(f"Unsupported 'forward_type' value: {forward_type!r}")
 
     def explore(

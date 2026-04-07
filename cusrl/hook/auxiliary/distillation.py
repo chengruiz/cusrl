@@ -26,7 +26,7 @@ class PolicyDistillationLoss(Hook[ActorCritic]):
     def init(self):
         self.criterion = nn.MSELoss()
 
-    def objective(self, metadata, batch) -> Tensor:
+    def objective(self, metadata, batch):
         action_dist = cast(MeanStdDict, batch["curr_action_dist"])
         distillation_loss = self.criterion(action_dist["mean"], batch[self.target_name])
         return {"distillation_loss": distillation_loss * self.weight}

@@ -99,7 +99,7 @@ class Logger:
         self.ckpt_dir.mkdir(exist_ok=True)
 
         self.interval = interval
-        self.data_list = []
+        self.data_list: list[dict[str, float]] = []
 
     def log(self, data: dict[str, float], iteration: int):
         if self.interval > 1:

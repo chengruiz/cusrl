@@ -75,7 +75,7 @@ class OptimizerFactory:
                 groups and ``defaults``.
         """
         optim_cls: type[Optimizer] = getattr(torch.optim, self.cls) if isinstance(self.cls, str) else self.cls
-        param_groups = {}
+        param_groups: dict[str, dict[str, Any]] = {}
         for name, param in named_parameters:
             if not param.requires_grad:
                 continue

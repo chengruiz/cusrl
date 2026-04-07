@@ -1,5 +1,5 @@
-from collections.abc import Callable, Iterator, MutableMapping, Sequence
-from typing import Any, TypeAlias, TypeVar
+from collections.abc import Callable, Iterator, Mapping, MutableMapping, Sequence
+from typing import Any, TypeAlias, TypeVar, overload
 
 import torch
 
@@ -32,7 +32,7 @@ class Buffer(MutableMapping[str, NestedTensor]):
         self,
         capacity: int,
         parallelism: int,
-        device: str | torch.device = None,
+        device: str | torch.device | None = None,
     ):
         self.capacity: int = capacity
         self.parallelism: int = parallelism
@@ -110,12 +110,18 @@ class Buffer(MutableMapping[str, NestedTensor]):
     def __len__(self):
         return len(self.schema)
 
-    def get(self, key: str, default: _T = None) -> NestedTensor | _T:
+    @overload
+    def get(self, key: str, default: None = None) -> NestedTensor | None: ...
+
+    @overload
+    def get(self, key: str, default: _T) -> NestedTensor | _T: ...
+
+    def get(self, key: str, default: NestedTensor | _T | None = None) -> NestedTensor | _T | None:
         if (struct := self.schema.get(key)) is None:
             return default
         return reconstruct_nested(self.storage, struct)
 
-    def push(self, data: dict[str, NestedArray]):
+    def push(self, data: Mapping[str, NestedArray]):
         """Append one step for each temporal field in `data`.
 
         Each leaf must have shape `[parallelism, ...]`. The first write for a

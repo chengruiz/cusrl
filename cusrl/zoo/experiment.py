@@ -1,6 +1,6 @@
+import shlex
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from shlex import shlex
 from typing import Annotated, Any
 
 import tyro
@@ -107,7 +107,7 @@ class PlayingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
 
 @dataclass(kw_only=True)
 class BenchmarkingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
-    benchmarker_factory: Annotated[type[Player], tyro.conf.Suppress] = Player
+    benchmarker_factory: Annotated[Callable[..., Player], tyro.conf.Suppress] = Player
     num_steps: int | None = None
     num_episodes: int | None = None
     deterministic: bool = True

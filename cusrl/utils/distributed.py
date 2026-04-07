@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 from io import StringIO
-from typing import TypeVar
+from typing import Any, TypeVar, cast
 
 import numpy as np
 import torch
@@ -39,12 +39,12 @@ def average_dict(info_dict: dict[str, float]) -> dict[str, float]:
 
     info_dict_list = gather_obj(info_dict)
     keys = {key for info in info_dict_list for key in info.keys()}
-    result = {}
+    result: dict[str, float] = {}
     for key in keys:
         values = [value for info in info_dict_list if (value := info.get(key)) is not None]
         if not values:
             continue
-        result[key] = np.mean(values)
+        result[key] = float(np.mean(values))
     return result
 
 
@@ -77,9 +77,9 @@ def gather_obj(obj: _T) -> list[_T]:
     """Gather a Python object from every rank into a list ordered by rank."""
     if not configure_distributed():
         return [obj]
-    obj_list = [None for _ in range(CONFIG.world_size)]
+    obj_list: list[Any] = [None for _ in range(CONFIG.world_size)]
     torch.distributed.all_gather_object(obj_list, obj)
-    return obj_list
+    return cast(list[_T], obj_list)
 
 
 def gather_print(*args, **kwargs):

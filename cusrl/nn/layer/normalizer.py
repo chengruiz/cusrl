@@ -95,7 +95,7 @@ class RunningMeanStd(nn.Module):
         self.count: int = 0
 
         self._is_synchronized = True
-        self._synchronized_state = None
+        self._synchronized_state: tuple[Tensor, Tensor, int] | None = None
 
     def clear(self):
         self.mean.fill_(0.0)

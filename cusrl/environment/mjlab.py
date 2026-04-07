@@ -114,7 +114,7 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
         extras = cast(dict, extras).copy()
 
         log = extras.pop("log", {}).copy()
-        num_finished_episodes = (terminated | truncated).sum().cpu().item()
+        num_finished_episodes = int((terminated | truncated).sum().cpu().item())
         for key, value in tuple(log.items()):
             if key.startswith("Episode_Reward/"):
                 log[key] = value.repeat(num_finished_episodes)

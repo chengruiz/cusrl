@@ -126,7 +126,7 @@ class Agent(ABC):
         self.inference_mode = False
         self.deterministic = False
 
-        self.transition = {}
+        self.transition: dict[str, NestedTensor] = {}
         self.metrics = Metrics()
         self.iteration = 0
         self.step_index = 0

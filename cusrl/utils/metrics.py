@@ -10,7 +10,7 @@ __all__ = ["Metrics"]
 
 @dataclass(slots=True)
 class Metric:
-    mean: torch.Tensor = None
+    mean: torch.Tensor = torch.tensor([])
     count: int = 0
 
     @torch.no_grad()
