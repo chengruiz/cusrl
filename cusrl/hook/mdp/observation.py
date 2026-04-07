@@ -5,7 +5,7 @@ import numpy as np
 from torch import Tensor
 from typing_extensions import Self
 
-from cusrl.hook.symmetry import SymmetryDefLike
+from cusrl.hook.auxiliary.symmetry import SymmetryDefLike
 from cusrl.module import FlowGraph, RunningMeanStd
 from cusrl.module.normalizer import mean_var_count
 from cusrl.template import ActorCritic, Hook

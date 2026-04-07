@@ -4,7 +4,7 @@ from typing import cast
 
 import torch
 
-from cusrl.hook.on_policy import OnPolicyPreparation
+from cusrl.hook.on_policy.common import OnPolicyPreparation
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils import distributed
 

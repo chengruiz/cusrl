@@ -8,7 +8,7 @@ from objprint import add_objprint
 from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
 
 if TYPE_CHECKING:
-    from cusrl.hook.symmetry import SymmetryDefLike
+    from cusrl.hook.auxiliary.symmetry import SymmetryDefLike
 
 __all__ = [
     "Environment",

@@ -1,6 +1,4 @@
-from cusrl.hook.condition import ConditionalObjectiveActivation
-from cusrl.hook.environment_spec import EnvironmentSpecOverride
-from cusrl.hook.gae import GeneralizedAdvantageEstimation
+from cusrl.hook import ConditionalObjectiveActivation, EnvironmentSpecOverride, GeneralizedAdvantageEstimation
 from cusrl.utils import from_dict, to_dict
 
 

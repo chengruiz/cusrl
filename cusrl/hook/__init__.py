@@ -1,60 +1,45 @@
-from cusrl.hook import player
-
-from .advantage import (
-    AdvantageNormalization,
-    AdvantageReduction,
-)
-from .amp import AdversarialMotionPrior
-from .condition import ConditionalObjectiveActivation
-from .distillation import (
+from . import player
+from .auxiliary import (
+    ActionSmoothnessLoss,
+    AdversarialMotionPrior,
+    NextStatePrediction,
     PolicyDistillation,
     PolicyDistillationLoss,
-)
-from .empty_cuda_cache import EmptyCudaCache
-from .environment_spec import (
-    DynamicEnvironmentSpecOverride,
-    EnvironmentSpecOverride,
-)
-from .estimation import StateEstimation
-from .gae import GeneralizedAdvantageEstimation
-from .gradient import GradientClipping
-from .initialization import ModuleInitialization
-from .lr_schedule import (
-    AdaptiveLRSchedule,
-    MiniBatchWiseLRSchedule,
-    ThresholdLRSchedule,
-)
-from .observation import (
-    ObservationNanToNum,
-    ObservationNormalization,
-)
-from .on_policy import (
-    OnPolicyBufferCapacitySchedule,
-    OnPolicyPreparation,
-    OnPolicyStatistics,
-)
-from .ppo import (
-    EntropyLoss,
-    PpoSurrogateLoss,
-)
-from .representation import (
-    NextStatePrediction,
+    RandomNetworkDistillation,
     ReturnPrediction,
+    StateEstimation,
     StatePrediction,
-)
-from .reward import RewardShaping
-from .rnd import RandomNetworkDistillation
-from .schedule import (
-    HookActivationSchedule,
-    HookParameterSchedule,
-)
-from .smoothness import ActionSmoothnessLoss
-from .symmetry import (
     SymmetricArchitecture,
     SymmetricDataAugmentation,
     SymmetryLoss,
 )
-from .value import (
+from .control import (
+    ConditionalObjectiveActivation,
+    EmptyCudaCache,
+    HookActivationSchedule,
+    HookParameterSchedule,
+    ModuleInitialization,
+)
+from .mdp import (
+    DynamicEnvironmentSpecOverride,
+    EnvironmentSpecOverride,
+    ObservationNanToNum,
+    ObservationNormalization,
+    RewardShaping,
+)
+from .on_policy import (
+    AdaptiveLRSchedule,
+    AdvantageNormalization,
+    AdvantageReduction,
+    EntropyLoss,
+    GeneralizedAdvantageEstimation,
+    GradientClipping,
+    MiniBatchWiseLRSchedule,
+    OnPolicyBufferCapacitySchedule,
+    OnPolicyPreparation,
+    OnPolicyStatistics,
+    PpoSurrogateLoss,
+    ThresholdLRSchedule,
     ValueComputation,
     ValueLoss,
 )
