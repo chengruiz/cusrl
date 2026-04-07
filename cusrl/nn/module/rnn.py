@@ -230,8 +230,8 @@ class Rnn(Module):
                 If True, the input is treated as a sequences. Otherwise, it's
                 treated as a single batch of data. Defaults to True.
             pack_sequence (bool):
-                If True and ``done`` is provided, the input sequence is packed to
-                preserve the final recurrent state. Defaults to False.
+                If True and ``done`` is provided, the input sequence is packed
+                to preserve the final recurrent state. Defaults to False.
 
         Outputs:
             - **output** (Tensor):

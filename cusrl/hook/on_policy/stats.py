@@ -11,8 +11,8 @@ class OnPolicyStatistics(Hook[ActorCritic]):
     Specifically, it records:
     - ``"kl_divergence"``: The Kullback-Leibler divergence between the policy
         before and after the update.
-    - ``"action_std"``: The standard deviation of the action distribution from the
-        updated policy.
+    - ``"action_std"``: The standard deviation of the action distribution from
+        the updated policy.
 
     Args:
         sampler (Sampler | None, optional):

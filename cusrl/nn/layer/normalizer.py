@@ -45,7 +45,8 @@ class RunningMeanStd(nn.Module):
 
     Attributes:
         mean (Tensor):
-            The running mean, shape :math:`(C,)`, where :math:`C` is the number of channels.
+            The running mean, shape :math:`(C,)`, where :math:`C` is the number
+            of channels.
         var (Tensor):
             The running variance, shape :math:`(C,)`.
         std (Tensor):

@@ -270,9 +270,10 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         """Resets the memory cache for specific environments.
 
         This method selectively resets the memory components (input cache,
-        key-value cache, and cache mask). If ``done`` is not provided, the entire
-        memory is cleared. Otherwise, only the memory states corresponding to
-        the ``done`` indices (e.g., for environments that are done) are reset.
+        key-value cache, and cache mask). If ``done`` is not provided, the
+        entire memory is cleared. Otherwise, only the memory states
+        corresponding to the ``done`` indices (e.g., for environments that are
+        done) are reset.
 
         Args:
             memory (dict[str, Tensor] | None):

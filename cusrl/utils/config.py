@@ -11,12 +11,15 @@ __all__ = ["CONFIG", "configure_distributed", "device", "is_autocast_available"]
 
 
 def _normalize_identifier(value: str) -> str:
+    """Convert arbitrary text into a filesystem-safe identifier fragment."""
     value = re.sub(r"[^0-9A-Za-z._-]+", "_", value.strip())
     value = value.strip("._-")
     return value or "unknown"
 
 
 class Configurations:
+    """Singleton container for runtime, device, and distributed settings."""
+
     __instance = None
 
     def __new__(cls):
@@ -70,10 +73,12 @@ class Configurations:
 
     @property
     def cuda(self) -> bool:
+        """Whether CUDA is available in the current runtime."""
         return self._cuda
 
     @property
     def seed(self) -> int | None:
+        """Configured global random seed, if one has been assigned."""
         return self._seed
 
     @seed.setter
@@ -82,6 +87,7 @@ class Configurations:
 
     @property
     def device(self) -> torch.device:
+        """Primary device used by the current process."""
         return self._device
 
     @device.setter
@@ -89,30 +95,37 @@ class Configurations:
         self._device = torch.device(value)
 
     def set_device(self, value: str | torch.device):
+        """Update the configured default device for the current process."""
         self.device = value
 
     @property
     def distributed(self) -> bool:
+        """Whether the current process was launched in distributed mode."""
         return self._distributed
 
     @property
     def rank(self) -> int:
+        """Global rank of the current process."""
         return self._rank
 
     @property
     def local_rank(self) -> int:
+        """Rank of the current process within its local node."""
         return self._local_rank
 
     @property
     def world_size(self) -> int:
+        """Total number of processes participating in the job."""
         return self._world_size
 
     @property
     def local_world_size(self) -> int:
+        """Number of processes participating on the current node."""
         return self._local_world_size
 
     @property
     def flash_attention_enabled(self) -> bool:
+        """Whether FlashAttention usage is enabled for supported code paths."""
         return self._flash_attention_enabled
 
     @flash_attention_enabled.setter
@@ -120,11 +133,13 @@ class Configurations:
         self.enable_flash_attention(value)
 
     def enable_flash_attention(self, enabled: bool = True):
+        """Enable or disable FlashAttention."""
         if enabled and not self._flash_attention_found:
             raise RuntimeError("Cannot enable 'flash_attn' because it is not installed")
         self._flash_attention_enabled = enabled
 
     def _get_distributed_identifier(self) -> str:
+        """Build a process-specific cache directory suffix for distributed runs."""
         if (job_id := os.getenv("TORCHELASTIC_RUN_ID")) == "none":
             fallback_parts = []
             if (master_addr := os.getenv("MASTER_ADDR")) is not None:
@@ -146,6 +161,7 @@ def device(device: str | torch.device | None = None) -> torch.device:
 
 
 def is_autocast_available() -> bool:
+    """Return whether autocast is available on the configured default device."""
     return CONFIG.cuda and torch.amp.autocast_mode.is_autocast_available(CONFIG.device.type)
 
 
@@ -153,6 +169,7 @@ def configure_distributed(
     backend: str | None = None,
     **kwargs,
 ) -> bool:
+    """Initialize the distributed process group when distributed training is enabled."""
     if not CONFIG.distributed:
         return False
     if backend is None:
@@ -184,6 +201,7 @@ CONFIG = Configurations()
 
 @atexit.register
 def clean_distributed():
+    """Destroy the distributed process group during interpreter shutdown."""
     if CONFIG.distributed and GroupMember.WORLD is not None:
         if CONFIG.rank == 0:
             print("\033[1;32mCleaning distributed training resources.\033[0m")

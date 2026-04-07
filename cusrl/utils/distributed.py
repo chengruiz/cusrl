@@ -1,3 +1,5 @@
+"""Utilities for initializing and coordinating distributed training helpers."""
+
 from collections.abc import Iterable
 from io import StringIO
 from typing import TypeVar
@@ -31,6 +33,7 @@ _T = TypeVar("_T")
 
 
 def average_dict(info_dict: dict[str, float]) -> dict[str, float]:
+    """Gather dictionaries from all ranks and average values for each shared key."""
     if not configure_distributed():
         return info_dict
 
@@ -46,12 +49,14 @@ def average_dict(info_dict: dict[str, float]) -> dict[str, float]:
 
 
 def barrier():
+    """Synchronize all ranks at a global barrier when distributed mode is enabled."""
     if not configure_distributed():
         return
     torch.distributed.barrier()
 
 
 def broadcast_parameters(parameters: Iterable[torch.nn.Parameter]):
+    """Broadcast parameter values from rank 0 to every other rank."""
     if not configure_distributed():
         return
     for param in parameters:
@@ -59,6 +64,7 @@ def broadcast_parameters(parameters: Iterable[torch.nn.Parameter]):
 
 
 def enabled() -> bool:
+    """Return whether distributed execution is enabled for the current process."""
     return CONFIG.distributed
 
 
@@ -68,6 +74,7 @@ def is_main_process() -> bool:
 
 
 def gather_obj(obj: _T) -> list[_T]:
+    """Gather a Python object from every rank into a list ordered by rank."""
     if not configure_distributed():
         return [obj]
     obj_list = [None for _ in range(CONFIG.world_size)]
@@ -76,6 +83,7 @@ def gather_obj(obj: _T) -> list[_T]:
 
 
 def gather_print(*args, **kwargs):
+    """Print once on rank 0 after collecting each rank's formatted output."""
     if not configure_distributed():
         print(*args, **kwargs)
         return
@@ -90,6 +98,7 @@ def gather_print(*args, **kwargs):
 
 
 def gather_stack(tensor: torch.Tensor) -> torch.Tensor:
+    """Gather matching tensors from all ranks and stack them along a new leading dimension."""
     if not configure_distributed():
         return tensor.unsqueeze(0)
 
@@ -101,6 +110,7 @@ def gather_stack(tensor: torch.Tensor) -> torch.Tensor:
 
 
 def gather_tensor(tensor: torch.Tensor) -> list[torch.Tensor]:
+    """Gather a tensor from every rank into a Python list."""
     if not configure_distributed():
         return [tensor]
     tensor_list = [torch.empty_like(tensor) for _ in range(CONFIG.world_size)]
@@ -109,21 +119,25 @@ def gather_tensor(tensor: torch.Tensor) -> list[torch.Tensor]:
 
 
 def local_rank() -> int:
+    """Return the local rank of the current process on its node."""
     return CONFIG.local_rank
 
 
 def make_none_obj_list() -> list[object]:
+    """Create an all-ranks placeholder list for object collective operations."""
     if not configure_distributed():
         return []
     return [None for _ in range(CONFIG.world_size)]
 
 
 def print_rank0(*args, **kwargs):
+    """Print only from rank 0."""
     if CONFIG.rank == 0:
         print(*args, **kwargs)
 
 
 def rank() -> int:
+    """Return the global rank of the current process."""
     return CONFIG.rank
 
 
@@ -158,6 +172,7 @@ def reduce_mean_(tensor: torch.Tensor) -> torch.Tensor:
 
 
 def reduce_mean_var_(mean: torch.Tensor, var: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Average per-rank means and variances into the provided tensors in place."""
     if not configure_distributed():
         return mean, var
     all_mean_var = gather_stack(torch.cat((mean, var), dim=0))
@@ -168,4 +183,5 @@ def reduce_mean_var_(mean: torch.Tensor, var: torch.Tensor) -> tuple[torch.Tenso
 
 
 def world_size() -> int:
+    """Return the total number of distributed processes."""
     return CONFIG.world_size

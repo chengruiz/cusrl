@@ -67,7 +67,8 @@ class OutputGate(Gate):
 class HighwayGate(Gate):
     r"""
     .. math::
-        g(x, y) = \sigma(W_g x + b_g) \odot x + (1 - \sigma(W_g x + b_g)) \odot y
+        g(x, y) = \sigma(W_g x + b_g) \odot x
+                    + (1 - \sigma(W_g x + b_g)) \odot y
     """
 
     def __init__(self, embed_dim: int):

@@ -110,7 +110,8 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
         end of the list.
 
         Note:
-            Only one of `index`, `before`, or `after` can be specified at a time.
+            Only one of ``index``, ``before``, or ``after`` can be specified
+            at a time.
 
         Args:
             hook (Hook):

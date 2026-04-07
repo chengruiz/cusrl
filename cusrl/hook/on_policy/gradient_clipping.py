@@ -57,9 +57,8 @@ class GradientClipping(Hook):
         """Clips each gradient group and records its pre-clip norm.
 
         The optimizer is expected to expose ``param_names`` in each parameter
-        group, as produced by :class:`cusrl.template.optimizer.OptimizerFactory`.
-        Parameters without a matching prefix are treated as part of the default
-        group.
+        group. Parameters without a matching prefix are treated as part of the
+        default group.
         """
 
         prefixed_parameters = {"": [], **{prefix: [] for prefix in self.groups}}

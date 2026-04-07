@@ -25,17 +25,16 @@ class EpochIndexCondition:
 
 class ActivationCondition(Protocol):
     def __call__(self, agent: ActorCritic, metadata: dict[str, Any], batch: dict[str, Any]) -> bool:
-        """Determines whether a hook should be active based on the agent's state
-        and the current batch."""
+        """Determines whether a hook should be active based on the agent's state and the current batch."""
 
 
 class ConditionalObjectiveActivation(Hook[ActorCritic]):
-    """Activates other objective hooks based on specified conditions.
+    """Activates objective hooks based on specified conditions.
 
     This hook must be placed before any objective hooks it controls.
 
     Args:
-        named_conditions (Callable[[ActorCritic, dict[str, Any], dict[str, Any]], bool]):
+        named_conditions (ActivationCondition):
             Keyword arguments mapping the name of an objective hook to a
             callable condition. The condition determines whether the
             corresponding hook should be active. It receives the agent and the

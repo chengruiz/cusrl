@@ -94,8 +94,18 @@ class _CudaTimerImpl(_TimerImpl):
 
 
 class Timer:
-    """A utility class for measuring and accumulating execution time of code
-    blocks, functions, or named sections."""
+    """Measures and accumulates execution time for named code sections.
+
+    The timer uses CPU wall-clock timing by default. When ``device`` resolves
+    to a CUDA device, it measures elapsed GPU time with CUDA events instead.
+    Repeated measurements with the same name are accumulated until
+    :meth:`clear` is called.
+
+    Args:
+        device (torch.device | str | None):
+            The device that determines the timing backend. CUDA devices use
+            CUDA event timing; all other devices use ``time.perf_counter``.
+    """
 
     impl: _TimerImpl
 
@@ -107,18 +117,43 @@ class Timer:
             self.impl = _CpuTimerImpl()
 
     def start(self, name):
+        """Starts timing a named section.
+
+        Args:
+            name:
+                The name of the timed section.
+
+        Raises:
+            RuntimeError:
+                If the named timer has already been started and not yet
+                stopped.
+        """
         self.impl.start(name)
 
     def stop(self, name):
+        """Stops timing a named section and accumulates its elapsed time.
+
+        Args:
+            name:
+                The name of the timed section.
+
+        Raises:
+            RuntimeError:
+                If the named timer was not started.
+        """
         self.impl.stop(name)
 
     def __getitem__(self, item):
+        """Returns the accumulated time for a named section in seconds."""
         return self.impl.get(item)
 
     def clear(self):
+        """Clears all active and accumulated timing data."""
         self.impl.clear()
 
     def wrap(self, name, func):
+        """Wraps a callable so each invocation is timed under ``name``."""
+
         def wrapper(*args, **kwargs):
             self.start(name)
             result = func(*args, **kwargs)
@@ -128,6 +163,8 @@ class Timer:
         return wrapper
 
     def decorate(self, name):
+        """Returns a decorator that times each call under ``name``."""
+
         def decorator(func):
             return self.wrap(name, func)
 
@@ -135,6 +172,7 @@ class Timer:
 
     @contextmanager
     def record(self, name):
+        """Context manager that times the enclosed block under ``name``."""
         self.start(name)
         yield
         self.stop(name)

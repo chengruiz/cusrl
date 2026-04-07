@@ -176,6 +176,18 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
 
 
 def to_numpy(value: Any) -> np.ndarray:
+    """Converts a value to a NumPy array.
+
+    Args:
+        value (Any):
+            The value to convert. NumPy arrays are returned as-is, PyTorch
+            tensors are detached and moved to CPU before conversion, and other
+            values are passed to ``np.asarray``.
+
+    Returns:
+        np.ndarray:
+            The converted NumPy array.
+    """
     if isinstance(value, np.ndarray):
         return value
     if isinstance(value, torch.Tensor):
@@ -189,6 +201,23 @@ def wrap_method_with_signature(
     arg_names: Sequence[str] = (),
     kwarg_names: Sequence[str] = (),
 ) -> MethodType:
+    """Wraps an instance method while exposing an explicit call signature.
+
+    Args:
+        instance (object):
+            The instance that owns the wrapped method.
+        wrapped_method_name (str):
+            The name of the method to call on ``instance``.
+        arg_names (Sequence[str]):
+            Positional argument names to expose on the wrapper.
+        kwarg_names (Sequence[str]):
+            Keyword argument names to expose on the wrapper.
+
+    Returns:
+        MethodType:
+            A bound method that forwards arguments to the wrapped method using
+            the requested signature.
+    """
     args_signature = ", ".join((*arg_names, *kwarg_names))
     call_signature = ", ".join((*arg_names, *[f"{name}={name}" for name in kwarg_names]))
 

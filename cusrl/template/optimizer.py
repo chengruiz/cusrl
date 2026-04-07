@@ -19,8 +19,9 @@ class OptimizerFactory:
     match is applied first.
 
     A parameter matches a prefix when its name is exactly that prefix or begins
-    with ``"{prefix}."``. Empty prefixes are not allowed. Unmatched parameters use
-    ``defaults`` directly. Parameters with ``requires_grad=False`` are skipped.
+    with ``"{prefix}."``. Empty prefixes are not allowed. Unmatched parameters
+    use ``defaults`` directly. Parameters with ``requires_grad=False`` are
+    skipped.
 
     Args:
         cls (str | type[Optimizer]):

@@ -33,10 +33,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
     "DNA: Proximal Policy Optimization with a Dual Network Architecture"
     https://proceedings.neurips.cc/paper_files/paper/2022/hash/e95475f5fb8edb9075bf9e25670d4013-Abstract-Conference.html
 
-    PopArt normalization can be applied to the value function, described in:
-    "Learning values across many orders of magnitude",
-    https://proceedings.neurips.cc/paper/2016/hash/5227b6aaf294f5f027273aebf16015f2-Abstract.html
-
     Args:
         gamma (float, optional):
             Discount factor for future rewards, in :math:`[0, 1)`. Defaults to
