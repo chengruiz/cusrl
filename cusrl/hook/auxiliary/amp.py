@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import Tensor, nn
 
-from cusrl.module import GradientPenaltyLoss, Module, ModuleFactoryLike, RunningMeanStd
+from cusrl.nn import GradientPenaltyLoss, Module, ModuleFactoryLike, RunningMeanStd
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.dict_utils import get_first
 from cusrl.utils.typing import Array, Slice

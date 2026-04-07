@@ -4,11 +4,11 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
-from cusrl.module.gate import get_gate_cls
-from cusrl.module.mha import FlashAttention
-from cusrl.module.module import Module, ModuleFactory
-from cusrl.module.transformer import FeedForward
-from cusrl.utils.recurrent import (
+from cusrl.nn.layer.flash_attention import FlashAttention
+from cusrl.nn.layer.gate import get_gate_cls
+from cusrl.nn.layer.transformer import FeedForward
+from cusrl.nn.module.module import Module, ModuleFactory
+from cusrl.nn.utils.recurrent import (
     compute_reverse_cumulative_timesteps,
     compute_sequence_indices,
     compute_sequence_lengths,

@@ -30,7 +30,7 @@ def test_tyro_cli_preserves_autocast_bool():
 def test_tyro_cli_parses_nested_dataclass_factory_field():
     config = cusrl.preset.ppo.AgentFactory().to_underlying()
     parsed = cli(type(config), default=config, args=["--actor-factory.backbone-factory.dropout", "0.25"])
-    assert isinstance(parsed.actor_factory, cusrl.module.actor.ActorFactory)
+    assert isinstance(parsed.actor_factory, cusrl.nn.ActorFactory)
     assert parsed.actor_factory.backbone_factory.dropout == pytest.approx(0.25)
 
 

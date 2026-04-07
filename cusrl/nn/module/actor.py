@@ -3,12 +3,12 @@ from typing import Any
 
 from torch import Tensor
 
-from cusrl.module.distribution import Distribution, DistributionFactoryLike
-from cusrl.module.module import Module, ModuleFactory, ModuleFactoryLike
+from cusrl.nn.module.distribution import Distribution, DistributionFactoryLike
+from cusrl.nn.module.module import Module, ModuleFactory, ModuleFactoryLike
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, NestedTensor, Slice
 
-__all__ = ["Actor"]
+__all__ = ["Actor", "ActorFactory"]
 
 
 @dataclass(slots=True)
@@ -62,7 +62,7 @@ class Actor(Module):
         self.distribution.clear_intermediate_repr()
 
     def inference(self, memory: Memory = None):
-        from cusrl.module.inference import InferenceWrapper
+        from cusrl.nn.module.inference import InferenceWrapper
 
         return InferenceWrapper(self, memory=memory, forward_kwargs={"forward_type": "act_deterministic"})
 

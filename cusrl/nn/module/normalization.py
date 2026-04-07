@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import Tensor, nn
 
-from cusrl.module.module import Module, ModuleFactory
+from cusrl.nn.module.module import Module, ModuleFactory
 
 __all__ = ["Normalization", "Denormalization"]
 

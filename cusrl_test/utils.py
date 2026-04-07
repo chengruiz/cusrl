@@ -3,6 +3,7 @@ import random
 import torch
 
 import cusrl
+from cusrl.hook.auxiliary.symmetry import SymmetryDef
 from cusrl.template.environment import get_done_indices
 from cusrl.testing.environment import DummyNumpyEnvironment, DummyTorchEnvironment
 
@@ -13,7 +14,7 @@ __all__ = [
 ]
 
 
-def create_random_symmetry_def(dim: int) -> cusrl.hook.symmetry.SymmetryDef:
+def create_random_symmetry_def(dim: int) -> SymmetryDef:
     shuffled_indices = list(range(dim))
     random.shuffle(shuffled_indices)
     symmetry_destinations = [-1] * dim
@@ -25,7 +26,7 @@ def create_random_symmetry_def(dim: int) -> cusrl.hook.symmetry.SymmetryDef:
     if dim % 2 == 1:
         symmetry_destinations[shuffled_indices[-1]] = shuffled_indices[-1]
         symmetry_flipped[shuffled_indices[-1]] = random.random() < 0.5
-    symmetry_def = cusrl.hook.symmetry.SymmetryDef(symmetry_destinations, symmetry_flipped)
+    symmetry_def = SymmetryDef(symmetry_destinations, symmetry_flipped)
     dummy_input = torch.arange(dim, dtype=torch.float32)
     mirrored_input = symmetry_def(dummy_input)
     mirrored_mirrored_input = symmetry_def(mirrored_input)

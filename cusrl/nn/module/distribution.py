@@ -6,8 +6,8 @@ import torch
 from torch import Tensor, distributions, nn
 from torch.nn.functional import one_hot
 
-from cusrl.module.bijector import Bijector, make_bijector
-from cusrl.module.module import Module, ModuleFactory
+from cusrl.nn.layer.bijector import Bijector, make_bijector
+from cusrl.nn.module.module import Module, ModuleFactory
 
 __all__ = [
     "AdaptiveNormalDist",

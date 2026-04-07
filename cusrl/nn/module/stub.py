@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import torch
 
-from cusrl.module.module import Module, ModuleFactory
+from cusrl.nn.module.module import Module, ModuleFactory
 
 __all__ = ["Identity", "StubModule"]
 

@@ -5,7 +5,7 @@ from typing import overload
 import torch
 from torch import nn
 
-from cusrl.module.module import Module, ModuleFactory
+from cusrl.nn.module.module import Module, ModuleFactory
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 

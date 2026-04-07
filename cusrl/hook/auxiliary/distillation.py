@@ -3,7 +3,7 @@ from typing import cast
 import torch
 from torch import Tensor, nn
 
-from cusrl.module.distribution import MeanStdDict
+from cusrl.nn.module.distribution import MeanStdDict
 from cusrl.template import ActorCritic, Hook
 
 __all__ = ["PolicyDistillation", "PolicyDistillationLoss"]

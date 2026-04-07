@@ -3,44 +3,14 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
-try:
-    import flash_attn
-except ImportError:
-    flash_attn = None
-
-from cusrl.module.encoding import RotaryEmbedding
+from cusrl.nn.layer.encoding import RotaryEmbedding
 
 __all__ = [
-    "FlashAttention",
     "MultiheadAttention",
     "MultiheadCrossAttention",
     "MultiheadSelfAttention",
+    "make_norm",
 ]
-
-
-def make_norm(norm: Literal["rms", "layer"] | None, head_dim: int) -> nn.Module:
-    if norm is None:
-        return nn.Identity()
-    if norm == "rms":
-        return nn.RMSNorm(head_dim, eps=1e-6)
-    if norm == "layer":
-        return nn.LayerNorm(head_dim, eps=1e-6)
-    raise ValueError(f"Unsupported normalization type: {norm!r}")
-
-
-class FlashAttention(nn.Module):
-    SUPPORTED_DTYPES = {torch.float16, torch.bfloat16}
-
-    @classmethod
-    def is_available(cls, dtype: torch.dtype | None = None) -> bool:
-        return flash_attn is not None and torch.cuda.is_available() and (dtype is None or dtype in cls.SUPPORTED_DTYPES)
-
-    def __init__(self):
-        if flash_attn is None:
-            raise ImportError("FlashAttention is not installed; see https://github.com/Dao-AILab/flash-attention")
-        if not torch.cuda.is_available():
-            raise RuntimeError("FlashAttention requires a CUDA-capable device")
-        super().__init__()
 
 
 class MultiheadAttention(nn.Module):
@@ -409,3 +379,13 @@ class MultiheadSelfAttention(nn.Module):
         if not self.batch_first:
             attn_out = attn_out.transpose(0, 1)
         return attn_out
+
+
+def make_norm(norm: Literal["rms", "layer"] | None, head_dim: int) -> nn.Module:
+    if norm is None:
+        return nn.Identity()
+    if norm == "rms":
+        return nn.RMSNorm(head_dim, eps=1e-6)
+    if norm == "layer":
+        return nn.LayerNorm(head_dim, eps=1e-6)
+    raise ValueError(f"Unsupported normalization type: {norm!r}")

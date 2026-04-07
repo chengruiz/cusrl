@@ -4,14 +4,14 @@ import pytest
 import torch
 
 import cusrl
-from cusrl.module import (
+from cusrl.nn import (
     MultiheadAttention,
     MultiheadCrossAttention,
     MultiheadSelfAttention,
+    RotaryEmbedding,
     TransformerDecoderLayer,
 )
-from cusrl.module.encoding import RotaryEmbedding
-from cusrl.module.mha import FlashAttention
+from cusrl.nn.layer.flash_attention import FlashAttention
 
 
 def _autocast_if_cuda(device: torch.device):

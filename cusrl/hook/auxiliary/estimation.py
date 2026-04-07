@@ -3,7 +3,7 @@ from typing import cast
 import torch
 from torch import Tensor, nn
 
-from cusrl.module import Module, ModuleFactoryLike
+from cusrl.nn import Module, ModuleFactoryLike
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.typing import Memory, Slice
 

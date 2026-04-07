@@ -2,7 +2,6 @@ from .activation import (
     GeGlu,
     SwiGlu,
 )
-from .actor import Actor
 from .bijector import (
     ExponentialBijector,
     IdentityBijector,
@@ -10,23 +9,7 @@ from .bijector import (
     SoftplusBijector,
     make_bijector,
 )
-from .causal_attn import (
-    CausalMultiheadSelfAttention,
-    CausalTransformerEncoderLayer,
-)
-from .cnn import (
-    Cnn,
-    SeparableConv2d,
-)
-from .critic import Value
 from .detach_grad import DetachGradient
-from .distribution import (
-    AdaptiveNormalDist,
-    Distribution,
-    DistributionFactoryLike,
-    NormalDist,
-    OneHotCategoricalDist,
-)
 from .encoding import (
     LearnablePositionalEncoding2D,
     RotaryEmbedding,
@@ -44,7 +27,6 @@ from .gate import (
     SigmoidTanhGate,
     get_gate_cls,
 )
-from .inference import InferenceWrapper
 from .loss import (
     GradientPenaltyLoss,
     L2RegularizationLoss,
@@ -55,33 +37,12 @@ from .mha import (
     MultiheadCrossAttention,
     MultiheadSelfAttention,
 )
-from .mlp import Mlp
-from .module import (
-    LayerFactoryLike,
-    Module,
-    ModuleFactory,
-    ModuleFactoryLike,
-)
-from .normalization import (
-    Denormalization,
-    Normalization,
-)
 from .normalizer import (
     ExponentialMovingNormalizer,
     RunningMeanStd,
 )
 from .parameter import ParameterWrapper
-from .rnn import (
-    Gru,
-    Lstm,
-    Rnn,
-)
-from .sequential import Sequential
-from .simba import Simba
-from .stub import (
-    Identity,
-    StubModule,
-)
+from .separable_conv import SeparableConv2d
 from .transformer import (
     FeedForward,
     TransformerDecoderLayer,
@@ -89,11 +50,6 @@ from .transformer import (
 )
 
 __all__ = [
-    # Simple modules
-    "CausalMultiheadSelfAttention",
-    "CausalTransformerEncoderLayer",
-    "Cnn",
-    "Denormalization",
     "DetachGradient",
     "ExponentialBijector",
     "ExponentialMovingNormalizer",
@@ -102,52 +58,30 @@ __all__ = [
     "Gate",
     "GeGlu",
     "GradientPenaltyLoss",
-    "Gru",
     "GruGate",
     "HighwayGate",
-    "Identity",
     "IdentityBijector",
-    "InferenceWrapper",
     "InputGate",
     "L2RegularizationLoss",
-    "LayerFactoryLike",
     "LearnablePositionalEncoding2D",
-    "Lstm",
-    "Mlp",
-    "Module",
-    "ModuleFactory",
-    "ModuleFactoryLike",
     "MultiheadAttention",
     "MultiheadCrossAttention",
     "MultiheadSelfAttention",
     "NormalNllLoss",
-    "Normalization",
     "OutputGate",
     "ParameterWrapper",
     "PassthroughGate",
     "ResidualGate",
-    "Rnn",
     "RotaryEmbedding",
     "RunningMeanStd",
     "SeparableConv2d",
-    "Sequential",
     "SigmoidBijector",
     "SigmoidTanhGate",
-    "Simba",
     "SinusoidalPositionalEncoding2D",
     "SoftplusBijector",
-    "StubModule",
     "SwiGlu",
     "TransformerDecoderLayer",
     "TransformerEncoderLayer",
     "get_gate_cls",
     "make_bijector",
-    # RL modules
-    "Actor",
-    "AdaptiveNormalDist",
-    "Distribution",
-    "DistributionFactoryLike",
-    "NormalDist",
-    "OneHotCategoricalDist",
-    "Value",
 ]

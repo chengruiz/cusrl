@@ -1,6 +1,6 @@
-from cusrl import environment, hook, logger, module, preset, sampler, template, testing, utils, zoo
+from cusrl import environment, hook, logger, nn, preset, sampler, template, testing, utils, zoo
 from cusrl.environment import make_gym_env, make_gym_vec, make_isaaclab_env, make_mjlab_env
-from cusrl.module import (
+from cusrl.nn import (
     Actor,
     AdaptiveNormalDist,
     CausalMultiheadSelfAttention,
@@ -58,8 +58,6 @@ from cusrl.utils import (
     device,
     set_global_seed,
 )
-
-nn = module
 
 __all__ = [
     "hook",

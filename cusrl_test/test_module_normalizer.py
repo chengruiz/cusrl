@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from cusrl.module.normalizer import (
+from cusrl.nn.layer.normalizer import (
     RunningMeanStd,
     mean_var_count,
     merge_mean_var_,

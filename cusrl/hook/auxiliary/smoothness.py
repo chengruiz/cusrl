@@ -4,9 +4,9 @@ from typing import cast
 import torch
 from torch import nn
 
-from cusrl.module.distribution import MeanStdDict
+from cusrl.nn.module.distribution import MeanStdDict
+from cusrl.nn.utils.recurrent import split_and_pad_sequences
 from cusrl.template import Hook
-from cusrl.utils.recurrent import split_and_pad_sequences
 
 __all__ = ["ActionSmoothnessLoss"]
 

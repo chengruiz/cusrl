@@ -1,5 +1,5 @@
 import cusrl
-from cusrl.module import ExponentialBijector, IdentityBijector, SigmoidBijector, SoftplusBijector, make_bijector
+from cusrl.nn.layer import ExponentialBijector, IdentityBijector, SigmoidBijector, SoftplusBijector, make_bijector
 
 
 def test_make_bijector_supports_bare_specs():

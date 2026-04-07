@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from cusrl.module.module import Module, ModuleFactory, resolve_activation_fn
+from cusrl.nn.module.module import Module, ModuleFactory, resolve_activation_fn
 
 __all__ = ["Mlp"]
 

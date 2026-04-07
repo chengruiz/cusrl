@@ -5,10 +5,9 @@ from typing import TypeAlias, cast
 import torch
 from torch import Tensor, nn
 
-from cusrl.module import Actor, AdaptiveNormalDist, NormalDist
-from cusrl.module.actor import ActorFactory
-from cusrl.module.distribution import MeanStdDict
-from cusrl.module.rnn import concat_memory
+from cusrl.nn.module import Actor, ActorFactory, AdaptiveNormalDist, NormalDist
+from cusrl.nn.module.distribution import MeanStdDict
+from cusrl.nn.utils.recurrent import concat_memory
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.nest import map_nested

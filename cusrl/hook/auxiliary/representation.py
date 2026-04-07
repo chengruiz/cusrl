@@ -3,7 +3,7 @@ from typing import cast
 import torch
 from torch import nn
 
-from cusrl.module import FlowGraph, LayerFactoryLike
+from cusrl.nn import FlowGraph, LayerFactoryLike
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.typing import Slice
 

@@ -6,7 +6,7 @@ from torch import nn
 from typing_extensions import Self
 
 import cusrl
-from cusrl.module import FlowGraph
+from cusrl.nn import FlowGraph
 from cusrl.template.agent import AgentType
 from cusrl.template.buffer import Buffer
 from cusrl.utils import distributed

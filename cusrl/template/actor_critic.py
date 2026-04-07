@@ -7,9 +7,8 @@ from typing import Any, Literal
 import torch
 from typing_extensions import Self
 
-from cusrl.module import Actor, Denormalization, FlowGraph, Normalization, Value
-from cusrl.module.actor import ActorFactory
-from cusrl.module.critic import ValueFactory
+from cusrl.nn.layer import FlowGraph
+from cusrl.nn.module import Actor, ActorFactory, Denormalization, Normalization, Value, ValueFactory
 from cusrl.template.agent import Agent, AgentFactory
 from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec

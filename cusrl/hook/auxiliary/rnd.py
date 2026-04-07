@@ -4,7 +4,7 @@ from typing import cast
 import torch
 from torch import nn
 
-from cusrl.module import Module, ModuleFactoryLike
+from cusrl.nn import Module, ModuleFactoryLike
 from cusrl.template import Buffer, Hook
 from cusrl.utils.dict_utils import get_first
 from cusrl.utils.typing import Slice

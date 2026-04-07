@@ -135,7 +135,7 @@ class Module(nn.Module):
         self.intermediate_repr.clear()
 
     def inference(self, memory: Memory = None):
-        from cusrl.module.inference import InferenceWrapper
+        from cusrl.nn.module.inference import InferenceWrapper
 
         return InferenceWrapper(self, memory=memory)
 

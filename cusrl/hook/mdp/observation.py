@@ -6,8 +6,8 @@ from torch import Tensor
 from typing_extensions import Self
 
 from cusrl.hook.auxiliary.symmetry import SymmetryDefLike
-from cusrl.module import FlowGraph, RunningMeanStd
-from cusrl.module.normalizer import mean_var_count
+from cusrl.nn import FlowGraph, RunningMeanStd
+from cusrl.nn.layer.normalizer import mean_var_count
 from cusrl.template import ActorCritic, Hook
 from cusrl.utils.typing import Slice
 

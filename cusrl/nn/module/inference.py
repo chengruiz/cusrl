@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from cusrl.module.module import Module
+from cusrl.nn.module.module import Module
 from cusrl.utils.typing import ArrayType, Memory, Slice
 
 __all__ = ["InferenceWrapper"]

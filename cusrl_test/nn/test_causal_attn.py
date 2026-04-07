@@ -2,9 +2,8 @@ import pytest
 import torch
 
 import cusrl
-from cusrl.module import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer
-from cusrl.module.encoding import RotaryEmbedding
-from cusrl.module.mha import FlashAttention
+from cusrl.nn import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer, RotaryEmbedding
+from cusrl.nn.layer.flash_attention import FlashAttention
 from cusrl.utils.nest import map_nested
 from cusrl_test import test_module_consistency
 

@@ -1,3 +1,5 @@
+from typing import cast
+
 import torch
 from torch import Tensor
 
@@ -10,11 +12,25 @@ __all__ = [
     "compute_sequence_indices",
     "compute_sequence_lengths",
     "compute_reverse_cumulative_timesteps",
+    "concat_memory",
     "cumulate_sequence_lengths",
+    "gather_memory",
+    "scatter_memory",
     "select_initial_memory",
     "split_and_pad_sequences",
     "unpad_and_merge_sequences",
 ]
+
+
+def compute_cumulative_sequence_lengths(done: Tensor) -> Tensor:
+    """Computes cumulative sequence lengths based on a ``done`` tensor."""
+    return cumulate_sequence_lengths(compute_sequence_lengths(done))
+
+
+def compute_cumulative_timesteps(done: Tensor) -> Tensor:
+    valid, mask = split_and_pad_sequences(torch.ones_like(done), done)
+    cumulative_timesteps = valid.cumsum(dim=0) - 1
+    return unpad_and_merge_sequences(cumulative_timesteps, mask)
 
 
 def compute_sequence_indices(done: Tensor) -> Tensor:
@@ -76,6 +92,28 @@ def compute_sequence_lengths(done: Tensor) -> Tensor:
     return sequence_lens
 
 
+def compute_reverse_cumulative_timesteps(done: Tensor) -> Tensor:
+    valid, mask = split_and_pad_sequences(torch.ones_like(done), done)
+    cumulative_timesteps = valid.cumsum(dim=0)
+    reverse_cumulative_timesteps = cumulative_timesteps[-1] - cumulative_timesteps
+    return unpad_and_merge_sequences(reverse_cumulative_timesteps, mask)
+
+
+def concat_memory(memory1: Memory, memory2: Memory, dim=0) -> Memory:
+    """Concatenates two memory tensors along the batch dimension."""
+    if type(memory1) is not type(memory2):
+        raise TypeError("Memory values must have the same type to be concatenated")
+    if memory1 is None:
+        return None
+    if isinstance(memory1, dict):
+        memory2 = cast(dict[str, Memory], memory2)
+        return {key: concat_memory(value, memory2[key], dim=dim) for key, value in memory1.items()}
+    if not isinstance(memory1, Tensor):
+        raise TypeError(f"Unsupported memory type: {type(memory1).__name__}")
+    memory2 = cast(Tensor, memory2)
+    return torch.cat((memory1, memory2), dim=dim)
+
+
 def cumulate_sequence_lengths(sequence_lens: Tensor) -> Tensor:
     """Computes cumulative sequence lengths based on sequence lengths."""
     cumulative_sequence_lens = sequence_lens.new_zeros(sequence_lens.size(0) + 1)
@@ -83,9 +121,82 @@ def cumulate_sequence_lengths(sequence_lens: Tensor) -> Tensor:
     return cumulative_sequence_lens
 
 
-def compute_cumulative_sequence_lengths(done: Tensor) -> Tensor:
-    """Computes cumulative sequence lengths based on a ``done`` tensor."""
-    return cumulate_sequence_lengths(compute_sequence_lengths(done))
+def gather_memory(memory: Memory, done: Tensor) -> Memory:
+    """Does the inverse operation of ``scatter_memory``.
+
+    This function restores memory tensors from a batch of episode-aligned
+    sequences back to the original parallel-environment layout. It selects the
+    current memory state for each environment based on the cumulative sequence
+    boundaries encoded by ``done``. Environments marked as done at the last
+    timestep have their gathered memory cleared.
+
+    Args:
+        memory (Memory):
+            The scattered memory tensor(s) of shape :math:`(Ns, ...)`, where
+            :math:`Ns` is the number of contiguous sequences in the batch.
+        done (Tensor):
+            A boolean tensor of shape :math:`(L, N, 1)` indicating episode
+            terminations.
+
+    Returns:
+        memory (Memory):
+            The gathered memory tensor(s) of shape :math:`(N, ...)`, where
+            :math:`N` is the number of parallel environments.
+    """
+    if memory is None:
+        return None
+
+    def _gather_memory(mem: Tensor, done: Tensor) -> Tensor:
+        done = done.squeeze(-1)
+        seq_indices = done[:-1].sum(dim=0).cumsum(dim=0)
+        seq_indices += torch.arange(0, seq_indices.size(0), device=done.device)
+        result = mem[seq_indices].clone()
+        result[done[-1]] = 0.0  # Clear the last memory
+        return result
+
+    return map_nested(lambda mem: _gather_memory(mem, done), memory)
+
+
+def scatter_memory(memory: Memory, done: Tensor) -> Memory:
+    """Restructures memory tensors from a batch of sequences into a batch of
+    episodes.
+
+    This function takes RNN hidden states (``memory``) collected from a batch of
+    parallel environments and a `done` tensor that marks episode boundaries. It
+    reorganizes the memory so that each element in the new batch dimension
+    corresponds to a single, complete or partial episode.
+
+    Args:
+        memory (Memory):
+            The memory tensor(s) to be scattered of shape :math:`(N, ...)`,
+            where :math:`N` is the batch size.
+        done (Tensor):
+            A boolean tensor of shape :math:`(L, N, 1)` indicating episode
+            terminations.
+
+    Returns:
+        memory (Memory):
+            The scattered memory tensor(s) of shape :math:`(Ns, ...)`, where
+            :math:`Ns` is the number of contiguous sequences in the batch.
+    """
+    if memory is None:
+        return None
+
+    def _scatter_memory(mem: Tensor, done: Tensor) -> Tensor:
+        done = done.squeeze(-1)
+        seq_indices = done[:-1].sum(dim=0).cumsum(dim=0)
+        seq_indices += torch.arange(1, seq_indices.size(0) + 1, device=done.device)
+        num_seq: int = seq_indices[-1].item()
+        seq_indices[-1] = 0
+        seq_indices = seq_indices.roll(1)
+
+        result_shape = list(mem.shape)
+        result_shape[0] = num_seq
+        result = mem.new_zeros(*result_shape)
+        result[seq_indices] = mem
+        return result
+
+    return map_nested(lambda mem: _scatter_memory(mem, done), memory)
 
 
 def select_initial_memory(memory: Memory, expected_shape: torch.Size | tuple[int, ...]) -> Memory:
@@ -159,16 +270,3 @@ def unpad_and_merge_sequences(
         .transpose(0, 1)                            # (L, N, ...)
     )
     # fmt: on
-
-
-def compute_cumulative_timesteps(done: Tensor) -> Tensor:
-    valid, mask = split_and_pad_sequences(torch.ones_like(done), done)
-    cumulative_timesteps = valid.cumsum(dim=0) - 1
-    return unpad_and_merge_sequences(cumulative_timesteps, mask)
-
-
-def compute_reverse_cumulative_timesteps(done: Tensor) -> Tensor:
-    valid, mask = split_and_pad_sequences(torch.ones_like(done), done)
-    cumulative_timesteps = valid.cumsum(dim=0)
-    reverse_cumulative_timesteps = cumulative_timesteps[-1] - cumulative_timesteps
-    return unpad_and_merge_sequences(reverse_cumulative_timesteps, mask)

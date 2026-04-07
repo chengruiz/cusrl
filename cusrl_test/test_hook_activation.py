@@ -17,7 +17,7 @@ def test_objective_activation():
     environment = create_dummy_env(with_state=True)
     agent_factory = cusrl.preset.ppo.AgentFactory().to_underlying()
     agent_factory.register_hook(
-        cusrl.hook.ConditionalObjectiveActivation(dummy_hook=cusrl.hook.condition.EpochIndexCondition(1)),
+        cusrl.hook.ConditionalObjectiveActivation(dummy_hook=cusrl.hook.control.EpochIndexCondition(1)),
     )
     agent_factory.register_hook(DummyHook(1))
     cusrl.Trainer(environment, agent_factory, num_iterations=1).run_training_loop()

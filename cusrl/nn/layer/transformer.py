@@ -3,8 +3,8 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
-from cusrl.module.gate import get_gate_cls
-from cusrl.module.mha import MultiheadCrossAttention, MultiheadSelfAttention, make_norm
+from cusrl.nn.layer.gate import get_gate_cls
+from cusrl.nn.layer.mha import MultiheadCrossAttention, MultiheadSelfAttention, make_norm
 
 __all__ = ["FeedForward", "TransformerDecoderLayer", "TransformerEncoderLayer"]
 

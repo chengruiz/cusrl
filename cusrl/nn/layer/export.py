@@ -6,7 +6,7 @@ import torch
 import yaml
 from torch import nn
 
-from cusrl.module.module import Module
+from cusrl.nn.module.module import Module
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.misc import wrap_method_with_signature
 from cusrl.utils.nest import flatten_nested, get_schema, iterate_nested, reconstruct_nested

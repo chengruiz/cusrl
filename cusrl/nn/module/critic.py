@@ -4,11 +4,11 @@ from typing import Any
 import torch
 from torch import nn
 
-from cusrl.module.module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
+from cusrl.nn.module.module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
-__all__ = ["Value"]
+__all__ = ["Value", "ValueFactory"]
 
 
 @dataclass(slots=True)
