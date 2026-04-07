@@ -216,6 +216,9 @@ class ActorCritic(Agent):
         self.actor = self.setup_module(self.actor)
         self.critic = self.setup_module(self.critic)
         if self.compile:
+            self.actor.compile(**self._get_compile_kwargs())
+            self.critic.compile(**self._get_compile_kwargs())
+            self.hook.compile(**self._get_compile_kwargs())
             self.hook.objective = torch.compile(self.hook.objective, **self._get_compile_kwargs())
         self.optimizer = self.optimizer_factory(
             itertools.chain(
