@@ -1,5 +1,5 @@
 from cusrl.environment import make_isaaclab_env
-from cusrl.preset import amp
+from cusrl.preset import AmpAgentFactory
 from cusrl.zoo.registry import register_experiment
 
 __all__ = []
@@ -12,7 +12,7 @@ register_experiment(
         "Isaac-Humanoid-AMP-Walk-Direct-v0",
     ],
     algorithm_name="amp",
-    agent_meta_factory=amp.AgentFactory,
+    agent_meta_factory=AmpAgentFactory,
     agent_meta_factory_kwargs=dict(
         num_steps_per_update=16,
         actor_hidden_dims=(512, 256),

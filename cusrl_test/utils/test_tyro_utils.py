@@ -10,32 +10,32 @@ from cusrl.utils.tyro_utils import cli
 
 
 def test_tyro_cli_parses_autocast_dtype():
-    config = cusrl.preset.ppo.AgentFactory().to_underlying()
+    config = cusrl.preset.PpoAgentFactory().to_underlying()
     parsed = cli(type(config), default=config, args=["--autocast", "bfloat16"])
     assert parsed.autocast is torch.bfloat16
 
 
 def test_tyro_cli_parses_prefixed_autocast_dtype():
-    config = cusrl.preset.ppo.AgentFactory().to_underlying()
+    config = cusrl.preset.PpoAgentFactory().to_underlying()
     parsed = cli(type(config), default=config, args=["--autocast", "torch.float16"])
     assert parsed.autocast is torch.float16
 
 
 def test_tyro_cli_preserves_autocast_bool():
-    config = cusrl.preset.ppo.AgentFactory().to_underlying()
+    config = cusrl.preset.PpoAgentFactory().to_underlying()
     parsed = cli(type(config), default=config, args=["--autocast", "True"])
     assert parsed.autocast is True
 
 
 def test_tyro_cli_parses_nested_dataclass_factory_field():
-    config = cusrl.preset.ppo.AgentFactory().to_underlying()
+    config = cusrl.preset.PpoAgentFactory().to_underlying()
     parsed = cli(type(config), default=config, args=["--actor-factory.backbone-factory.dropout", "0.25"])
     assert isinstance(parsed.actor_factory, cusrl.nn.ActorFactory)
     assert parsed.actor_factory.backbone_factory.dropout == pytest.approx(0.25)
 
 
 def test_tyro_cli_parses_named_hook_fields():
-    config = cusrl.preset.ppo.AgentFactory().to_underlying()
+    config = cusrl.preset.PpoAgentFactory().to_underlying()
     parsed = cli(
         type(config),
         default=config,
@@ -52,7 +52,7 @@ def test_tyro_cli_parses_named_hook_fields():
 
 
 def test_tyro_cli_help_lists_named_hook_fields(capsys):
-    config = cusrl.preset.ppo.AgentFactory().to_underlying()
+    config = cusrl.preset.PpoAgentFactory().to_underlying()
     with pytest.raises(SystemExit):
         cli(type(config), default=config, args=["--help"])
     captured = capsys.readouterr()
@@ -85,7 +85,7 @@ def test_tyro_cli_rejects_invalid_torch_module_type():
 
 
 def test_strict_typed_dataclass_preserves_original_methods():
-    config = cusrl.preset.ppo.AgentFactory().to_underlying()
+    config = cusrl.preset.PpoAgentFactory().to_underlying()
     strict = to_strict_typed_dataclass(config)
     assert isinstance(strict, type(config))
     assert isinstance(strict.actor_factory, type(config.actor_factory))

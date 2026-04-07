@@ -7,8 +7,8 @@ from cusrl_test import create_dummy_env
 @pytest.mark.parametrize(
     "agent_factory",
     [
-        cusrl.preset.ppo.AgentFactory().to_underlying(),
-        cusrl.preset.ppo.RecurrentAgentFactory().to_underlying(),
+        cusrl.preset.PpoAgentFactory().to_underlying(),
+        cusrl.preset.RecurrentPpoAgentFactory().to_underlying(),
     ],
 )
 @pytest.mark.parametrize(

@@ -81,9 +81,9 @@ def test_module_consistency(backbone_factory=None, is_recurrent=False, atol=1e-4
                 assert max_error < atol, f"Max error {max_error} exceeds tolerance {atol}"
 
     if is_recurrent:
-        agent_factory = cusrl.preset.ppo.RecurrentAgentFactory(sampler_mini_batches=1, sampler_epochs=1).to_underlying()
+        agent_factory = cusrl.preset.RecurrentPpoAgentFactory(sampler_mini_batches=1, sampler_epochs=1).to_underlying()
     else:
-        agent_factory = cusrl.preset.ppo.AgentFactory(sampler_mini_batches=1, sampler_epochs=1).to_underlying()
+        agent_factory = cusrl.preset.PpoAgentFactory(sampler_mini_batches=1, sampler_epochs=1).to_underlying()
     if backbone_factory is not None:
         agent_factory.actor_factory = cusrl.Actor.Factory(
             backbone_factory=backbone_factory,

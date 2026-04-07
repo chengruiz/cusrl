@@ -6,16 +6,16 @@ import torch
 import cusrl
 from cusrl.preset.optimizer import AdamFactory
 from cusrl.template.actor_critic import ActorCritic, ActorCriticFactory
-from cusrl.template.agent import AgentFactory as AgentFactoryBase
+from cusrl.template.agent import AgentFactory
 from cusrl.template.environment import EnvironmentSpec
 
 __all__ = [
-    "AgentFactory",
-    "hook_suite",
+    "DistillationAgentFactory",
+    "distillation_hook_suite",
 ]
 
 
-def hook_suite(
+def distillation_hook_suite(
     init_distribution_std: float | None = None,
     expert_path: str = "",
     expert_observation_name: str = "observation",
@@ -37,7 +37,7 @@ def hook_suite(
 
 
 @dataclass(kw_only=True)
-class AgentFactory(AgentFactoryBase["ActorCritic"]):
+class DistillationAgentFactory(AgentFactory["ActorCritic"]):
     num_steps_per_update: int = 24
     """Number of steps to collect before each update."""
     actor_hidden_dims: Sequence[int] = (256, 128)
@@ -82,7 +82,7 @@ class AgentFactory(AgentFactoryBase["ActorCritic"]):
                 num_epochs=self.sampler_epochs,
                 num_mini_batches=self.sampler_mini_batches,
             ),
-            hooks=hook_suite(
+            hooks=distillation_hook_suite(
                 init_distribution_std=self.init_distribution_std,
                 expert_path=self.expert_path,
                 expert_observation_name=self.expert_observation_name,

@@ -112,7 +112,7 @@ def test_experiment_spec_uses_single_underscore_name_separator():
     spec = cusrl.zoo.ExperimentSpec(
         environment_name="MountainCar-v0",
         algorithm_name="ppo",
-        agent_meta_factory=cusrl.preset.ppo.AgentFactory,
+        agent_meta_factory=cusrl.preset.PpoAgentFactory,
         training_env_factory=lambda *args, **kwargs: None,
     )
 

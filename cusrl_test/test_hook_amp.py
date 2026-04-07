@@ -7,7 +7,7 @@ from cusrl_test import create_dummy_env
 
 
 def test_amp():
-    agent_factory = cusrl.preset.amp.AgentFactory(
+    agent_factory = cusrl.preset.AmpAgentFactory(
         amp_dataset_source=partial(torch.randn, 100, 16),
         amp_state_indices=slice(16, 24),
     )

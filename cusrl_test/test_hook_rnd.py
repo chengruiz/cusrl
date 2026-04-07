@@ -8,7 +8,7 @@ from cusrl_test import create_dummy_env
 
 @pytest.mark.parametrize("with_state", [False, True])
 def test_rnd(with_state):
-    agent_factory = cusrl.preset.ppo.AgentFactory().to_underlying()
+    agent_factory = cusrl.preset.PpoAgentFactory().to_underlying()
     agent_factory.register_hook(
         cusrl.hook.RandomNetworkDistillation(
             module_factory=cusrl.Mlp.Factory([128, 128]),

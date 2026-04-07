@@ -3,7 +3,7 @@ from functools import partial
 import pytest
 
 import cusrl
-from cusrl.preset import ppo
+from cusrl.preset import PpoAgentFactory, RecurrentPpoAgentFactory
 from cusrl_test import create_dummy_env
 
 
@@ -12,12 +12,12 @@ from cusrl_test import create_dummy_env
     "agent_meta_factory",
     [
         partial(
-            ppo.AgentFactory,
+            PpoAgentFactory,
             actor_hidden_dims=(32, 16),
             critic_hidden_dims=(32, 16),
         ),
         partial(
-            ppo.RecurrentAgentFactory,
+            RecurrentPpoAgentFactory,
             actor_num_layers=1,
             actor_hidden_size=32,
             critic_num_layers=1,

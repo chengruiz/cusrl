@@ -1,10 +1,15 @@
-from . import amp, distillation, ppo
+from .amp import AmpAgentFactory
+from .distillation import DistillationAgentFactory, distillation_hook_suite
 from .optimizer import AdamFactory, AdamWFactory
+from .ppo import PpoAgentFactory, RecurrentPpoAgentFactory, ppo_hook_suite
 
 __all__ = [
-    "amp",
-    "distillation",
-    "ppo",
     "AdamFactory",
     "AdamWFactory",
+    "AmpAgentFactory",
+    "DistillationAgentFactory",
+    "PpoAgentFactory",
+    "RecurrentPpoAgentFactory",
+    "distillation_hook_suite",
+    "ppo_hook_suite",
 ]

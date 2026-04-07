@@ -1,5 +1,5 @@
 from cusrl.environment import make_gym_env, make_gym_vec
-from cusrl.preset import ppo
+from cusrl.preset import PpoAgentFactory
 from cusrl.zoo.registry import register_experiment
 
 __all__ = []
@@ -7,7 +7,7 @@ __all__ = []
 register_experiment(
     environment_name="Acrobot-v1",
     algorithm_name="ppo",
-    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory=PpoAgentFactory,
     agent_meta_factory_kwargs=dict(
         num_steps_per_update=16,
         actor_hidden_dims=(64, 64),
@@ -35,7 +35,7 @@ register_experiment(
 register_experiment(
     environment_name="CartPole-v1",
     algorithm_name="ppo",
-    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory=PpoAgentFactory,
     agent_meta_factory_kwargs=dict(
         num_steps_per_update=32,
         actor_hidden_dims=(64, 64),
@@ -61,7 +61,7 @@ register_experiment(
 register_experiment(
     environment_name="MountainCar-v0",
     algorithm_name="ppo",
-    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory=PpoAgentFactory,
     agent_meta_factory_kwargs=dict(
         num_steps_per_update=16,
         actor_hidden_dims=(64, 64),
@@ -89,7 +89,7 @@ register_experiment(
 register_experiment(
     environment_name="MountainCarContinuous-v0",
     algorithm_name="ppo",
-    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory=PpoAgentFactory,
     agent_meta_factory_kwargs=dict(
         num_steps_per_update=8,
         actor_hidden_dims=(64, 64),
@@ -119,7 +119,7 @@ register_experiment(
 register_experiment(
     environment_name="Pendulum-v1",
     algorithm_name="ppo",
-    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory=PpoAgentFactory,
     agent_meta_factory_kwargs=dict(
         actor_hidden_dims=(64, 64),
         critic_hidden_dims=(64, 64),

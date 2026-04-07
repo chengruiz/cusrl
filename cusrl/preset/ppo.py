@@ -6,17 +6,17 @@ import torch
 import cusrl
 from cusrl.preset.optimizer import AdamFactory
 from cusrl.template.actor_critic import ActorCritic, ActorCriticFactory
-from cusrl.template.agent import AgentFactory as AgentFactoryBase
+from cusrl.template.agent import AgentFactory
 from cusrl.template.environment import EnvironmentSpec
 
 __all__ = [
-    "AgentFactory",
-    "RecurrentAgentFactory",
-    "hook_suite",
+    "PpoAgentFactory",
+    "RecurrentPpoAgentFactory",
+    "ppo_hook_suite",
 ]
 
 
-def hook_suite(
+def ppo_hook_suite(
     orthogonal_init: bool = True,
     init_distribution_std: float | None = None,
     normalize_observation: bool = False,
@@ -69,7 +69,7 @@ def get_distribution_factory(action_space_type: str):
 
 
 @dataclass(kw_only=True)
-class AgentFactory(AgentFactoryBase[ActorCritic]):
+class PpoAgentFactory(AgentFactory[ActorCritic]):
     num_steps_per_update: int = 24
     """Number of environment steps to collect before performing an update."""
     actor_hidden_dims: Sequence[int] = (256, 128)
@@ -143,7 +143,7 @@ class AgentFactory(AgentFactoryBase[ActorCritic]):
                 num_epochs=self.sampler_epochs,
                 num_mini_batches=self.sampler_mini_batches,
             ),
-            hooks=hook_suite(
+            hooks=ppo_hook_suite(
                 orthogonal_init=self.orthogonal_init,
                 init_distribution_std=self.init_distribution_std,
                 normalize_observation=self.normalize_observation,
@@ -171,7 +171,7 @@ class AgentFactory(AgentFactoryBase[ActorCritic]):
 
 
 @dataclass(kw_only=True)
-class RecurrentAgentFactory(AgentFactoryBase[ActorCritic]):
+class RecurrentPpoAgentFactory(AgentFactory[ActorCritic]):
     num_steps_per_update: int = 24
     """Number of environment steps to collect before performing an update."""
     rnn_type: str = "LSTM"
@@ -250,7 +250,7 @@ class RecurrentAgentFactory(AgentFactoryBase[ActorCritic]):
                 num_epochs=self.sampler_epochs,
                 num_mini_batches=self.sampler_mini_batches,
             ),
-            hooks=hook_suite(
+            hooks=ppo_hook_suite(
                 orthogonal_init=self.orthogonal_init,
                 init_distribution_std=self.init_distribution_std,
                 normalize_observation=self.normalize_observation,

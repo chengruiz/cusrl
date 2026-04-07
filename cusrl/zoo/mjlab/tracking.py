@@ -1,6 +1,6 @@
 from cusrl.environment import make_mjlab_env
 from cusrl.environment.mjlab import MjlabPlayer, make_mjlab_env_config
-from cusrl.preset import ppo
+from cusrl.preset import PpoAgentFactory
 from cusrl.zoo.registry import register_experiment
 
 register_experiment(
@@ -9,7 +9,7 @@ register_experiment(
         "Mjlab-Tracking-Flat-Unitree-G1-No-State-Estimation",
     ],
     algorithm_name="ppo",
-    agent_meta_factory=ppo.AgentFactory,
+    agent_meta_factory=PpoAgentFactory,
     agent_meta_factory_kwargs=dict(
         num_steps_per_update=24,
         actor_hidden_dims=(512, 256, 128),

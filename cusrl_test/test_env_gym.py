@@ -9,7 +9,7 @@ import cusrl
 def test_gym_env():
     cusrl.Trainer(
         environment=partial(cusrl.make_gym_env, id="MountainCarContinuous-v0"),
-        agent_factory=cusrl.preset.ppo.AgentFactory(),
+        agent_factory=cusrl.preset.PpoAgentFactory(),
         num_iterations=5,
     ).run_training_loop()
 
@@ -23,6 +23,6 @@ def test_gym_vec_env(num_envs):
             num_envs=num_envs,
             vector_kwargs={"autoreset_mode": gym.vector.AutoresetMode.DISABLED},
         ),
-        agent_factory=cusrl.preset.ppo.AgentFactory(),
+        agent_factory=cusrl.preset.PpoAgentFactory(),
         num_iterations=10,
     ).run_training_loop()

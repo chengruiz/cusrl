@@ -3,7 +3,7 @@ import torch
 import cusrl
 from cusrl_test import create_dummy_env
 
-agent_factory = cusrl.preset.ppo.AgentFactory().to_underlying()
+agent_factory = cusrl.preset.PpoAgentFactory().to_underlying()
 
 agent_factory.register_hook(
     cusrl.hook.RandomNetworkDistillation(

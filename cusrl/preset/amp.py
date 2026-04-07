@@ -2,15 +2,15 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 import cusrl
-from cusrl.preset import ppo
+from cusrl.preset.ppo import PpoAgentFactory
 from cusrl.template.actor_critic import ActorCriticFactory
 from cusrl.utils.typing import Array, Slice
 
-__all__ = ["AgentFactory"]
+__all__ = ["AmpAgentFactory"]
 
 
 @dataclass(kw_only=True)
-class AgentFactory(ppo.AgentFactory):
+class AmpAgentFactory(PpoAgentFactory):
     extrinsic_reward_scale: float = 1.0
     """Scale of the extrinsic reward when combined with the intrinsic reward
     from Adversarial Motion Prior (AMP)."""
