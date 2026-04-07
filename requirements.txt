@@ -4,6 +4,6 @@ gymnasium>=1.1.0
 numpy>=1.26.0
 objprint~=0.3.0
 pyyaml~=6.0.2
-torch>=2.4.0
+torch>=2.5.0
 tqdm~=4.67.1
 tyro~=1.0.12

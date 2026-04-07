@@ -3,28 +3,23 @@ from typing import Literal
 
 import torch
 from torch import Tensor, nn
+from torch.nn.attention.flex_attention import flex_attention
 
-from cusrl.nn.layer.flash_attention import FlashAttention
+from cusrl.nn.layer.encoding import apply_rotary_emb
 from cusrl.nn.layer.gate import get_gate_cls
 from cusrl.nn.layer.transformer import FeedForward
 from cusrl.nn.module.module import Module, ModuleFactory
+from cusrl.nn.utils.attention import (
+    alibi_score_mod,
+    causal_sliding_window_block_mask,
+    compute_segment_ids,
+    get_alibi_slopes,
+)
 from cusrl.nn.utils.recurrent import (
     compute_reverse_cumulative_timesteps,
-    compute_sequence_indices,
-    compute_sequence_lengths,
-    cumulate_sequence_lengths,
     select_initial_memory,
 )
 from cusrl.utils.typing import Memory, Slice
-
-try:
-    from flash_attn import flash_attn_varlen_kvpacked_func
-    from flash_attn.layers.rotary import apply_rotary_emb, apply_rotary_emb_kv_
-    from flash_attn.modules.mha import get_alibi_slopes
-except ImportError:
-    flash_attn_varlen_kvpacked_func = None
-    apply_rotary_emb = apply_rotary_emb_kv_ = get_alibi_slopes = None
-
 
 __all__ = ["CausalMultiheadSelfAttention", "CausalTransformerEncoderLayer", "FeedForward"]
 
@@ -34,7 +29,6 @@ class CausalMultiheadSelfAttentionFactory(ModuleFactory["CausalMultiheadSelfAtte
     embed_dim: int
     num_heads: int
     window_size: int
-    dropout: float = 0.0
     dtype: torch.dtype = torch.float16
     alibi_slopes: Tensor | None = None
     rope_base: float | None = None
@@ -44,7 +38,6 @@ class CausalMultiheadSelfAttentionFactory(ModuleFactory["CausalMultiheadSelfAtte
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
             window_size=self.window_size,
-            dropout=self.dropout,
             dtype=self.dtype,
             alibi_slopes=self.alibi_slopes,
             rope_base=self.rope_base,
@@ -53,7 +46,7 @@ class CausalMultiheadSelfAttentionFactory(ModuleFactory["CausalMultiheadSelfAtte
         )
 
 
-class CausalMultiheadSelfAttention(Module, FlashAttention):
+class CausalMultiheadSelfAttention(Module):
     Factory = CausalMultiheadSelfAttentionFactory
 
     def __init__(
@@ -61,7 +54,6 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         embed_dim: int,
         num_heads: int,
         window_size: int,
-        dropout: float = 0.0,
         dtype: torch.dtype = torch.float16,
         alibi_slopes: Tensor | None = None,
         rope_base: float | None = None,
@@ -71,7 +63,6 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.window_size = window_size
-        self.dropout = dropout
         self.dtype = dtype
         self.alibi_slopes = torch.as_tensor(alibi_slopes) if alibi_slopes is not None else None
         self.rope_base = rope_base  # Rotary Positional Embedding
@@ -89,8 +80,6 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
             raise ValueError(f"'alibi_slopes' must contain {num_heads} elements")
         if self.window_size <= 0:
             raise ValueError("'window_size' must be a positive integer")
-        if self.dtype not in (torch.float16, torch.bfloat16):
-            raise ValueError("FlashAttention supports only 'torch.float16' and 'torch.bfloat16'")
         super().__init__(
             input_dim=input_dim or embed_dim,
             output_dim=output_dim or embed_dim,
@@ -101,7 +90,6 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         self.q_proj = nn.Linear(self.input_dim, embed_dim)
         self.kv_proj = nn.Linear(self.input_dim, embed_dim * 2)
         self.out_proj = nn.Linear(embed_dim, self.output_dim)
-        self._inference = 0
         self._rotary_cos = self._rotary_sin = None
 
     def forward(
@@ -121,14 +109,10 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
                 the sequence length, :math:`N` is the batch size, and :math:`C`
                 is the input dimension.
             memory (Memory):
-                A dict containing the input cache, KV cache, and cache mask.
+                A dict containing the input cache and cache mask.
                   - input_cache (Tensor):
                       Tensor of shape :math:`(N, ..., W * C)` storing past
                       inputs, where :math:`W` is the window size.
-                  - kv_cache (Tensor):
-                      Tensor of shape :math:`(N, ..., W * 2 * E)` storing past
-                      keys and values, where :math:`E` is the embedding
-                      dimension.
                   - cache_mask (Tensor):
                       Boolean tensor of shape :math:`(N, ..., W)` indicating
                       valid cache entries.
@@ -143,8 +127,8 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
             - **output** (Tensor):
                 The attention output tensor of the same shape as ``input``.
             - **memory** (Memory):
-                The updated memory dict with ``input_cache``, ``kv_cache``, and
-                ``cache_mask`` entries.
+                The updated memory dict with ``input_cache`` and ``cache_mask``
+                entries.
         """
         if seq_missing := (input.dim() == 2 or not sequential):
             input = input.unsqueeze(0)
@@ -162,78 +146,65 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         q = self.q_proj(input).view(batch_size, seq_len, self.num_heads, self.head_dim)
 
         if memory is None:
-            # Initialize KV and mask if no memory is provided
-            kv_cache = input.new_zeros(batch_size, self.window_size, 2 * self.embed_dim)
-            kv = torch.cat([kv_cache, self.kv_proj(input)], dim=1)
-            kv = kv.unflatten(-1, (2, self.num_heads, self.head_dim))
+            # Initialize input cache and mask if no memory is provided
+            input_cache = input.new_zeros(batch_size, self.window_size, self.input_dim)
             kv_mask = q.new_zeros(batch_size, full_seq_len, dtype=torch.bool)
-            full_input = input.new_zeros(batch_size, full_seq_len, self.input_dim)
             kv_mask[:, -seq_len:] = True
-            full_input[:, -seq_len:] = input
-            seq_lens_mask = input.new_zeros(batch_size, dtype=torch.int32)
         else:
-            # Concatenate past states and generate mask
             input_cache = memory["input_cache"].reshape(batch_size, self.window_size, self.input_dim)
-            kv_cache = memory["kv_cache"].reshape(batch_size, self.window_size, 2 * self.embed_dim)
             cache_mask = memory["cache_mask"].reshape(batch_size, self.window_size)
-            full_input = torch.cat([input_cache, input], dim=1)
-            self._inference = 0 if torch.is_grad_enabled() else self._inference + 1
-
-            # Discard KV cache for the first inference step
-            if self._inference <= 1:
-                # Stop gradients for KV cache
-                kv_cache = self.kv_proj(input_cache).detach()
-            kv = torch.cat([kv_cache, self.kv_proj(input)], dim=1)
-            kv = kv.unflatten(-1, (2, self.num_heads, self.head_dim))
             kv_mask = cache_mask.new_ones(batch_size, full_seq_len)
             kv_mask[:, : self.window_size] = cache_mask
-            seq_lens_mask = cache_mask.sum(dim=-1, dtype=torch.int32)
 
-        # Compute sequence lengths
-        if done is None:
-            seq_lens_q = seq_lens_mask.new_full((batch_size,), seq_len)
-            seq_lens_k = seq_lens_mask + seq_len
+        full_input = torch.cat([input_cache, input], dim=1)
+        kv = torch.cat([self.kv_proj(input_cache).detach(), self.kv_proj(input)], dim=1)
+        kv = kv.unflatten(-1, (2, self.num_heads, self.head_dim))
+
+        # Expand done for multi-dimensional batch
+        if done is not None and len(batch_dims) > 1:
+            done = done.repeat_interleave(batch_size // batch_dims[0], dim=1)
+
+        # Compute segment IDs for sub-sequence isolation
+        if done is not None:
+            q_segments, kv_segments = compute_segment_ids(done, self.window_size)
         else:
-            if len(batch_dims) > 1:
-                # Match the flattened batch order from input.flatten(1, -2).
-                done = done.repeat_interleave(batch_size // batch_dims[0], dim=1)
-            seq_lens_q = compute_sequence_lengths(done)
-            seq_indices = compute_sequence_indices(done)
-            seq_lens_k = seq_lens_q.clone()
-            seq_lens_k[seq_indices[:-1]] += seq_lens_mask
+            q_segments = kv_segments = None
 
-        # Compute attention
+        # Apply RoPE
         if self.alibi_slopes is not None:
             self.alibi_slopes = self.alibi_slopes.to(device=input.device)
-        original_kv = kv
         if self.rope_base is not None:
-            self._update_cos_sin_cache(seq_len + self.window_size, q.device)
-            original_kv = kv.clone()
-            assert apply_rotary_emb is not None and apply_rotary_emb_kv_ is not None
-            q = apply_rotary_emb(q, self._rotary_cos, self._rotary_sin, inplace=True, seqlen_offsets=self.window_size)
-            kv = apply_rotary_emb_kv_(kv, self._rotary_cos, self._rotary_sin)
+            self._update_cos_sin_cache(full_seq_len, q.device)
+            q = apply_rotary_emb(
+                q,
+                self._rotary_cos[self.window_size : self.window_size + seq_len],
+                self._rotary_sin[self.window_size : self.window_size + seq_len],
+            )
+            k_rotated = apply_rotary_emb(
+                kv[:, :, 0],
+                self._rotary_cos[:full_seq_len],
+                self._rotary_sin[:full_seq_len],
+            )
+            kv = torch.stack([k_rotated, kv[:, :, 1]], dim=2)
 
-        assert flash_attn_varlen_kvpacked_func is not None
-        attn_out = flash_attn_varlen_kvpacked_func(
-            q=q.flatten(0, 1).to(self.dtype),
-            kv=kv[kv_mask].to(self.dtype),
-            cu_seqlens_q=cumulate_sequence_lengths(seq_lens_q).to(torch.int32),
-            cu_seqlens_k=cumulate_sequence_lengths(seq_lens_k).to(torch.int32),
-            max_seqlen_q=seq_lens_q.max().item(),
-            max_seqlen_k=seq_lens_k.max().item(),
-            dropout_p=self.dropout if self.training else 0.0,
-            causal=True,
-            window_size=(self.window_size, 0),
-            alibi_slopes=self.alibi_slopes,
-        ).type_as(input)
+        # Separate K, V and transpose to (N, H, L, D)
+        k, v = kv[:, :, 0], kv[:, :, 1]
+        q_fa = q.transpose(1, 2).to(self.dtype)
+        k_fa = k.transpose(1, 2).to(self.dtype)
+        v_fa = v.transpose(1, 2).to(self.dtype)
+
+        # Build flex_attention block mask and optional ALiBi score modifier
+        block_mask = causal_sliding_window_block_mask(kv_mask, self.window_size, seq_len, q_segments, kv_segments)
+        score_mod = alibi_score_mod(self.alibi_slopes, self.window_size) if self.alibi_slopes is not None else None
+
+        attn_out = flex_attention(q_fa, k_fa, v_fa, score_mod=score_mod, block_mask=block_mask)
+        attn_out = attn_out.transpose(1, 2).type_as(input)  # (N, S, H, D)
 
         # Combine heads and project to output_dim
         output = self.out_proj(attn_out.flatten(-2))
-        output = output.unflatten(0, (batch_size, seq_len))
 
         # Prepare new cache tensors
         new_input_cache = full_input[:, -self.window_size :]
-        new_kv_cache = original_kv.flatten(-3)[:, -self.window_size :]
         new_cache_mask = kv_mask[:, -self.window_size :]
 
         # Restore outputs to sequence first ( L, N, * )
@@ -258,7 +229,6 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
             output = output.squeeze(0)
         return output, {
             "input_cache": new_input_cache.reshape(*batch_dims, self.window_size * self.input_dim),
-            "kv_cache": new_kv_cache.reshape(*batch_dims, self.window_size * 2 * self.embed_dim),
             "cache_mask": new_cache_mask.reshape(*batch_dims, self.window_size),
         }
 
@@ -269,16 +239,15 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
     ):
         """Resets the memory cache for specific environments.
 
-        This method selectively resets the memory components (input cache,
-        key-value cache, and cache mask). If ``done`` is not provided, the
-        entire memory is cleared. Otherwise, only the memory states
-        corresponding to the ``done`` indices (e.g., for environments that are
-        done) are reset.
+        This method selectively resets the memory components (input cache and
+        cache mask). If ``done`` is not provided, the entire memory is cleared.
+        Otherwise, only the memory states corresponding to the ``done`` indices
+        (e.g., for environments that are done) are reset.
 
         Args:
             memory (dict[str, Tensor] | None):
-                A dict containing the input cache, KV cache, and cache mask. If
-                ``None``, the function does nothing.
+                A dict containing the input cache and cache mask. If ``None``,
+                the function does nothing.
             done (SliceType | Tensor | None, optional):
                 A mask or slice indicating which parts of the memory to reset.
                 If it's a tensor, it should be of shape :math:`(N, 1)`. If
@@ -287,17 +256,14 @@ class CausalMultiheadSelfAttention(Module, FlashAttention):
         if memory is None:
             return
         input_cache = memory["input_cache"]
-        kv_cache = memory["kv_cache"]
         cache_mask = memory["cache_mask"]
         if done is None:
             input_cache.zero_()
-            kv_cache.zero_()
             cache_mask.fill_(False)
         else:
             if isinstance(done, Tensor):
                 done = done.squeeze(-1)
             input_cache[done] = 0.0
-            kv_cache[done] = 0.0
             cache_mask[done] = False
 
     def _update_cos_sin_cache(self, seq_len, device):
@@ -382,7 +348,6 @@ class CausalTransformerEncoderLayer(Module):
             embed_dim=embed_dim,
             num_heads=num_heads,
             window_size=window_size,
-            dropout=dropout,
             dtype=dtype,
             input_dim=embed_dim,
             output_dim=self.embed_dim,

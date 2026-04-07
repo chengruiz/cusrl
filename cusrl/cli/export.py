@@ -4,7 +4,6 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-import cusrl
 from cusrl.template.agent import Agent
 from cusrl.utils import cli_utils
 from cusrl.utils.tyro_utils import cli as tyro_cli
@@ -52,7 +51,6 @@ def parse_args(argv: Sequence[str] | None = None):
 
 def main(argv: Sequence[str] | None = None):
     args, extra_args = parse_args(argv)
-    cusrl.config.enable_flash_attention(False)
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)
     experiment = cli_utils.load_experiment_spec_from_args(args)

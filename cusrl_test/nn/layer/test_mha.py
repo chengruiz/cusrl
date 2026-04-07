@@ -4,8 +4,6 @@ import pytest
 import torch
 
 import cusrl
-from cusrl.nn import RotaryEmbedding
-from cusrl.nn.layer.flash_attention import FlashAttention
 
 
 def _autocast_if_cuda(device: torch.device):
@@ -168,16 +166,3 @@ def test_mha_qk_norm_consistency_between_self_and_general(is_causal, qk_norm):
 
     assert out_mha.shape == out_mhsa.shape
     assert torch.allclose(out_mha, out_mhsa, atol=1e-6, rtol=1e-6)
-
-
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
-def test_rope_correctness():
-    x = torch.randn(2, 16, 4, 8).to("cuda")
-    qkv = torch.randn(2, 16, 3, 4, 8).to("cuda")
-    module = RotaryEmbedding(head_dim=8, max_seq_len=16).to("cuda")
-    cusrl.config.enable_flash_attention(False)
-    out1_x, out1_qkv = module(x), module.apply_qkv(qkv)
-    cusrl.config.enable_flash_attention(True)
-    out2_x, out2_qkv = module(x), module.apply_qkv(qkv)
-    assert torch.allclose(out1_x, out2_x, atol=1e-5)
-    assert torch.allclose(out1_qkv, out2_qkv, atol=1e-5)

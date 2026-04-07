@@ -1,3 +1,9 @@
+from .attention import (
+    alibi_score_mod,
+    causal_sliding_window_block_mask,
+    compute_segment_ids,
+    get_alibi_slopes,
+)
 from .normalization import (
     mean_var_count,
     merge_mean_var_,
@@ -19,14 +25,18 @@ from .recurrent import (
 )
 
 __all__ = [
+    "alibi_score_mod",
+    "causal_sliding_window_block_mask",
     "compute_cumulative_sequence_lengths",
     "compute_cumulative_timesteps",
+    "compute_segment_ids",
     "compute_sequence_indices",
     "compute_sequence_lengths",
     "compute_reverse_cumulative_timesteps",
     "concat_memory",
     "cumulate_sequence_lengths",
     "gather_memory",
+    "get_alibi_slopes",
     "mean_var_count",
     "merge_mean_var_",
     "scatter_memory",

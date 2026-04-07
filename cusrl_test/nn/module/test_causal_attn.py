@@ -1,14 +1,12 @@
 import pytest
 import torch
 
-import cusrl
-from cusrl.nn import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer, RotaryEmbedding
-from cusrl.nn.layer.flash_attention import FlashAttention
+from cusrl.nn import CausalMultiheadSelfAttention, CausalTransformerEncoderLayer
 from cusrl.utils.nest import map_nested
 from cusrl_test import test_module_consistency
 
 
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_causal_self_mha_consistency():
     batch, seq, embed_dim, num_heads, window = 1, 7, 8, 2, 3
     attn = CausalMultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
@@ -30,7 +28,7 @@ def test_causal_self_mha_consistency():
     assert torch.allclose(out_full, out_seq, atol=1e-2)
 
 
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_causal_self_mha():
     batch, seq, embed_dim, num_heads, window = 1, 8, 2, 1, 3
     attn = CausalMultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
@@ -41,12 +39,11 @@ def test_causal_self_mha():
     out2, _ = attn(x, memory=memory)
     assert out1.shape == (seq, batch, embed_dim)
     assert memory["input_cache"].shape == (batch, window * embed_dim)
-    assert memory["kv_cache"].shape == (batch, window * embed_dim * 2)
     assert memory["cache_mask"].shape == (batch, window)
     assert out2.shape == (seq, batch, embed_dim)
 
 
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_causal_transformer_encoder_layer():
     batch, seq, embed_dim, num_heads, window = 1, 16, 32, 4, 6
     input_dim, output_dim = 24, 12
@@ -64,12 +61,11 @@ def test_causal_transformer_encoder_layer():
     out2, _ = attn(x, memory=memory)
     assert out1.shape == (seq, batch, output_dim)
     assert memory["input_cache"].shape == (batch, window * embed_dim)
-    assert memory["kv_cache"].shape == (batch, window * embed_dim * 2)
     assert memory["cache_mask"].shape == (batch, window)
     assert out2.shape == (seq, batch, output_dim)
 
 
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_causal_self_mha_cache_mask_with_done():
     batch, seq, embed_dim, num_heads, window = 8, 24, 32, 4, 4
     attn = CausalMultiheadSelfAttention(embed_dim, num_heads, window).to(device="cuda", dtype=torch.bfloat16)
@@ -84,11 +80,10 @@ def test_causal_self_mha_cache_mask_with_done():
 
     assert out.shape == (seq, batch, embed_dim)
     assert next_memory["input_cache"].shape == (batch, window * embed_dim)
-    assert next_memory["kv_cache"].shape == (batch, window * embed_dim * 2)
     assert next_memory["cache_mask"].shape == (batch, window)
 
 
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 @pytest.mark.parametrize("gate_type", [None, "residual", "highway", "output", "input", "sigmoid_tanh", "gru"])
 @pytest.mark.parametrize("layer_norm", [None, "pre", "post"])
 @pytest.mark.parametrize("use_alibi", [False, True])
@@ -109,20 +104,7 @@ def test_transformer_alibi_consistency(gate_type, layer_norm, use_alibi, rope_ba
     )
 
 
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
-def test_rope_correctness():
-    x = torch.randn(2, 16, 4, 8).to("cuda")
-    qkv = torch.randn(2, 16, 3, 4, 8).to("cuda")
-    module = RotaryEmbedding(head_dim=8, max_seq_len=16).to("cuda")
-    cusrl.config.enable_flash_attention(False)
-    out1_x, out1_qkv = module(x), module.apply_qkv(qkv)
-    cusrl.config.enable_flash_attention(True)
-    out2_x, out2_qkv = module(x), module.apply_qkv(qkv)
-    assert torch.allclose(out1_x, out2_x, atol=1e-5)
-    assert torch.allclose(out1_qkv, out2_qkv, atol=1e-5)
-
-
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_causal_self_mha_done_with_extra_batch_dims_matches_flattened_batch():
     torch.manual_seed(0)
 
@@ -146,11 +128,10 @@ def test_causal_self_mha_done_with_extra_batch_dims_matches_flattened_batch():
 
     assert torch.allclose(output_flat, output_multi.flatten(1, 2), atol=1e-2)
     assert torch.allclose(next_memory_flat["input_cache"], next_memory_multi["input_cache"].flatten(0, 1))
-    assert torch.allclose(next_memory_flat["kv_cache"], next_memory_multi["kv_cache"].flatten(0, 1))
     assert torch.equal(next_memory_flat["cache_mask"], next_memory_multi["cache_mask"].flatten(0, 1))
 
 
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_causal_self_mha_accepts_sequential_memory():
     torch.manual_seed(0)
 
@@ -184,7 +165,7 @@ def test_causal_self_mha_accepts_sequential_memory():
     assert torch.allclose(output_seq, output, atol=1e-2)
 
 
-@pytest.mark.skipif(not FlashAttention.is_available(), reason="FlashAttention not available")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_causal_self_mha_non_sequential_keeps_batch_shaped_memory():
     torch.manual_seed(0)
 
@@ -204,5 +185,4 @@ def test_causal_self_mha_non_sequential_keeps_batch_shaped_memory():
 
     assert torch.allclose(output_multi.flatten(0, 1), output_flat, atol=1e-2)
     assert torch.allclose(next_memory_multi["input_cache"].flatten(0, 1), next_memory_flat["input_cache"])
-    assert torch.allclose(next_memory_multi["kv_cache"].flatten(0, 1), next_memory_flat["kv_cache"])
     assert torch.equal(next_memory_multi["cache_mask"].flatten(0, 1), next_memory_flat["cache_mask"])

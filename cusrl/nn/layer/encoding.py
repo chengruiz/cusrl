@@ -1,15 +1,6 @@
 import torch
 from torch import Tensor, nn
 
-from cusrl.utils.config import CONFIG
-
-try:
-    from flash_attn.layers.rotary import apply_rotary_emb as apply_rotary_emb_flash
-    from flash_attn.layers.rotary import apply_rotary_emb_qkv_ as apply_rotary_emb_qkv_flash_
-except ImportError:
-    apply_rotary_emb_flash = apply_rotary_emb_qkv_flash_ = None
-
-
 __all__ = [
     "LearnablePositionalEncoding2D",
     "RotaryEmbedding",
@@ -124,8 +115,8 @@ def apply_rotary_emb(x: Tensor, cos: Tensor, sin: Tensor) -> Tensor:
     """Apply rotary embedding to tensor.
 
     Args:
-        x: tensor of shape (B, L, H, C / H).
-        cos, sin: tensor of shape (L, C / H / 2).
+        x: tensor of shape (N, L, H, C / H).
+        cos, sin: tensor of shape (N, C / H / 2).
     """
     cos = cos.repeat(1, 2).unsqueeze(-2)  # (L, 1, C / H)
     sin = sin.repeat(1, 2).unsqueeze(-2)  # (L, 1, C / H)
@@ -191,21 +182,13 @@ class RotaryEmbedding(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         cos, sin = self._get_cos_sin(x.shape[-3], device=x.device, dtype=x.dtype)
-        if CONFIG.flash_attention_enabled and x.device.type != "cpu":
-            assert apply_rotary_emb_flash is not None
-            return apply_rotary_emb_flash(x, cos, sin)  # type: ignore
         return apply_rotary_emb(x, cos, sin)
 
     def apply_qkv(self, qkv: Tensor) -> Tensor:
         """Apply rotary embedding to query, key, and value tensors.
 
         Args:
-            qkv: tensor of shape (B, L, 3, H, C / H).
+            qkv: tensor of shape (N, L, 3, H, C / H).
         """
-        if CONFIG.flash_attention_enabled and qkv.device.type != "cpu":
-            assert apply_rotary_emb_qkv_flash_ is not None
-            cos, sin = self._get_cos_sin(qkv.shape[-4], device=qkv.device, dtype=qkv.dtype)
-            apply_rotary_emb_qkv_flash_(qkv, cos, sin)
-            return qkv
         q, k, v = qkv.unbind(dim=-3)
         return torch.stack([self(q), self(k), v], dim=-3)

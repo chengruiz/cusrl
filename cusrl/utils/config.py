@@ -63,14 +63,6 @@ class Configurations:
             self._world_size = 1
             self._local_world_size = 1
 
-        try:
-            import flash_attn  # noqa: F401
-
-            self._flash_attention_found = True
-        except ImportError:
-            self._flash_attention_found = False
-        self._flash_attention_enabled = self._flash_attention_found
-
     @property
     def cuda(self) -> bool:
         """Whether CUDA is available in the current runtime."""
@@ -122,21 +114,6 @@ class Configurations:
     def local_world_size(self) -> int:
         """Number of processes participating on the current node."""
         return self._local_world_size
-
-    @property
-    def flash_attention_enabled(self) -> bool:
-        """Whether FlashAttention usage is enabled for supported code paths."""
-        return self._flash_attention_enabled
-
-    @flash_attention_enabled.setter
-    def flash_attention_enabled(self, value: bool):
-        self.enable_flash_attention(value)
-
-    def enable_flash_attention(self, enabled: bool = True):
-        """Enable or disable FlashAttention."""
-        if enabled and not self._flash_attention_found:
-            raise RuntimeError("Cannot enable 'flash_attn' because it is not installed")
-        self._flash_attention_enabled = enabled
 
     def _get_distributed_identifier(self) -> str:
         """Build a process-specific cache directory suffix for distributed runs."""
