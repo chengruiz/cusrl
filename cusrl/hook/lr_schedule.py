@@ -1,12 +1,11 @@
 import math
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import cast
 
 import torch
 
 from cusrl.hook.on_policy import OnPolicyPreparation
-from cusrl.template import ActorCritic, Hook, HookFactory
+from cusrl.template import ActorCritic, Hook
 from cusrl.utils import distributed
 
 __all__ = [
@@ -108,19 +107,6 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
             ``0.0``.
     """
 
-    @dataclass
-    class Factory(HookFactory["ThresholdLRSchedule"]):
-        desired_kl_divergence: float = 0.01
-        threshold: float = 1.2
-        scale_factor: float = 1.1
-        scale_all_params: bool = False
-        warmup_iterations: int = 0
-        initial_scale: float = 0.0
-
-        @classmethod
-        def get_hook_type(cls):
-            return ThresholdLRSchedule
-
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
@@ -175,19 +161,6 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
             Initial LR scale used at iteration ``0`` during warmup. Defaults to
             ``0.0``.
     """
-
-    @dataclass
-    class Factory(HookFactory["AdaptiveLRSchedule"]):
-        desired_kl_divergence: float = 0.01
-        threshold: float = 1.0
-        scale_factor: float = 0.2
-        scale_all_params: bool = False
-        warmup_iterations: int = 0
-        initial_scale: float = 0.0
-
-        @classmethod
-        def get_hook_type(cls):
-            return AdaptiveLRSchedule
 
     def __init__(
         self,
@@ -245,18 +218,6 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
             Initial LR scale used at iteration ``0`` during warmup. Defaults to
             ``0.0``.
     """
-
-    @dataclass
-    class Factory(HookFactory["MiniBatchWiseLRSchedule"]):
-        desired_kl_divergence: float = 0.01
-        threshold: float = 2.0
-        scale_factor: float = 1.5
-        warmup_iterations: int = 0
-        initial_scale: float = 0.0
-
-        @classmethod
-        def get_hook_type(cls):
-            return MiniBatchWiseLRSchedule
 
     def __init__(
         self,

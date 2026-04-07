@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
@@ -7,7 +6,7 @@ import torch
 from torch import Tensor, nn
 
 from cusrl.module import GradientPenaltyLoss, Module, ModuleFactoryLike, RunningMeanStd
-from cusrl.template import ActorCritic, Hook, HookFactory
+from cusrl.template import ActorCritic, Hook
 from cusrl.utils.dict_utils import get_first
 from cusrl.utils.typing import Array, Slice
 
@@ -54,20 +53,6 @@ class AdversarialMotionPrior(Hook[ActorCritic]):
             The weight for the gradient penalty term in the discriminator loss.
             Defaults to ``5.0``.
     """
-
-    @dataclass
-    class Factory(HookFactory["AdversarialMotionPrior"]):
-        discriminator_factory: ModuleFactoryLike
-        dataset_source: str | Array | Callable[[], Array] | None = None
-        state_indices: Slice | None = None
-        batch_size: int | None = 512
-        reward_scale: float = 1.0
-        loss_weight: float = 1.0
-        grad_penalty_weight: float = 5.0
-
-        @classmethod
-        def get_hook_type(cls):
-            return AdversarialMotionPrior
 
     def __init__(
         self,

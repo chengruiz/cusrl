@@ -1,8 +1,7 @@
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from typing import Any
 
-from cusrl.template import Agent, Hook, HookFactory
+from cusrl.template import Agent, Hook
 from cusrl.template.environment import Environment
 
 __all__ = ["EnvironmentSpecOverride", "DynamicEnvironmentSpecOverride"]
@@ -22,14 +21,6 @@ class EnvironmentSpecOverride(Hook):
             :attr:`environment_spec`. Each key represents the attribute's name,
             and the corresponding value is the new value to be set.
     """
-
-    @dataclass
-    class Factory(HookFactory["EnvironmentSpecOverride"]):
-        overrides: dict[str, Any] = field(default_factory=dict)
-
-        @classmethod
-        def get_hook_type(cls):
-            return EnvironmentSpecOverride
 
     def __init__(self, overrides: dict[str, Any] | None = None, **kwargs):
         super().__init__()
@@ -54,14 +45,6 @@ class DynamicEnvironmentSpecOverride(Hook):
             A factory function that generates the overrides based on the
             environment instance.
     """
-
-    @dataclass
-    class Factory(HookFactory["DynamicEnvironmentSpecOverride"]):
-        overrides_factory: Callable[[Environment], dict[str, Any]]
-
-        @classmethod
-        def get_hook_type(cls):
-            return DynamicEnvironmentSpecOverride
 
     def __init__(self, overrides_factory: Callable[[Environment], dict[str, Any]]):
         super().__init__()

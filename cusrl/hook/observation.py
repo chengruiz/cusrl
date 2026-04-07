@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
@@ -9,7 +8,7 @@ from typing_extensions import Self
 from cusrl.hook.symmetry import SymmetryDefLike
 from cusrl.module import FlowGraph, RunningMeanStd
 from cusrl.module.normalizer import mean_var_count
-from cusrl.template import ActorCritic, Hook, HookFactory
+from cusrl.template import ActorCritic, Hook
 from cusrl.utils.typing import Slice
 
 __all__ = ["ObservationNanToNum", "ObservationNormalization"]
@@ -33,16 +32,6 @@ class ObservationNanToNum(Hook[ActorCritic]):
         neginf (float, optional):
             The value to replace negative infinity with. Defaults to ``0.0``.
     """
-
-    @dataclass
-    class Factory(HookFactory["ObservationNanToNum"]):
-        nan: float = 0.0
-        posinf: float = 0.0
-        neginf: float = 0.0
-
-        @classmethod
-        def get_hook_type(cls):
-            return ObservationNanToNum
 
     def __init__(self, nan: float = 0.0, posinf: float = 0.0, neginf: float = 0.0):
         super().__init__()
@@ -102,16 +91,6 @@ class ObservationNormalization(Hook[ActorCritic]):
             ensures that training uses up-to-date normalization even when stats
             have been updated after data collection. Defaults to ``False``.
     """
-
-    @dataclass
-    class Factory(HookFactory["ObservationNormalization"]):
-        max_count: int | None = None
-        defer_synchronization: bool = False
-        renormalize: bool = False
-
-        @classmethod
-        def get_hook_type(cls):
-            return ObservationNormalization
 
     def __init__(
         self,

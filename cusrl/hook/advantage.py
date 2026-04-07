@@ -1,11 +1,10 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any, Literal, cast
 
 import torch
 from torch import Tensor
 
-from cusrl.template import ActorCritic, Hook, HookFactory
+from cusrl.template import ActorCritic, Hook
 from cusrl.utils import distributed
 
 __all__ = ["AdvantageReduction", "AdvantageNormalization"]
@@ -28,15 +27,6 @@ class AdvantageReduction(Hook):
     Raises:
         ValueError: If an invalid reduction method is provided.
     """
-
-    @dataclass
-    class Factory(HookFactory["AdvantageReduction"]):
-        reduction: Literal["sum", "mean"] = "sum"
-        weight: Sequence[float] | None = None
-
-        @classmethod
-        def get_hook_type(cls):
-            return AdvantageReduction
 
     def __init__(
         self,
@@ -101,15 +91,6 @@ class AdvantageNormalization(Hook[ActorCritic]):
             If ``True``, the mean and variance are synchronized across all
             processes in distributed training. Defaults to ``True``.
     """
-
-    @dataclass
-    class Factory(HookFactory["AdvantageNormalization"]):
-        mini_batch_wise: bool = False
-        synchronize: bool = True
-
-        @classmethod
-        def get_hook_type(cls):
-            return AdvantageNormalization
 
     def __init__(self, mini_batch_wise: bool = False, synchronize: bool = True):
         super().__init__(training_only=True)

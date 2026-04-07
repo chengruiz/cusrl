@@ -15,9 +15,9 @@ PROGRAM_NAME = "python -m cusrl find-trial"
 def parse_args(argv: Sequence[str] | None = None):
     parser = argparse.ArgumentParser(prog=PROGRAM_NAME, description=__doc__)
     # fmt: off
-    parser.add_argument("-env","--environment", required=True, metavar="NAME",
+    parser.add_argument("-env", "--environment", required=True, metavar="NAME",
                         help="Environment name used for training")
-    parser.add_argument("-alg","--algorithm", required=True, metavar="NAME",
+    parser.add_argument("-alg", "--algorithm", required=True, metavar="NAME",
                         help="Algorithm name used for training")
     parser.add_argument("--log-dir", type=str, default="logs", metavar="DIR",
                         help="Root logs directory (default: logs)")

@@ -1,8 +1,7 @@
 from collections.abc import Iterable
-from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from cusrl.template import ActorCritic, Hook, HookFactory
+from cusrl.template import ActorCritic, Hook
 
 __all__ = ["ConditionalObjectiveActivation", "EpochIndexCondition"]
 
@@ -43,14 +42,6 @@ class ConditionalObjectiveActivation(Hook[ActorCritic]):
             current metadata and batch and returns ``True`` if the hook should
             be active, ``False`` otherwise.
     """
-
-    @dataclass
-    class Factory(HookFactory["ConditionalObjectiveActivation"]):
-        named_conditions: dict[str, ActivationCondition] = field(default_factory=dict)
-
-        @classmethod
-        def get_hook_type(cls):
-            return ConditionalObjectiveActivation
 
     def __init__(
         self,

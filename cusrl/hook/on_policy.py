@@ -1,10 +1,9 @@
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import cast
 
 import torch
 
-from cusrl.template import ActorCritic, Hook, HookFactory, Sampler
+from cusrl.template import ActorCritic, Hook, Sampler
 
 __all__ = [
     "OnPolicyBufferCapacitySchedule",
@@ -26,14 +25,6 @@ class OnPolicyBufferCapacitySchedule(Hook[ActorCritic]):
             desired buffer capacity. This typically controls the rollout length
             before each iteration.
     """
-
-    @dataclass
-    class Factory(HookFactory["OnPolicyBufferCapacitySchedule"]):
-        schedule: Callable[[int], int]
-
-        @classmethod
-        def get_hook_type(cls):
-            return OnPolicyBufferCapacitySchedule
 
     def __init__(self, schedule: Callable[[int], int]):
         super().__init__(training_only=True)
@@ -57,14 +48,6 @@ class OnPolicyPreparation(Hook[ActorCritic]):
             If ``True``, computes the KL divergence between the old and current
             policy distributions. Defaults to ``False``.
     """
-
-    @dataclass
-    class Factory(HookFactory["OnPolicyPreparation"]):
-        calculate_kl_divergence: bool = False
-
-        @classmethod
-        def get_hook_type(cls):
-            return OnPolicyPreparation
 
     def __init__(self, calculate_kl_divergence: bool = False):
         super().__init__(training_only=True)
@@ -107,14 +90,6 @@ class OnPolicyStatistics(Hook[ActorCritic]):
             The sampler used to sample batches from the agent's buffer. If
             ``None``, a default `Sampler()` is used. Defaults to ``None``.
     """
-
-    @dataclass
-    class Factory(HookFactory["OnPolicyStatistics"]):
-        sampler: Sampler | None = None
-
-        @classmethod
-        def get_hook_type(cls):
-            return OnPolicyStatistics
 
     def __init__(self, sampler: Sampler | None = None):
         super().__init__(training_only=True)

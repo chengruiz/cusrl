@@ -7,7 +7,6 @@ from typing import Any, Generic, TypeVar, overload
 import numpy as np
 import torch
 from torch import nn
-from typing_extensions import Self
 
 import cusrl
 from cusrl.template.environment import Environment, EnvironmentSpec

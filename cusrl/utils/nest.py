@@ -107,6 +107,8 @@ def get_schema(
 def iterate_nested(
     data: Nested[_T], prefix: str = "", *, max_depth: None = None, separator: str = "."
 ) -> Iterator[tuple[str, _T]]: ...
+
+
 @overload
 def iterate_nested(
     data: Nested[_T], prefix: str = "", *, max_depth: int | None, separator: str = "."
@@ -186,6 +188,8 @@ def iterate_nested(
 def flatten_nested(
     data: Nested[_T], prefix: str = "", *, max_depth: None = None, separator: str = "."
 ) -> dict[str, _T]: ...
+
+
 @overload
 def flatten_nested(
     data: Nested[_T], prefix: str = "", *, max_depth: int | None, separator: str = "."

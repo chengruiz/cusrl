@@ -1,8 +1,6 @@
-from dataclasses import dataclass
-
 import torch
 
-from cusrl.template import ActorCritic, Hook, HookFactory
+from cusrl.template import ActorCritic, Hook
 
 __all__ = ["GeneralizedAdvantageEstimation"]
 
@@ -54,17 +52,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             If ``True``, recompute advantages and returns after each update.
             Defaults to ``False``.
     """
-
-    @dataclass
-    class Factory(HookFactory["GeneralizedAdvantageEstimation"]):
-        gamma: float = 0.99
-        lamda: float = 0.95
-        lamda_value: float | None = None
-        recompute: bool = False
-
-        @classmethod
-        def get_hook_type(cls):
-            return GeneralizedAdvantageEstimation
 
     def __init__(
         self,

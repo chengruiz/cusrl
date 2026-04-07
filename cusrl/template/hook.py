@@ -1,6 +1,5 @@
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import asdict, dataclass
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic
 
 import torch
 from torch import nn
@@ -15,7 +14,7 @@ from cusrl.utils.misc import MISSING
 from cusrl.utils.str_utils import camel_to_snake
 from cusrl.utils.typing import NestedTensor
 
-__all__ = ["Hook", "HookComposite", "HookFactory"]
+__all__ = ["Hook", "HookComposite"]
 
 
 class Hook(Generic[AgentType]):
@@ -319,23 +318,6 @@ class Hook(Generic[AgentType]):
     def warn(cls, message):
         """Prints a warning message."""
         distributed.print_rank0(f"\033[1;31m{cls.__name__}: {message}\033[0m")
-
-
-HookType = TypeVar("HookType", bound="Hook")
-
-
-@dataclass
-class HookFactory(Generic[HookType]):
-    @classmethod
-    def get_hook_type(cls) -> type[HookType]:
-        raise NotImplementedError(f"{cls.__name__} must implement 'get_hook_type'")
-
-    @property
-    def name(self) -> str:
-        return camel_to_snake(self.get_hook_type().__name__)
-
-    def __call__(self) -> HookType:
-        return self.get_hook_type()(**asdict(self))
 
 
 class HookComposite(Hook):

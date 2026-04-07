@@ -1,51 +1,37 @@
-import pytest
-
 from cusrl.hook.condition import ConditionalObjectiveActivation
 from cusrl.hook.environment_spec import EnvironmentSpecOverride
 from cusrl.hook.gae import GeneralizedAdvantageEstimation
-from cusrl.template import HookFactory
+from cusrl.utils import from_dict, to_dict
 
 
-def test_hook_factory_get_hook_type_returns_declared_hook_type():
-    assert GeneralizedAdvantageEstimation.Factory.get_hook_type() is GeneralizedAdvantageEstimation
+def always_active(agent, metadata, batch):
+    return True
 
 
-def test_hook_factory_get_hook_type_inherits_declared_hook_type():
-    class DerivedFactory(GeneralizedAdvantageEstimation.Factory):
-        pass
+def test_hook_round_trip_preserves_constructor_fields():
+    hook = GeneralizedAdvantageEstimation(gamma=0.9, lamda=0.8, recompute=True)
 
-    assert DerivedFactory.get_hook_type() is GeneralizedAdvantageEstimation
+    restored = from_dict(None, to_dict(hook))
 
-
-def test_hook_factory_call_instantiates_declared_hook_type():
-    hook = GeneralizedAdvantageEstimation.Factory(gamma=0.9, lamda=0.8, recompute=True)()
-
-    assert isinstance(hook, GeneralizedAdvantageEstimation)
-    assert hook.gamma == 0.9
-    assert hook.lamda == 0.8
-    assert hook.recompute is True
+    assert isinstance(restored, GeneralizedAdvantageEstimation)
+    assert restored.gamma == 0.9
+    assert restored.lamda == 0.8
+    assert restored.recompute is True
 
 
-def test_hook_factory_call_supports_dict_payload_constructor():
-    hook = EnvironmentSpecOverride.Factory(overrides={"num_instances": 1024})()
+def test_hook_round_trip_supports_dict_payload_constructor():
+    hook = EnvironmentSpecOverride(overrides={"num_instances": 1024})
 
-    assert isinstance(hook, EnvironmentSpecOverride)
-    assert hook.overrides == {"num_instances": 1024}
+    restored = from_dict(None, to_dict(hook))
 
-
-def test_hook_factory_call_supports_named_conditions_constructor():
-    def condition(agent, metadata, batch):
-        return True
-
-    hook = ConditionalObjectiveActivation.Factory(named_conditions={"value_loss": condition})()
-
-    assert isinstance(hook, ConditionalObjectiveActivation)
-    assert hook.named_conditions == {"value_loss": condition}
+    assert isinstance(restored, EnvironmentSpecOverride)
+    assert restored.overrides == {"num_instances": 1024}
 
 
-def test_hook_factory_get_hook_type_rejects_factory_without_declared_type():
-    class MissingTypeFactory(HookFactory):
-        pass
+def test_hook_round_trip_supports_named_conditions_constructor():
+    hook = ConditionalObjectiveActivation(named_conditions={"value_loss": always_active})
 
-    with pytest.raises(NotImplementedError, match="must implement 'get_hook_type'"):
-        MissingTypeFactory.get_hook_type()
+    restored = from_dict(None, to_dict(hook))
+
+    assert isinstance(restored, ConditionalObjectiveActivation)
+    assert restored.named_conditions == {"value_loss": always_active}

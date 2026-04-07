@@ -1,8 +1,7 @@
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any
 
-from cusrl.template import ActorCritic, Hook, HookFactory
+from cusrl.template import ActorCritic, Hook
 
 __all__ = [
     "HookActivationSchedule",
@@ -23,16 +22,6 @@ class HookParameterSchedule(Hook[ActorCritic]):
             It takes the current iteration as input and returns the new value
             for the parameter.
     """
-
-    @dataclass
-    class Factory(HookFactory["HookParameterSchedule"]):
-        hook_name: str
-        parameter: str
-        scheduler: Callable[[int], Any]
-
-        @classmethod
-        def get_hook_type(cls):
-            return HookParameterSchedule
 
     def __init__(
         self,
@@ -65,15 +54,6 @@ class HookActivationSchedule(Hook[ActorCritic]):
             the hook. It takes the current iteration as input and returns a
             boolean value indicating whether to activate the hook.
     """
-
-    @dataclass
-    class Factory(HookFactory["HookActivationSchedule"]):
-        hook_name: str
-        scheduler: Callable[[int], bool]
-
-        @classmethod
-        def get_hook_type(cls):
-            return HookActivationSchedule
 
     def __init__(self, hook_name: str, scheduler: Callable[[int], bool]):
         super().__init__(training_only=True)
