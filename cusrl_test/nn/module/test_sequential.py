@@ -1,7 +1,9 @@
+import pytest
 import torch
 from torch import nn
 
 import cusrl
+from cusrl.nn.module.stub import Identity
 
 
 def test_sequential_mlp_mlp():
@@ -40,7 +42,6 @@ def test_sequential_rnn_mlp():
     assert sequential_module.input_dim == input_dim
     assert sequential_module.output_dim == output_dim
 
-    # Test with sequence input (L, N, C)
     dummy_input_seq = torch.randn(seq_len, batch_size, input_dim)
     output_seq, memory_seq = sequential_module(dummy_input_seq)
     assert output_seq.shape == (seq_len, batch_size, output_dim)
@@ -48,7 +49,6 @@ def test_sequential_rnn_mlp():
     assert isinstance(memory_seq["0"], torch.Tensor)
     assert memory_seq["0"].shape == (batch_size, rnn_hidden_dim)
 
-    # Test with single tensor input (N, C) -> RNN treats as (1, N, C)
     dummy_input_tensor = torch.randn(batch_size, input_dim)
     output_tensor, memory_tensor = sequential_module(dummy_input_tensor)
 
@@ -57,11 +57,9 @@ def test_sequential_rnn_mlp():
     assert isinstance(memory_tensor["0"], torch.Tensor)
     assert memory_tensor["0"].shape == (batch_size, rnn_hidden_dim)
 
-    # Test reset_memory
-    done_tensor = torch.zeros(batch_size, dtype=torch.bool)  # (N,)
-    done_tensor[0] = True  # Reset for the first item in batch
-
-    _, reset_mem = sequential_module(dummy_input_tensor)  # Get a memory state
+    done_tensor = torch.zeros(batch_size, dtype=torch.bool)
+    done_tensor[0] = True
+    _, reset_mem = sequential_module(dummy_input_tensor)
     sequential_module.reset_memory(reset_mem, done_tensor)
     assert reset_mem is not None
     assert torch.all(reset_mem["0"][0, :] == 0.0)
@@ -70,8 +68,8 @@ def test_sequential_rnn_mlp():
 def test_sequential_rnn_rnn():
     batch_size = 4
     input_dim = 16
-    rnn_hidden_dim1 = 32  # LSTM hidden dim
-    rnn_hidden_dim2 = 24  # GRU hidden dim
+    rnn_hidden_dim1 = 32
+    rnn_hidden_dim2 = 24
     output_dim = 8
     seq_len = 10
 
@@ -84,7 +82,6 @@ def test_sequential_rnn_rnn():
     assert sequential_module.input_dim == input_dim
     assert sequential_module.output_dim == output_dim
 
-    # Test with sequence input (L, N, C)
     dummy_input_seq = torch.randn(seq_len, batch_size, input_dim)
     output_seq, memory_seq = sequential_module(dummy_input_seq)
 
@@ -95,7 +92,6 @@ def test_sequential_rnn_rnn():
     assert isinstance(memory_seq["1"], torch.Tensor)
     assert memory_seq["1"].shape == (batch_size, rnn_hidden_dim2)
 
-    # Test with single tensor input (N, C) -> RNN treats as (1, N, C)
     dummy_input_tensor = torch.randn(batch_size, input_dim)
     output_tensor, memory_tensor = sequential_module(dummy_input_tensor)
 
@@ -106,13 +102,36 @@ def test_sequential_rnn_rnn():
     assert isinstance(memory_tensor["1"], torch.Tensor)
     assert memory_tensor["1"].shape == (batch_size, rnn_hidden_dim2)
 
-    # Test reset_memory
-    done_tensor = torch.zeros(batch_size, dtype=torch.bool)  # (N,)
+    done_tensor = torch.zeros(batch_size, dtype=torch.bool)
     done_tensor[0] = True
-    _, reset_mem = sequential_module(dummy_input_tensor)  # Get a memory state
+    _, reset_mem = sequential_module(dummy_input_tensor)
     sequential_module.reset_memory(reset_mem, done_tensor)
 
     assert reset_mem is not None
     assert torch.all(reset_mem["0"]["hidden"][0, :] == 0.0)
     assert torch.all(reset_mem["0"]["cell"][0, :] == 0.0)
     assert torch.all(reset_mem["1"][0, :] == 0.0)
+
+
+def test_sequential_tracks_and_clears_intermediate_representations():
+    module = cusrl.Sequential(
+        cusrl.Mlp(input_dim=4, hidden_dims=[6]),
+        Identity(input_dim=6, output_dim=None),
+    )
+
+    output = module(torch.randn(2, 4))
+
+    assert output.shape == (2, 6)
+    assert "0/Mlp.output" in module.intermediate_repr
+    assert "1/Identity.output" in module.intermediate_repr
+
+    module.clear_intermediate_repr()
+    assert module.intermediate_repr == {}
+
+
+def test_sequential_factory_requires_hidden_dims_for_all_intermediate_layers():
+    with pytest.raises(ValueError):
+        cusrl.Sequential.Factory(
+            factories=[cusrl.Mlp.Factory([4]), cusrl.Mlp.Factory([4])],
+            hidden_dims=[],
+        )(input_dim=4, output_dim=2)

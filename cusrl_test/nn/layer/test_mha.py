@@ -4,13 +4,7 @@ import pytest
 import torch
 
 import cusrl
-from cusrl.nn import (
-    MultiheadAttention,
-    MultiheadCrossAttention,
-    MultiheadSelfAttention,
-    RotaryEmbedding,
-    TransformerDecoderLayer,
-)
+from cusrl.nn import RotaryEmbedding
 from cusrl.nn.layer.flash_attention import FlashAttention
 
 
@@ -25,44 +19,23 @@ def test_mha_consistency_with_torch(is_causal):
     batch, seq, embed_dim, num_heads = 2, 9, 32, 4
     device = cusrl.device()
 
-    mha = MultiheadAttention(
-        embed_dim,
-        num_heads,
-        dropout=0.0,
-        batch_first=True,
-    ).to(device)
-    mha.eval()
-
-    mhsa = MultiheadSelfAttention(
-        embed_dim,
-        num_heads,
-        dropout=0.0,
-        batch_first=True,
-    ).to(device)
-    mhsa.eval()
-
-    mha_torch = torch.nn.MultiheadAttention(
-        embed_dim=embed_dim,
-        num_heads=num_heads,
-        dropout=0.0,
-        bias=True,
-        batch_first=True,
-    ).to(device)
-    mha_torch.eval()
+    mha = cusrl.nn.MultiheadAttention(embed_dim, num_heads, dropout=0.0, batch_first=True).to(device).eval()
+    mhsa = cusrl.nn.MultiheadSelfAttention(embed_dim, num_heads, dropout=0.0, batch_first=True).to(device).eval()
+    torch_mha = torch.nn.MultiheadAttention(embed_dim, num_heads, dropout=0.0, batch_first=True).to(device).eval()
 
     # Align weights: in-proj (Q,K,V) and out-proj
     qkv_proj_weight = torch.cat([mha.q_proj.weight, mha.k_proj.weight, mha.v_proj.weight], dim=0)
     mhsa.qkv_proj.weight.copy_(qkv_proj_weight)
-    mha_torch.in_proj_weight.copy_(qkv_proj_weight)
+    torch_mha.in_proj_weight.copy_(qkv_proj_weight)
 
     qkv_proj_bias = torch.cat([mha.q_proj.bias, mha.k_proj.bias, mha.v_proj.bias], dim=0)
     mhsa.qkv_proj.bias.copy_(qkv_proj_bias)
-    mha_torch.in_proj_bias.copy_(qkv_proj_bias)
+    torch_mha.in_proj_bias.copy_(qkv_proj_bias)
 
     mhsa.out_proj.weight.copy_(mha.out_proj.weight)
-    mha_torch.out_proj.weight.copy_(mha.out_proj.weight)
+    torch_mha.out_proj.weight.copy_(mha.out_proj.weight)
     mhsa.out_proj.bias.copy_(mha.out_proj.bias)
-    mha_torch.out_proj.bias.copy_(mha.out_proj.bias)
+    torch_mha.out_proj.bias.copy_(mha.out_proj.bias)
 
     x = torch.randn(batch, seq, embed_dim, device=device)
 
@@ -75,7 +48,7 @@ def test_mha_consistency_with_torch(is_causal):
         if is_causal:
             L = S = seq
             attn_mask = torch.triu(torch.ones(L, S, dtype=torch.bool, device=device), diagonal=1)
-        out_torch, _ = mha_torch(x, x, x, need_weights=False, average_attn_weights=False, attn_mask=attn_mask)
+        out_torch, _ = torch_mha(x, x, x, need_weights=False, average_attn_weights=False, attn_mask=attn_mask)
 
     assert out_flash.shape == out_torch.shape == out_flash2.shape
     assert torch.allclose(out_flash, out_flash2, atol=1e-6, rtol=1e-6)
@@ -89,7 +62,7 @@ def test_cross_mha_consistency_with_torch():
     embed_dim, num_heads, kv_dim = 32, 4, 24
     device = cusrl.device()
 
-    mha = MultiheadCrossAttention(
+    mha = cusrl.nn.MultiheadCrossAttention(
         embed_dim,
         num_heads,
         dropout=0.0,
@@ -138,7 +111,7 @@ def test_transformer_decoder_factory_forward():
     batch, target_len, context_len = 2, 5, 7
     input_dim, embed_dim, context_dim, output_dim, num_heads = 24, 32, 20, 12, 4
 
-    decoder = TransformerDecoderLayer(
+    decoder = cusrl.nn.TransformerDecoderLayer(
         embed_dim=embed_dim,
         num_heads=num_heads,
         input_dim=input_dim,
@@ -163,7 +136,7 @@ def test_mha_qk_norm_consistency_between_self_and_general(is_causal, qk_norm):
     batch, seq, embed_dim, num_heads = 2, 9, 32, 4
     device = cusrl.device()
 
-    mha = MultiheadAttention(
+    mha = cusrl.nn.MultiheadAttention(
         embed_dim,
         num_heads,
         dropout=0.0,
@@ -172,7 +145,7 @@ def test_mha_qk_norm_consistency_between_self_and_general(is_causal, qk_norm):
     ).to(device)
     mha.eval()
 
-    mhsa = MultiheadSelfAttention(
+    mhsa = cusrl.nn.MultiheadSelfAttention(
         embed_dim,
         num_heads,
         dropout=0.0,
