@@ -15,6 +15,7 @@ from cusrl.template.environment import (
 )
 from cusrl.template.trainer import EnvironmentStats
 from cusrl.template.trial import Trial
+from cusrl.utils.nest import flatten_nested
 from cusrl.utils.typing import Array, Slice
 
 __all__ = ["Player"]
@@ -104,9 +105,9 @@ class Player:
             loads the states of the agent and the environment states from the
             checkpoint. Defaults to ``None`` (no checkpoint loading).
         num_steps (int | None, optional):
-            Maximum number of environment steps to execute across all instances.
-            If ``None``, the step count does not limit the loop. Defaults to
-            ``None``.
+            Maximum number of playing-loop iterations to execute, where each
+            iteration performs one vectorized environment step. If ``None``, the
+            iteration count does not limit the loop. Defaults to ``None``.
         num_episodes (int | None, optional):
             Minimum number of episodes each environment instance must complete
             before the loop ends. If ``None``, the episode count does not limit
@@ -195,10 +196,10 @@ class Player:
 
         Resets the environment, then repeatedly queries the agent for actions,
         steps the environment, invokes hook callbacks, and handles episode
-        completions. The loop terminates when ``num_steps`` is exhausted,
-        every instance has completed ``num_episodes`` episodes, or the process
-        receives *SIGINT*. If both limits are ``None``, the loop runs until
-        interrupted.
+        completions. The loop terminates when ``num_steps`` vectorized
+        environment steps have been executed, every instance has completed
+        ``num_episodes`` episodes, or the process receives *SIGINT*. If both
+        limits are ``None``, the loop runs until interrupted.
 
         Returns:
             A dictionary of aggregated metrics (mean rewards, episode length,
@@ -270,7 +271,7 @@ class Player:
         if not metrics:
             return
 
-        formatted_metrics = {key: f"{value: .6g}" for key, value in metrics.items()}
+        formatted_metrics = {key: f"{value: .6g}" for key, value in flatten_nested(metrics).items()}
         max_key_length = max(len(key) for key in formatted_metrics.keys())
         max_value_length = max(len(value) for value in formatted_metrics.values())
         print("┌" + "─" * (max_key_length + 2) + "┬" + "─" * (max_value_length + 2) + "┐")

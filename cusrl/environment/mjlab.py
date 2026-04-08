@@ -176,7 +176,11 @@ class MjlabPlayer(Player):
             viewer = ViserPlayViewer(native_environment, self)
         else:
             raise ValueError(f"Unsupported viewer type '{cfg.viewer_type}'")
-        viewer.run(self.num_steps)
+        try:
+            viewer.run(self.num_steps)
+        finally:
+            self.hook.close()
+            self.environment.close()
         metrics = self._get_metrics_report()
         self._display_metrics(metrics)
         return metrics
