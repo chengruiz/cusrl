@@ -156,6 +156,7 @@ class FlowGraph(nn.Module):
                 "reset": torch.rand(example_inputs["observation"].size(-2)) < 0.5,
             },
             strict=False,
+            check_trace=False,  # Disable trace checking since the module has internal states
         )
         if optimize:
             traced_stateful_module = torch.jit.optimize_for_inference(traced_stateful_module, other_methods=["reset"])
