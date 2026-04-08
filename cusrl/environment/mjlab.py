@@ -121,8 +121,8 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
             if key.startswith("Episode_Reward/"):
                 log[key] = value.repeat(num_finished_episodes)
             elif key.startswith("Episode_Termination/"):
-                termination_flags = torch.zeros(num_finished_episodes)
-                termination_flags[:value] = 1.0
+                termination_flags = torch.zeros(num_finished_episodes, device=self.device)
+                termination_flags[: int(value)] = 1.0
                 log[key] = termination_flags
         self.metrics.record(log)
         return observation, state, reward, terminated, truncated, observation_dict | extras

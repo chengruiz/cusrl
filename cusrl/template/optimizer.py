@@ -93,7 +93,7 @@ class OptimizerFactory:
         """Returns the most specific configured prefix for ``name``."""
         matched_prefix = ""
         for prefix in self.optim_groups:
-            if name == prefix or name.startswith(f"{prefix}.") or not prefix:
+            if name == prefix or name.startswith(f"{prefix}."):
                 matched_prefix = prefix
                 break
         return matched_prefix

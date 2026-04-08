@@ -278,7 +278,7 @@ class AdaptiveNormalDist(_Normal):
 
     def clear_intermediate_repr(self):
         super().clear_intermediate_repr()
-        if isinstance(self.std_head, Module):
+        if hasattr(self.std_head, "clear_intermediate_repr"):
             self.std_head.clear_intermediate_repr()
 
     def forward(self, latent: Tensor, **kwargs):
