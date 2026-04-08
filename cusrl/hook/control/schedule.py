@@ -35,6 +35,12 @@ class HookParameterSchedule(Hook[ActorCritic]):
         self.scheduler = scheduler
         self.name_(f"{self.hook_name}_{self.parameter}_schedule")
 
+    def init(self):
+        try:
+            self.agent.hook[self.hook_name]
+        except KeyError:
+            raise ValueError(f"No hook named '{self.hook_name}' is registered") from None
+
     def apply_schedule(self, iteration: int):
         hook = self.agent.hook[self.hook_name]
         value = self.scheduler(iteration)
@@ -60,6 +66,12 @@ class HookActivationSchedule(Hook[ActorCritic]):
         self.hook_name = hook_name
         self.scheduler = scheduler
         self.name_(f"{hook_name}_activation_schedule")
+
+    def init(self):
+        try:
+            self.agent.hook[self.hook_name]
+        except KeyError:
+            raise ValueError(f"No hook named '{self.hook_name}' is registered") from None
 
     def apply_schedule(self, iteration: int):
         self.agent.hook[self.hook_name].active_(self.scheduler(iteration))

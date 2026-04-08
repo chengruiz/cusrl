@@ -108,7 +108,7 @@ class AdvantageNormalization(Hook[ActorCritic]):
     @torch.no_grad()
     def normalize_(self, advantage: Tensor):
         dims = tuple(range(advantage.ndim - 1))
-        var, mean = torch.var_mean(advantage, dim=dims, correction=0)
+        var, mean = torch.var_mean(advantage, dim=dims)
         if self.synchronize:
             distributed.reduce_mean_var_(mean, var)
         std = (var + 1e-8).sqrt()

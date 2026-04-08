@@ -64,7 +64,6 @@ class CausalMultiheadSelfAttention(Module):
         self.num_heads = num_heads
         self.window_size = window_size
         self.dtype = dtype
-        self.alibi_slopes = torch.as_tensor(alibi_slopes) if alibi_slopes is not None else None
         self.rope_base = rope_base  # Rotary Positional Embedding
         self.head_dim = embed_dim // num_heads
         if self.head_dim * num_heads != embed_dim:
@@ -72,12 +71,14 @@ class CausalMultiheadSelfAttention(Module):
         if self.rope_base is not None:
             if self.rope_base <= 0:
                 raise ValueError("'rope_base' must be a positive number")
-            if self.head_dim // 2 == 0:
+            if self.head_dim % 2 != 0:
                 raise ValueError("'head_dim' must be even when RoPE is enabled")
-        if self.alibi_slopes is not None and self.alibi_slopes.ndim != 1:
-            raise ValueError("'alibi_slopes' must be a 1D tensor")
-        if self.alibi_slopes is not None and self.alibi_slopes.size(0) != num_heads:
-            raise ValueError(f"'alibi_slopes' must contain {num_heads} elements")
+        if alibi_slopes is not None:
+            alibi_slopes = torch.as_tensor(alibi_slopes)
+            if alibi_slopes.ndim != 1:
+                raise ValueError("'alibi_slopes' must be a 1D tensor")
+            if alibi_slopes.size(0) != num_heads:
+                raise ValueError(f"'alibi_slopes' must contain {num_heads} elements")
         if self.window_size <= 0:
             raise ValueError("'window_size' must be a positive integer")
         super().__init__(
@@ -90,6 +91,7 @@ class CausalMultiheadSelfAttention(Module):
         self.q_proj = nn.Linear(self.input_dim, embed_dim)
         self.kv_proj = nn.Linear(self.input_dim, embed_dim * 2)
         self.out_proj = nn.Linear(embed_dim, self.output_dim)
+        self.register_buffer("alibi_slopes", alibi_slopes, persistent=False)
         self._rotary_cos = self._rotary_sin = None
 
     def forward(
@@ -171,8 +173,6 @@ class CausalMultiheadSelfAttention(Module):
             q_segments = kv_segments = None
 
         # Apply RoPE
-        if self.alibi_slopes is not None:
-            self.alibi_slopes = self.alibi_slopes.to(device=input.device)
         if self.rope_base is not None:
             self._update_cos_sin_cache(full_seq_len, q.device)
             q = apply_rotary_emb(

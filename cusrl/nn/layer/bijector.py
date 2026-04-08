@@ -113,11 +113,14 @@ class SoftplusBijector(Bijector):
         return math.log1p(math.exp(clamped_input * self.scale)) / self.scale
 
     def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
+        # log(exp(x) - 1) = x + log(1 - exp(-x)) = x + log1p(-exp(-x))
         if isinstance(input, Tensor):
             clamped_input = input.clamp(self.min_value, self.max_value)
-            return torch.log(torch.expm1(clamped_input * self.scale)) / self.scale
+            scaled = clamped_input * self.scale
+            return (scaled + torch.log1p(-torch.exp(-scaled))) / self.scale
         clamped_input = max(self.min_value, min(input, self.max_value))
-        return math.log(math.expm1(clamped_input * self.scale)) / self.scale
+        scaled = clamped_input * self.scale
+        return (scaled + math.log1p(-math.exp(-scaled))) / self.scale
 
     def extra_repr(self):
         return f"scale={self.scale}, min={self.min_value}, max={self.max_value}"
