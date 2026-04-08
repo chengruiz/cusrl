@@ -52,15 +52,25 @@ class EnvironmentFactorySpec:
 @dataclass(kw_only=True)
 class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
     experiment_name: Annotated[str, tyro.conf.Suppress]
+    """Name of the experiment used for log and checkpoint paths."""
     name: str = ""
+    """Run name passed to the logger."""
     logger: str = "tensorboard"
+    """Logger backend name."""
     log_dir: str = "logs"
+    """Base directory for experiment logs."""
     log_interval: int = 1
+    """Number of iterations between logger writes."""
     num_iterations: int = 1000
+    """Total number of training iterations to run."""
     init_iteration: int | None = None
+    """Iteration to resume from when continuing training."""
+    checkpoint_path: Annotated[str | None, tyro.conf.arg(name="checkpoint")] = None
+    """Checkpoint path to load before training starts."""
     checkpoint_interval: int = 50
-    checkpoint_path: str | None = None
+    """Number of iterations between checkpoint saves."""
     callbacks: Sequence[Callable[["Trainer"], None]] = ()
+    """Callbacks invoked during the trainer lifecycle."""
 
     def __call__(self) -> Trainer:
         trainer = Trainer(
@@ -84,12 +94,19 @@ class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
 @dataclass(kw_only=True)
 class PlayingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
     player_factory: Annotated[type[Player], tyro.conf.Suppress] = Player
+    """Factory used to construct the player."""
     num_steps: int | None = None
+    """Maximum number of environment steps to play."""
     num_episodes: int | None = None
+    """Maximum number of episodes to play."""
     timestep: float | None = None
+    """Optional wall-clock delay between player steps."""
     deterministic: bool = True
+    """Whether to select actions deterministically."""
     verbose: bool = True
+    """Whether to print runtime progress."""
     hooks: Sequence[PlayerHook] = ()
+    """Hooks invoked during the player's lifecycle."""
 
     def __call__(self, checkpoint_path: str | None) -> Player:
         return self.player_factory(
@@ -108,11 +125,17 @@ class PlayingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
 @dataclass(kw_only=True)
 class BenchmarkingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
     benchmarker_factory: Annotated[Callable[..., Player], tyro.conf.Suppress] = Player
+    """Factory used to construct the benchmark runner."""
     num_steps: int | None = None
+    """Maximum number of environment steps to run."""
     num_episodes: int | None = None
+    """Maximum number of episodes to run."""
     deterministic: bool = True
+    """Whether to select actions deterministically."""
     verbose: bool = True
+    """Whether to print runtime progress."""
     hooks: Sequence[PlayerHook] = ()
+    """Hooks invoked during the benchmarker's lifecycle."""
 
     def __call__(self, checkpoint_path: str | None) -> Player:
         return self.benchmarker_factory(
@@ -131,31 +154,54 @@ class BenchmarkingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
 @dataclass(kw_only=True)
 class ExperimentSpec:
     environment_name: str
+    """Registered environment name used to build the experiment name."""
     algorithm_name: str
+    """Registered algorithm name used to build the experiment name."""
     agent_meta_factory: Callable[..., AgentFactory]
+    """Factory that creates the agent factory for this experiment."""
     agent_meta_factory_kwargs: dict[str, Any] = field(default_factory=dict)
+    """Keyword arguments passed to ``agent_meta_factory``."""
 
     training_env_factory: Callable[..., Environment]
+    """Factory used to construct the training environment."""
     training_env_config_factory: Callable[..., Any] | None = None
+    """Optional factory used to build the training environment config."""
     training_env_config_factory_kwargs: dict[str, Any] = field(default_factory=dict)
+    """Keyword arguments passed to ``training_env_config_factory``."""
     training_env_factory_kwargs: dict[str, Any] = field(default_factory=dict)
+    """Keyword arguments passed to ``training_env_factory``."""
     trainer_callbacks: Sequence[Callable[["Trainer"], None]] = ()
+    """Callbacks attached to the training factory."""
     num_iterations: int = 1000
+    """Default number of training iterations."""
     checkpoint_interval: int = 50
+    """Default number of iterations between checkpoint saves."""
 
     player_factory: Callable[..., Player] = Player
+    """Factory used to construct the player."""
     playing_env_factory: Callable[..., Environment] | None = None
+    """Optional factory used to construct the playing environment."""
     playing_env_config_factory: Callable[..., Any] | None = None
+    """Optional factory used to build the playing environment config."""
     playing_env_config_factory_kwargs: dict[str, Any] | None = None
+    """Keyword arguments passed to ``playing_env_config_factory``."""
     playing_env_factory_kwargs: dict[str, Any] | None = None
+    """Keyword arguments passed to ``playing_env_factory``."""
     player_hooks: Sequence[PlayerHook] = ()
+    """Hooks attached to the playing factory."""
 
     benchmarker_factory: Callable[..., Player] = Player
+    """Factory used to construct the benchmark runner."""
     benchmarking_env_factory: Callable[..., Environment] | None = None
+    """Optional factory used to construct the benchmarking environment."""
     benchmarking_env_config_factory: Callable[..., Any] | None = None
+    """Optional factory used to build the benchmarking environment config."""
     benchmarking_env_config_factory_kwargs: dict[str, Any] | None = None
+    """Keyword arguments passed to ``benchmarking_env_config_factory``."""
     benchmarking_env_factory_kwargs: dict[str, Any] | None = None
+    """Keyword arguments passed to ``benchmarking_env_factory``."""
     benchmarker_hooks: Sequence[PlayerHook] = ()
+    """Hooks attached to the benchmarking factory."""
 
     def __post_init__(self):
         disallowed = (":", "_", "/", "\\")
