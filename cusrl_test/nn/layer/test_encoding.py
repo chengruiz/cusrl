@@ -78,6 +78,30 @@ def test_rotary_embedding_builds_cache_and_rotates_qk_only():
     assert torch.allclose(output_qkv, expected_qkv)
 
 
+def test_rotary_embedding_supports_position_offset():
+    module = RotaryEmbedding(head_dim=4, max_seq_len=2)
+    input = torch.randn(2, 3, 1, 4)
+
+    output = module(input, offset=2)
+
+    cos, sin = module._get_cos_sin(3, offset=2, device=input.device, dtype=input.dtype)
+    assert module.cos_cached.shape[0] >= 5
+    assert module.sin_cached.shape[0] >= 5
+    assert torch.allclose(output, apply_rotary_emb(input, cos, sin))
+
+
+def test_rotary_embedding_apply_qkv_supports_position_offset():
+    module = RotaryEmbedding(head_dim=4, max_seq_len=2)
+    qkv = torch.randn(2, 3, 3, 1, 4)
+
+    output = module.apply_qkv(qkv.clone(), offset=1)
+
+    cos, sin = module._get_cos_sin(3, offset=1, device=qkv.device, dtype=qkv.dtype)
+    q, k, v = qkv.unbind(dim=-3)
+    expected = torch.stack([apply_rotary_emb(q, cos, sin), apply_rotary_emb(k, cos, sin), v], dim=-3)
+    assert torch.allclose(output, expected)
+
+
 def test_rotary_embedding_rejects_odd_head_dimension():
     with pytest.raises(ValueError, match="must be even"):
         RotaryEmbedding(head_dim=3)

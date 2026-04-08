@@ -167,28 +167,32 @@ class RotaryEmbedding(nn.Module):
         self.cos_cached = torch.cos(angles)
         self.sin_cached = torch.sin(angles)
 
-    def _get_cos_sin(self, seq_len: int, device: torch.device | None = None, dtype: torch.dtype | None = None):
-        if seq_len > self.cos_cached.shape[0]:
-            self._build_cache(seq_len)
-        cos = self.cos_cached[:seq_len]
-        sin = self.sin_cached[:seq_len]
-        if device is not None:
-            cos = cos.to(device)
-            sin = sin.to(device)
-        if dtype is not None:
-            cos = cos.to(dtype=dtype)
-            sin = sin.to(dtype=dtype)
+    def _get_cos_sin(
+        self,
+        seq_len: int,
+        offset: int = 0,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
+        if offset < 0:
+            raise ValueError("'offset' must be non-negative")
+
+        end = offset + seq_len
+        if end > self.cos_cached.shape[0]:
+            self._build_cache(end)
+        cos = self.cos_cached[offset:end].to(device=device, dtype=dtype)
+        sin = self.sin_cached[offset:end].to(device=device, dtype=dtype)
         return cos, sin
 
-    def forward(self, x: Tensor) -> Tensor:
-        cos, sin = self._get_cos_sin(x.shape[-3], device=x.device, dtype=x.dtype)
+    def forward(self, x: Tensor, offset: int = 0) -> Tensor:
+        cos, sin = self._get_cos_sin(x.shape[-3], offset=offset, device=x.device, dtype=x.dtype)
         return apply_rotary_emb(x, cos, sin)
 
-    def apply_qkv(self, qkv: Tensor) -> Tensor:
+    def apply_qkv(self, qkv: Tensor, offset: int = 0) -> Tensor:
         """Apply rotary embedding to query, key, and value tensors.
 
         Args:
             qkv: tensor of shape (N, L, 3, H, C / H).
         """
         q, k, v = qkv.unbind(dim=-3)
-        return torch.stack([self(q), self(k), v], dim=-3)
+        return torch.stack([self(q, offset=offset), self(k, offset=offset), v], dim=-3)

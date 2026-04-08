@@ -5,7 +5,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn.attention.flex_attention import flex_attention
 
-from cusrl.nn.layer.encoding import apply_rotary_emb
+from cusrl.nn.layer.encoding import RotaryEmbedding
 from cusrl.nn.layer.gate import get_gate_cls
 from cusrl.nn.layer.transformer import FeedForward
 from cusrl.nn.module.module import Module, ModuleFactory
@@ -29,7 +29,7 @@ class CausalMultiheadSelfAttentionFactory(ModuleFactory["CausalMultiheadSelfAtte
     embed_dim: int
     num_heads: int
     window_size: int
-    dtype: torch.dtype = torch.float16
+    dtype: torch.dtype = torch.float32
     alibi_slopes: Tensor | None = None
     rope_base: float | None = None
 
@@ -54,7 +54,7 @@ class CausalMultiheadSelfAttention(Module):
         embed_dim: int,
         num_heads: int,
         window_size: int,
-        dtype: torch.dtype = torch.float16,
+        dtype: torch.dtype = torch.float32,
         alibi_slopes: Tensor | None = None,
         rope_base: float | None = None,
         input_dim: int | None = None,
@@ -92,7 +92,7 @@ class CausalMultiheadSelfAttention(Module):
         self.kv_proj = nn.Linear(self.input_dim, embed_dim * 2)
         self.out_proj = nn.Linear(embed_dim, self.output_dim)
         self.register_buffer("alibi_slopes", alibi_slopes, persistent=False)
-        self._rotary_cos = self._rotary_sin = None
+        self.rope = RotaryEmbedding(self.head_dim, base=rope_base) if rope_base is not None else None
 
     def forward(
         self,
@@ -173,18 +173,9 @@ class CausalMultiheadSelfAttention(Module):
             q_segments = kv_segments = None
 
         # Apply RoPE
-        if self.rope_base is not None:
-            self._update_cos_sin_cache(full_seq_len, q.device)
-            q = apply_rotary_emb(
-                q,
-                self._rotary_cos[self.window_size : self.window_size + seq_len],
-                self._rotary_sin[self.window_size : self.window_size + seq_len],
-            )
-            k_rotated = apply_rotary_emb(
-                kv[:, :, 0],
-                self._rotary_cos[:full_seq_len],
-                self._rotary_sin[:full_seq_len],
-            )
+        if self.rope is not None:
+            q = self.rope(q, offset=self.window_size)
+            k_rotated = self.rope(kv[:, :, 0])
             kv = torch.stack([k_rotated, kv[:, :, 1]], dim=2)
 
         # Separate K, V and transpose to (N, H, L, D)
@@ -266,16 +257,6 @@ class CausalMultiheadSelfAttention(Module):
             input_cache[done] = 0.0
             cache_mask[done] = False
 
-    def _update_cos_sin_cache(self, seq_len, device):
-        if self._rotary_sin is not None and self._rotary_sin.size(0) >= seq_len:
-            return
-
-        t = torch.arange(0.0, seq_len, device=device)
-        inv_freq = 1.0 / (self.rope_base ** (torch.arange(0.0, self.head_dim, 2.0, device=device) / self.head_dim))
-        freq = torch.outer(t, inv_freq)
-        self._rotary_cos = freq.cos()
-        self._rotary_sin = freq.sin()
-
 
 @dataclass(slots=True)
 class CausalTransformerEncoderLayerFactory(ModuleFactory["CausalTransformerEncoderLayer"]):
@@ -285,7 +266,7 @@ class CausalTransformerEncoderLayerFactory(ModuleFactory["CausalTransformerEncod
     feedforward_dim: int | None = None
     activation_fn: type[nn.Module] = nn.GELU
     dropout: float = 0.0
-    dtype: torch.dtype = torch.float16
+    dtype: torch.dtype = torch.float32
     gate_type: str | None = "residual"
     layer_norm: Literal[None, "pre", "post"] = "post"
     use_alibi: bool = False
@@ -320,7 +301,7 @@ class CausalTransformerEncoderLayer(Module):
         feedforward_dim: int | None = None,
         activation_fn: type[nn.Module] = nn.GELU,
         dropout: float = 0.0,
-        dtype: torch.dtype = torch.float16,
+        dtype: torch.dtype = torch.float32,
         gate_type: str | None = "residual",
         layer_norm: Literal[None, "pre", "post"] = "post",
         use_alibi: bool = False,
