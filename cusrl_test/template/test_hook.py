@@ -1,5 +1,7 @@
+import cusrl
 from cusrl.hook import ConditionalObjectiveActivation, EnvironmentSpecOverride, GeneralizedAdvantageEstimation
 from cusrl.utils import from_dict, to_dict
+from cusrl_test import create_dummy_env
 
 
 def always_active(agent, metadata, batch):
@@ -33,3 +35,19 @@ def test_hook_round_trip_supports_named_conditions_constructor():
 
     assert isinstance(restored, ConditionalObjectiveActivation)
     assert restored.named_conditions == {"value_loss": always_active}
+
+
+def test_environment_spec_override_supports_new_extra_fields():
+    spec = cusrl.EnvironmentSpec(observation_dim=1, action_dim=1)
+
+    spec.foo = 123
+    assert spec.foo == 123
+
+
+def test_environment_spec_override_hook_can_add_new_fields():
+    environment = create_dummy_env()
+    agent_factory = cusrl.preset.PpoAgentFactory().to_underlying()
+    agent_factory.register_hook(cusrl.hook.EnvironmentSpecOverride(foo=123), index=0)
+
+    agent = agent_factory.from_environment(environment)
+    assert agent.environment_spec.foo == 123

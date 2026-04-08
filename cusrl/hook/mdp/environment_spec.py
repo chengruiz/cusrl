@@ -29,7 +29,7 @@ class EnvironmentSpecOverride(Hook):
     def pre_init(self, agent: Agent):
         super().pre_init(agent)
         for key, value in self.overrides.items():
-            agent.environment_spec.override(key, value)
+            setattr(agent.environment_spec, key, value)
 
 
 class DynamicEnvironmentSpecOverride(Hook):
@@ -56,4 +56,4 @@ class DynamicEnvironmentSpecOverride(Hook):
             raise ValueError("'environment_instance' is not set in the environment_spec")
         overrides = self.overrides_factory(agent.environment_spec.environment_instance)
         for key, value in overrides.items():
-            agent.environment_spec.override(key, value)
+            setattr(agent.environment_spec, key, value)

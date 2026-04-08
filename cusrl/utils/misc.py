@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import os
 import random
@@ -84,11 +85,12 @@ def import_module(
     elif path is not None:
         if not os.path.exists(path):
             raise FileNotFoundError(f"Path '{path}' does not exist")
-        module_name = os.path.basename(path).removesuffix(".py")
+        normalized_path = os.path.abspath(path)
+        module_name = f"_script_{hashlib.sha1(normalized_path.encode()).hexdigest()}"
         if module_name in sys.modules:
             return sys.modules[module_name]
 
-        module_spec = spec_from_file_location(module_name, path)
+        module_spec = spec_from_file_location(module_name, normalized_path)
         if module_spec is None:
             raise ImportError(f"Could not load a module from '{path}'")
     else:  # do nothing if no module is specified
@@ -104,6 +106,10 @@ def import_module(
     try:
         sys.argv[:] = [module_spec.origin or "", *(args or [])]
         module_spec.loader.exec_module(module)
+    except Exception:
+        if sys.modules.get(module_spec.name) is module:
+            del sys.modules[module_spec.name]
+        raise
     finally:
         sys.argv[:] = original_argv
 
@@ -156,10 +162,10 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
     distributed.print_rank0(f"Setting seed: {seed} (deterministic={deterministic})")
     seed += distributed.rank()
     random.seed(seed)
-    np.random.seed(random.getrandbits(4))
-    torch.manual_seed(random.getrandbits(4))
-    os.environ["PYTHONHASHSEED"] = str(random.getrandbits(4))
-    torch.cuda.manual_seed(random.getrandbits(4))
+    np.random.seed(seed % (2**32))
+    torch.manual_seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.cuda.manual_seed_all(seed)
 
     if deterministic:
         # refer to https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility

@@ -109,9 +109,6 @@ class EnvironmentSpec:
             A callable that samples demonstrations from the environment. It
             should accept an integer representing the number of demonstrations
             to sample and return a demonstration array.
-
-        extras (dict):
-            Dictionary containing additional environment-specific properties.
     """
 
     def __init__(
@@ -165,21 +162,11 @@ class EnvironmentSpec:
         self.state_normalization = state_normalization
         self.state_normalization_excluded_indices = state_normalization_excluded_indices
         self.timestep = timestep
-        self.extras = kwargs
-
-    def __getattr__(self, key: str):
-        return self.extras[key]
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def get(self, key: str, default=None):
-        if key in self.extras:
-            return self.extras[key]
         return self.__dict__.get(key, default)
-
-    def override(self, key: str, value: Any):
-        if hasattr(self, key):
-            setattr(self, key, value)
-        else:
-            self.extras[key] = value
 
 
 EnvironmentFactoryLike: TypeAlias = Callable[[], "Environment"]

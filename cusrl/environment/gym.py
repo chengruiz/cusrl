@@ -38,7 +38,7 @@ class GymEnvAdapter(Environment[np.ndarray]):
             observation_dim=wrapped.observation_space.shape[0],
             observation_space=wrapped.observation_space,
         )
-        wrapped.reset(seed=random.getrandbits(4))
+        wrapped.reset(seed=random.getrandbits(32))
         self.wrapped = wrapped
 
     def close(self):
@@ -102,7 +102,7 @@ class GymVectorEnvAdapter(Environment[np.ndarray]):
             observation_dim=wrapped.single_observation_space.shape[0],
             observation_space=wrapped.single_observation_space,
         )
-        wrapped.reset(seed=random.getrandbits(4))
+        wrapped.reset(seed=random.getrandbits(32))
         self.wrapped = wrapped
 
     def close(self):
