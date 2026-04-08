@@ -1,9 +1,13 @@
 import os
+import re
 from pathlib import Path
 
 import torch
 
 __all__ = ["Trial"]
+
+
+_REGEX_CKPT_FILENAME = re.compile(r"^ckpt_(\d+)\.pt$")
 
 
 class Trial:
@@ -61,11 +65,15 @@ class Trial:
             self.home: Path = trial_path.absolute()
             if (self.home / "latest").is_symlink():
                 self.home = (self.home / "latest").resolve()
+            if not (self.home / "ckpt").is_dir():
+                raise FileNotFoundError(f"'{path}' is not a valid trial directory")
             self.all_iterations = self._search_ckpt(self.home / "ckpt")
+            if not self.all_iterations:
+                raise FileNotFoundError(f"No checkpoint files found in '{self.home / 'ckpt'}'")
             self.iteration: int = max(self.all_iterations)
         else:
-            if not trial_path.name.startswith("ckpt_") or trial_path.suffix != ".pt":
-                raise ValueError(f"'{trial_path}' is not a valid trial directory or checkpoint file")
+            if not self._is_checkpoint_file(trial_path):
+                raise ValueError(f"'{trial_path}' is not a valid checkpoint file")
 
             self.home = trial_path.parent.parent.absolute()
             self.all_iterations = self._search_ckpt(self.home / "ckpt")
@@ -96,10 +104,18 @@ class Trial:
     def _search_ckpt(cls, directory: Path) -> list[int]:
         ckpt_iterations = []
         for filename in directory.iterdir():
-            ckpt_iterations.append(cls._get_ckpt_iteration(filename))
+            if (iteration := cls._get_ckpt_iteration(filename)) is not None:
+                ckpt_iterations.append(iteration)
         ckpt_iterations.sort()
         return ckpt_iterations
 
     @classmethod
-    def _get_ckpt_iteration(cls, filename: Path) -> int:
-        return int(filename.stem.rsplit("_", 1)[-1])
+    def _is_checkpoint_file(cls, filename: Path) -> bool:
+        return filename.is_file() and _REGEX_CKPT_FILENAME.fullmatch(filename.name) is not None
+
+    @classmethod
+    def _get_ckpt_iteration(cls, filename: Path) -> int | None:
+        match = _REGEX_CKPT_FILENAME.fullmatch(filename.name)
+        if match is None:
+            return None
+        return int(match.group(1))

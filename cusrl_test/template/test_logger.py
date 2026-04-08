@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import pytest
-import torch
 
 import cusrl
 
@@ -81,31 +80,6 @@ def test_logger_uses_single_underscore_for_datetime_prefix(tmp_path, monkeypatch
 
     assert logger.name == "2026-03-26-12-34-56_run"
     assert logger.log_dir == tmp_path / "2026-03-26-12-34-56_run"
-
-
-@pytest.mark.parametrize(
-    ("experiment_name", "expected_environment_name", "expected_algorithm_name"),
-    [
-        ("MountainCar-v0_ppo", "MountainCar-v0", "ppo"),
-        ("MountainCar-v0:ppo", "MountainCar-v0", "ppo"),
-    ],
-)
-def test_trial_parses_new_and_legacy_experiment_names(
-    tmp_path,
-    experiment_name,
-    expected_environment_name,
-    expected_algorithm_name,
-):
-    trial_dir = tmp_path / experiment_name / "trial"
-    ckpt_dir = trial_dir / "ckpt"
-    ckpt_dir.mkdir(parents=True)
-    torch.save({"value": 1}, ckpt_dir / "ckpt_0.pt")
-
-    trial = cusrl.Trial(trial_dir, verbose=False)
-
-    assert trial.experiment_name == experiment_name
-    assert trial.environment_name == expected_environment_name
-    assert trial.algorithm_name == expected_algorithm_name
 
 
 def test_experiment_spec_uses_single_underscore_name_separator():

@@ -37,10 +37,7 @@ def parse_args(argv: Sequence[str] | None = None):
 
 def print_trial_path(trial: Path, *, print_ckpt: bool = False, print_basename: bool = False):
     if print_ckpt:
-        try:
-            trial = cusrl.Trial(trial, verbose=False).checkpoint_path
-        except ValueError:
-            pass
+        trial = cusrl.Trial(trial, verbose=False).checkpoint_path
     print(trial.name if print_basename else str(trial))
 
 
