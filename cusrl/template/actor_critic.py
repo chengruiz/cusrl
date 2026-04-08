@@ -280,13 +280,13 @@ class ActorCritic(Agent):
             reward=reward,
             terminated=terminated,
             truncated=truncated,
-            done=terminated | truncated,
             **kwargs,
         )
         if self.transition["terminated"].dtype != torch.bool:
             raise TypeError("'terminated' must have dtype bool")
         if self.transition["truncated"].dtype != torch.bool:
             raise TypeError("'truncated' must have dtype bool")
+        self.transition["done"] = self.transition["terminated"] | self.transition["truncated"]
 
         # enable hook to preprocess the next_observation, next_state, etc.
         self.hook.post_step(self.transition)

@@ -291,6 +291,9 @@ class Rnn(Module):
             output_memory = gather_memory(scattered_output_memory, done)
         else:
             padded_latent, _ = self._forward_tensor(padded_input, scattered_memory)
+            # Without packed sequences, the RNN also consumes padded timesteps,
+            # so the returned final state no longer matches the last valid
+            # timestep of each episode and cannot be used as output memory.
             output_memory = None
         latent = unpad_and_merge_sequences(padded_latent, mask)
         return latent, output_memory

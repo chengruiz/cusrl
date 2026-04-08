@@ -254,6 +254,18 @@ class Agent(ABC):
         self.metrics.record(metrics, **kwargs)
 
     def state_dict(self):
+        """Collects checkpoint state from registered modules and stateful
+        objects.
+
+        Only attributes named in :attr:`MODULES` and :attr:`STATEFULS` are
+        included. Missing attributes are skipped, which allows subclasses to
+        declare optional components without special-case checkpoint logic.
+
+        Returns:
+            state_dict (dict[str, Any]):
+                A mapping from registered component names to the result of each
+                component's ``state_dict()`` method.
+        """
         state_dict = {}
         for name in self.MODULES + self.STATEFULS:
             if (module := getattr(self, name, None)) is not None:
@@ -261,6 +273,19 @@ class Agent(ABC):
         return state_dict
 
     def load_state_dict(self, state_dict: dict[str, Any]):
+        """Loads checkpointed state into registered modules and stateful
+        objects.
+
+        The input mapping is matched against names declared in :attr:`MODULES`
+        and :attr:`STATEFULS`. Missing entries, incompatible payloads, and extra
+        keys do not raise immediately; they are reported through :meth:`warn` so
+        partially compatible checkpoints can still be restored.
+
+        Args:
+            state_dict (dict[str, Any]):
+                A mapping produced by :meth:`state_dict`, where each key
+                corresponds to a registered module or stateful object.
+        """
         keys = set(state_dict.keys())
         for name in self.MODULES + self.STATEFULS:
             module: nn.Module | torch.optim.Optimizer | None = getattr(self, name, None)
