@@ -1,6 +1,6 @@
 import itertools
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import torch
@@ -10,7 +10,7 @@ __all__ = ["Metrics"]
 
 @dataclass(slots=True)
 class Metric:
-    mean: torch.Tensor = torch.tensor([])
+    mean: torch.Tensor = field(default_factory=lambda: torch.tensor([]))
     count: int = 0
 
     @torch.no_grad()

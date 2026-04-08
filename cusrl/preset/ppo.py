@@ -213,6 +213,8 @@ class RecurrentPpoAgentFactory(AgentFactory[ActorCritic]):
     """Clipping for value loss to limit the change in value estimates."""
     surrogate_clip_ratio: float = 0.2
     """Clipping ratio for the PPO surrogate loss."""
+    surrogate_loss_weight: float = 1.0
+    """Weight for the surrogate loss term in the total loss."""
     entropy_loss_weight: float = 0.01
     """Weight for the entropy loss term in the total loss."""
     max_grad_norm: float | None = 1.0
@@ -261,6 +263,7 @@ class RecurrentPpoAgentFactory(AgentFactory[ActorCritic]):
                 value_loss_weight=self.value_loss_weight,
                 value_loss_clip=self.value_loss_clip,
                 surrogate_clip_ratio=self.surrogate_clip_ratio,
+                surrogate_loss_weight=self.surrogate_loss_weight,
                 entropy_loss_weight=self.entropy_loss_weight,
                 max_grad_norm=self.max_grad_norm,
                 grad_clip_groups=self.grad_clip_groups,

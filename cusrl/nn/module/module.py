@@ -85,7 +85,13 @@ class Module(nn.Module):
 
     @property
     def device(self) -> torch.device:
-        return next(self.parameters()).device
+        param = next(self.parameters(), None)
+        if param is not None:
+            return param.device
+        buffer = next(self.buffers(), None)
+        if buffer is not None:
+            return buffer.device
+        return torch.device("cpu")
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError

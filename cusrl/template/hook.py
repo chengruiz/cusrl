@@ -359,8 +359,6 @@ class HookComposite(Hook):
         for hook_name, hook in self._named_hooks.items():
             if state := state_dict.get(hook_name):
                 hook.load_state_dict(state)
-            elif state := state_dict.get(hook_name := hook.__class__.__name__):  # For compatibility
-                hook.load_state_dict(state)
             elif hook.state_dict():
                 self.warn(f"No state_dict entry was found for '{hook.name}'.")
             keys.discard(hook_name)

@@ -109,6 +109,8 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
                 state = state[indices]
 
         if randomize_episode_progress:
+            if indices is None:
+                indices = slice(None)
             self.unwrapped.episode_length_buf[indices] = torch.randint_like(
                 self.unwrapped.episode_length_buf[indices], int(self.unwrapped.max_episode_length)
             )

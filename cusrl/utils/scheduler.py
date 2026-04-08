@@ -122,13 +122,13 @@ class TanhScheduler:
         self.x0, self.y0 = point0
         self.x1, self.y1 = point1
         self.eta = eta
-        self.mid = (self.x0 + self.x1) / 2
-        self.eps0 = self._get_epsilon(self.x0)
-        self.eps1 = self._get_epsilon(self.x1)
         if self.x0 >= self.x1:
             raise ValueError("x coordinates must be strictly increasing")
         if self.eta <= 0:
             raise ValueError("'eta' must be positive")
+        self.mid = (self.x0 + self.x1) / 2
+        self.eps0 = self._get_epsilon(self.x0)
+        self.eps1 = self._get_epsilon(self.x1)
 
     def _get_epsilon(self, iteration: int) -> float:
         return 0.5 + 0.5 * math.tanh(self.eta * 2 * (iteration - self.mid) / (self.x1 - self.x0))

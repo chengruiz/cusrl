@@ -28,6 +28,9 @@ class Configurations:
         return cls.__instance
 
     def __init__(self):
+        if getattr(self, "_initialized", False):
+            return
+        self._initialized = True
         self._cuda = torch.cuda.is_available()
         self._seed = None
         self.device = torch.device("cuda:0" if self._cuda else "cpu")

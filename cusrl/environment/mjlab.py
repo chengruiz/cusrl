@@ -98,6 +98,8 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
                 state = state[indices]
 
         if randomize_episode_progress:
+            if indices is None:
+                indices = slice(None)
             self.wrapped.episode_length_buf[indices] = torch.randint_like(
                 self.wrapped.episode_length_buf[indices], int(self.wrapped.max_episode_length)
             )
