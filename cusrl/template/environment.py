@@ -8,7 +8,7 @@ from objprint import add_objprint
 from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
 
 if TYPE_CHECKING:
-    from cusrl.hook.auxiliary.symmetry import SymmetryDefLike
+    from cusrl.hook.auxiliary.symmetry import MirrorFn
 
 __all__ = [
     "Environment",
@@ -62,11 +62,11 @@ class EnvironmentSpec:
             The time duration for one environment step.
 
         # Symmetry transformations
-        mirror_action (SymmetryDefLike | None):
+        mirror_action (MirrorFn | None):
             Definition for action symmetry transformations.
-        mirror_observation (SymmetryDefLike | None):
+        mirror_observation (MirrorFn | None):
             Definition for observation symmetry transformations.
-        mirror_state (SymmetryDefLike | None):
+        mirror_state (MirrorFn | None):
             Definition for state symmetry transformations.
 
         # Predefined statistics
@@ -122,9 +122,9 @@ class EnvironmentSpec:
         demonstration_sampler: Callable[[int], Array] | None = None,
         environment_instance: Optional["Environment"] = None,
         final_state_is_missing: bool = False,
-        mirror_action: Optional["SymmetryDefLike"] = None,
-        mirror_observation: Optional["SymmetryDefLike"] = None,
-        mirror_state: Optional["SymmetryDefLike"] = None,
+        mirror_action: Optional["MirrorFn"] = None,
+        mirror_observation: Optional["MirrorFn"] = None,
+        mirror_state: Optional["MirrorFn"] = None,
         num_instances: int = 1,
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Iterable[Slice] = (),
@@ -201,9 +201,9 @@ class Environment(ABC, Generic[ArrayType]):
         autoreset: bool = False,
         demonstration_sampler: Callable[[int], Array] | None = None,
         final_state_is_missing: bool = False,
-        mirror_action: Optional["SymmetryDefLike"] = None,
-        mirror_observation: Optional["SymmetryDefLike"] = None,
-        mirror_state: Optional["SymmetryDefLike"] = None,
+        mirror_action: Optional["MirrorFn"] = None,
+        mirror_observation: Optional["MirrorFn"] = None,
+        mirror_state: Optional["MirrorFn"] = None,
         num_instances: int = 1,
         observation_is_subset_of_state: Array | Slice | None = None,
         observation_stat_groups: Iterable[Slice] = (),

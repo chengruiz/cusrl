@@ -2,6 +2,7 @@ from . import player
 from .auxiliary import (
     ActionSmoothnessLoss,
     AdversarialMotionPrior,
+    MirrorSymmetryLoss,
     NextStatePrediction,
     PolicyDistillation,
     PolicyDistillationLoss,
@@ -11,7 +12,7 @@ from .auxiliary import (
     StatePrediction,
     SymmetricArchitecture,
     SymmetricDataAugmentation,
-    SymmetryLoss,
+    TransitionMirror,
 )
 from .control import (
     ConditionalObjectiveActivation,
@@ -61,6 +62,7 @@ __all__ = [
     "HookActivationSchedule",
     "HookParameterSchedule",
     "MiniBatchWiseLRSchedule",
+    "MirrorSymmetryLoss",
     "ModuleInitialization",
     "NextStatePrediction",
     "ObservationNanToNum",
@@ -78,7 +80,7 @@ __all__ = [
     "StatePrediction",
     "SymmetricArchitecture",
     "SymmetricDataAugmentation",
-    "SymmetryLoss",
+    "TransitionMirror",
     "ThresholdLRSchedule",
     "ValueComputation",
     "ValueLoss",

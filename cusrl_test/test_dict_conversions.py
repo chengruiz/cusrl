@@ -191,7 +191,7 @@ def test_dict_conversions():
             cusrl.hook.StatePrediction((0, 2, 4)),
             cusrl.hook.SymmetricArchitecture(),
             cusrl.hook.SymmetricDataAugmentation(),
-            cusrl.hook.SymmetryLoss(1.0),
+            cusrl.hook.MirrorSymmetryLoss(1.0),
             cusrl.hook.ThresholdLRSchedule(),
             cusrl.hook.ValueComputation(),
             cusrl.hook.ValueLoss(),

@@ -12,14 +12,16 @@ from .representation import (
 from .rnd import RandomNetworkDistillation
 from .smoothness import ActionSmoothnessLoss
 from .symmetry import (
+    MirrorSymmetryLoss,
     SymmetricArchitecture,
     SymmetricDataAugmentation,
-    SymmetryLoss,
+    TransitionMirror,
 )
 
 __all__ = [
     "AdversarialMotionPrior",
     "ActionSmoothnessLoss",
+    "MirrorSymmetryLoss",
     "NextStatePrediction",
     "PolicyDistillation",
     "PolicyDistillationLoss",
@@ -29,5 +31,5 @@ __all__ = [
     "StatePrediction",
     "SymmetricArchitecture",
     "SymmetricDataAugmentation",
-    "SymmetryLoss",
+    "TransitionMirror",
 ]

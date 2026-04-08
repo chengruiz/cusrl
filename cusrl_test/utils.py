@@ -3,7 +3,7 @@ import random
 import torch
 
 import cusrl
-from cusrl.hook.auxiliary.symmetry import SymmetryDef
+from cusrl.hook.auxiliary.symmetry import MirrorDef
 from cusrl.template.environment import get_done_indices
 from cusrl.testing.environment import DummyNumpyEnvironment, DummyTorchEnvironment
 
@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 
-def create_random_symmetry_def(dim: int) -> SymmetryDef:
+def create_random_mirror_def(dim: int) -> MirrorDef:
     shuffled_indices = list(range(dim))
     random.shuffle(shuffled_indices)
     symmetry_destinations = [-1] * dim
@@ -26,12 +26,12 @@ def create_random_symmetry_def(dim: int) -> SymmetryDef:
     if dim % 2 == 1:
         symmetry_destinations[shuffled_indices[-1]] = shuffled_indices[-1]
         symmetry_flipped[shuffled_indices[-1]] = random.random() < 0.5
-    symmetry_def = SymmetryDef(symmetry_destinations, symmetry_flipped)
+    mirror_def = MirrorDef(symmetry_destinations, symmetry_flipped)
     dummy_input = torch.arange(dim, dtype=torch.float32)
-    mirrored_input = symmetry_def(dummy_input)
-    mirrored_mirrored_input = symmetry_def(mirrored_input)
+    mirrored_input = mirror_def(dummy_input)
+    mirrored_mirrored_input = mirror_def(mirrored_input)
     assert torch.allclose(mirrored_mirrored_input, dummy_input)
-    return symmetry_def
+    return mirror_def
 
 
 def create_dummy_env(
@@ -53,10 +53,10 @@ def create_dummy_env(
         reward_dim=reward_dim,
     )
     if symmetric:
-        env.spec.mirror_observation = create_random_symmetry_def(env.observation_dim)
-        env.spec.mirror_action = create_random_symmetry_def(env.action_dim)
+        env.spec.mirror_observation = create_random_mirror_def(env.observation_dim)
+        env.spec.mirror_action = create_random_mirror_def(env.action_dim)
         if env.state_dim:
-            env.spec.mirror_state = create_random_symmetry_def(env.state_dim)
+            env.spec.mirror_state = create_random_mirror_def(env.state_dim)
     return env
 
 

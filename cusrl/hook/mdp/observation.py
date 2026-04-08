@@ -5,7 +5,7 @@ import numpy as np
 from torch import Tensor
 from typing_extensions import Self
 
-from cusrl.hook.auxiliary.symmetry import SymmetryDefLike
+from cusrl.hook.auxiliary.symmetry import MirrorFn
 from cusrl.nn import FlowGraph, RunningMeanStd
 from cusrl.nn.utils.normalization import mean_var_count
 from cusrl.template import ActorCritic, Hook
@@ -112,8 +112,8 @@ class ObservationNormalization(Hook[ActorCritic]):
         # Runtime attributes
         self.observation_rms: RunningMeanStd
         self.state_rms: RunningMeanStd | None
-        self._mirror_observation: SymmetryDefLike | None = None
-        self._mirror_state: SymmetryDefLike | None = None
+        self._mirror_observation: MirrorFn | None = None
+        self._mirror_state: MirrorFn | None = None
         self._observation_is_subset_of_state: Slice | Tensor | None = None
         self._last_done: Tensor | None = None
 
@@ -204,7 +204,7 @@ class ObservationNormalization(Hook[ActorCritic]):
         self,
         observation: Tensor,
         rms: RunningMeanStd,
-        mirror: SymmetryDefLike | None = None,
+        mirror: MirrorFn | None = None,
         indices: Tensor | None = None,
     ):
         if indices is not None:

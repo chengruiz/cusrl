@@ -88,9 +88,9 @@ CusRL provides a modular and extensible framework for RL with the following key 
 - [Proximal Policy Optimization (PPO)](https://arxiv.org/abs/1707.06347) with recurrent policy support
 - [Random Network Distillation (RND)](https://arxiv.org/abs/1810.12894)
 - Symmetry Augmentations:
+  - [Mirror Symmetry Loss](https://dl.acm.org/doi/abs/10.1145/3197517.3201397)
   - [Symmetric Architecture](https://dl.acm.org/doi/abs/10.1145/3359566.3360070)
   - [Symmetric Data Augmentation](https://ieeexplore.ieee.org/abstract/document/10611493)
-  - [Symmetry Loss](https://dl.acm.org/doi/abs/10.1145/3197517.3201397)
 
 ## Cite
 

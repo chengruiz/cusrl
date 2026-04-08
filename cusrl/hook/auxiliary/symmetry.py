@@ -15,18 +15,33 @@ from cusrl.utils.typing import Memory, NestedTensor, Slice
 
 __all__ = [
     # Elements
+    "MirrorDef",
+    "MirrorFn",
+    "MirrorSymmetryLoss",
     "SymmetricActor",
-    "SymmetryDef",
-    "SymmetryDefLike",
-    # Hooks
-    "SymmetryHook",
-    "SymmetryLoss",
     "SymmetricArchitecture",
     "SymmetricDataAugmentation",
+    "TransitionMirror",
 ]
 
 
-class SymmetryDef:
+MirrorFn: TypeAlias = Callable[[Tensor], Tensor]
+
+
+class MirrorDef:
+    """Builds a mirror transform by reindexing and sign-flipping a tensor.
+
+    The transform is applied to the last dimension of the input tensor. Values
+    are first gathered according to ``destination_indices``, then the entries at
+    positions listed in ``flipped_indices`` are multiplied by ``-1``.
+
+    Args:
+        destination_indices (Sequence[int]):
+            Indices to gather from the input tensor for each output position.
+        flipped_indices (Sequence[int]):
+            Output positions whose gathered values should be negated.
+    """
+
     def __init__(
         self,
         destination_indices: Sequence[int],
@@ -45,19 +60,16 @@ class SymmetryDef:
         return input[..., self.destination] * self.multiplier
 
     def __repr__(self):
-        return f"SymmetryDef(destination_indices={self.destination_indices}, flipped_indices={self.flipped_indices})"
+        return f"MirrorDef(destination_indices={self.destination_indices}, flipped_indices={self.flipped_indices})"
 
 
-SymmetryDefLike: TypeAlias = Callable[[Tensor], Tensor]
-
-
-class SymmetryHook(Hook[ActorCritic]):
-    mirror_observation: SymmetryDefLike
-    mirror_state: SymmetryDefLike | None
-    mirror_action: SymmetryDefLike
+class _SymmetryHook(Hook[ActorCritic]):
+    mirror_observation: MirrorFn
+    mirror_state: MirrorFn | None
+    mirror_action: MirrorFn
 
     def init(self):
-        num_symmetry_hooks = sum(isinstance(hook, SymmetryHook) for hook in self.agent.hook)
+        num_symmetry_hooks = sum(isinstance(hook, _SymmetryHook) for hook in self.agent.hook)
         if num_symmetry_hooks > 1:
             raise ValueError("At most one symmetry hook may be registered")
 
@@ -74,8 +86,65 @@ class SymmetryHook(Hook[ActorCritic]):
         self.mirror_action = self.agent.environment_spec.mirror_action
 
 
-class SymmetryLoss(SymmetryHook):
-    """Implements a symmetry loss to facilitate symmetry in the action
+class TransitionMirror(_SymmetryHook):
+    """Replaces collected transitions with one selected mirrored variant.
+
+    During rollout, the actor consumes mirrored observations and states. The
+    sampled action is then mapped back to the original action space before it
+    is returned to the environment. Once the environment step completes, the
+    stored transition is rewritten so that ``observation``, ``state``,
+    ``action``, ``next_observation``, and ``next_state`` all correspond to the
+    same mirrored variant.
+
+    When the mirror functions return multiple symmetry variants, ``index``
+    selects which one to use. The selected transform is assumed to be
+    self-inverse, as the same transform is applied to convert actions from the
+    mirrored policy space back to the environment action space.
+
+    Args:
+        index (int, optional):
+            Index of the mirrored variant to use. Defaults to ``0``.
+    """
+
+    def __init__(self, index: int = 0):
+        if not isinstance(index, int):
+            raise TypeError("'index' must be an int")
+        super().__init__(training_only=True)
+        self.index = index
+
+    def pre_act(self, transition):
+        observation = cast(Tensor, transition["observation"])
+        transition["observation"] = self._select_mirrored_tensor(observation, self.mirror_observation, self.index)
+
+        if (state := cast(Tensor | None, transition.get("state"))) is not None:
+            assert self.mirror_state is not None
+            transition["state"] = self._select_mirrored_tensor(state, self.mirror_state, self.index)
+
+    def post_act(self, transition):
+        action = cast(Tensor, transition["action"])
+        transition["action"] = self._select_mirrored_tensor(action, self.mirror_action, self.index)
+
+    def post_step(self, transition):
+        next_observation = cast(Tensor, transition["next_observation"])
+        transition["next_observation"] = self._select_mirrored_tensor(
+            next_observation, self.mirror_observation, self.index
+        )
+
+        if (next_state := cast(Tensor | None, transition.get("next_state"))) is not None:
+            assert self.mirror_state is not None
+            transition["next_state"] = self._select_mirrored_tensor(next_state, self.mirror_state, self.index)
+
+    @classmethod
+    def _select_mirrored_tensor(cls, original: Tensor, mirror: MirrorFn, index: int) -> Tensor:
+        mirrored = cls._stack_mirrored_tensor(original, mirror)
+        num_symmetries = mirrored.shape[0]
+        if not -num_symmetries <= index < num_symmetries:
+            raise IndexError(f"Mirror index {index} is out of range for {num_symmetries} symmetry transforms")
+        return mirrored[index]
+
+
+class MirrorSymmetryLoss(_SymmetryHook):
+    """Implements a mirror symmetry loss to facilitate symmetry in the action
     distribution.
 
     Described in "Learning Symmetric and Low-Energy Locomotion",
@@ -153,7 +222,7 @@ class SymmetryLoss(SymmetryHook):
         return losses
 
 
-class SymmetricDataAugmentation(SymmetryHook):
+class SymmetricDataAugmentation(_SymmetryHook):
     """Augments training data by adding mirrored transitions to the batch.
 
     Described in "Symmetry Considerations for Learning Task Symmetric Robot
@@ -288,7 +357,7 @@ class SymmetricDataAugmentation(SymmetryHook):
         return mirrored, torch.cat([original.unsqueeze(augmentation_dim), mirrored], dim=augmentation_dim)
 
 
-class SymmetricArchitecture(SymmetryHook):
+class SymmetricArchitecture(_SymmetryHook):
     """Enforces a symmetric architecture on the agent's actor.
 
     Described in "On Learning Symmetric Locomotion",
@@ -311,8 +380,8 @@ class SymmetricArchitecture(SymmetryHook):
 
 @dataclass
 class SymmetricActorFactory(ActorFactory):
-    mirror_observation: SymmetryDefLike | None = None
-    mirror_action: SymmetryDefLike | None = None
+    mirror_observation: MirrorFn | None = None
+    mirror_action: MirrorFn | None = None
 
     def __call__(self, input_dim: int | None, output_dim: int) -> Actor:
         actor = super().__call__(input_dim, output_dim)
@@ -329,8 +398,8 @@ class SymmetricActor(Actor):
     def __init__(
         self,
         wrapped: Actor,
-        mirror_observation: SymmetryDefLike,
-        mirror_action: SymmetryDefLike,
+        mirror_observation: MirrorFn,
+        mirror_action: MirrorFn,
     ):
         super().__init__(wrapped.backbone, wrapped.distribution)
         if not isinstance(self.distribution, (NormalDist, AdaptiveNormalDist)):
