@@ -1,9 +1,10 @@
+import json
 import os
-import pickle
 import subprocess
 import sys
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
+from typing import Any
 
 import git
 import numpy as np
@@ -158,6 +159,9 @@ class Trainer:
             Number of iterations between automatic checkpoints.
         checkpoint_path (str | None):
             Path to load a previous training checkpoint from.
+        trial_metadata (Mapping[str, Any] | None):
+            Optional JSON-serializable metadata to merge into
+            `trial/metadata.json` alongside built-in fields.
         verbose (bool):
             Whether to print progress and checkpoint messages (only on the main
             process).
@@ -166,8 +170,6 @@ class Trainer:
             each iteration.
 
     Methods:
-        dump_obj(obj, filename):
-            Serialize an arbitrary object into the logger's info directory.
         register_callback(callback):
             Add a new callback to be executed at initialization and after each
             iteration.
@@ -184,6 +186,7 @@ class Trainer:
         init_iteration: int | None = None,
         checkpoint_interval: int = 50,
         checkpoint_path: str | None = None,
+        trial_metadata: Mapping[str, Any] | None = None,
         verbose: bool = True,
         callbacks: Iterable[Callable[["Trainer"], None]] = (),
     ):
@@ -200,27 +203,13 @@ class Trainer:
         self.num_iterations = num_iterations
         self.checkpoint_interval = checkpoint_interval
         self.callbacks: list[Callable[[Trainer], None]] = list(callbacks)
+        self.trial_metadata = dict(trial_metadata or {})
         for callback in self.callbacks:
             callback(self)
 
         self.timer = Timer(self.agent.device)
         self._last_checkpoint_iteration: int | None = None
         self._save_trial_info()
-
-    def dump_object(self, obj: object, filename: str):
-        if self.logger is None or obj is None:
-            return
-        if not filename.endswith(".pkl"):
-            filename += ".pkl"
-        with open(f"{self.logger.info_dir}/{filename}", "wb") as f:
-            if isinstance(obj, bytes):
-                f.write(obj)
-                return
-
-            try:
-                pickle.dump(obj, f)
-            except Exception as error:
-                print(f"Failed to write '{filename}': {error}")
 
     def register_callback(self, callback: Callable[["Trainer"], None]):
         self.callbacks.append(callback)
@@ -304,12 +293,19 @@ class Trainer:
     def _save_trial_info(self):
         if self.logger is None:
             return
-        self.logger.save_info(objprint.objstr(self.agent), "agent_info.txt")
-        self.logger.save_info(" ".join(sys.orig_argv), "command.txt")
-        if (seed := CONFIG.seed) is not None:
-            self.logger.save_info(str(seed), "seed.txt")
         save_version_info(f"{self.logger.info_dir}/workspace")
         save_version_info(f"{self.logger.info_dir}/cusrl", cusrl.__path__[0])
+        self.logger.save_info(objprint.objstr(self.agent), "trial/agent_info.txt")
+        metadata = {}
+        metadata["argv"] = sys.argv
+        metadata["orig_argv"] = sys.orig_argv
+        if (seed := CONFIG.seed) is not None:
+            metadata["seed"] = seed
+        metadata.update(self.trial_metadata)
+        try:
+            self.logger.save_info(json.dumps(metadata, indent=2), "trial/metadata.json")
+        except Exception as error:
+            print(f"Failed to write metadata: {error}")
 
     def _log_info(self, info: dict[str, float]):
         info.update(prefix_dict_keys(self.environment.get_metrics(), "Environment/"))

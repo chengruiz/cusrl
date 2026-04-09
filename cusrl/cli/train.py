@@ -43,7 +43,7 @@ def main(argv: Sequence[str] | None = None):
     trainer_factory = experiment.to_training_factory()
     prog = f"{PROGRAM_NAME} --environment {args.environment} --algorithm {args.algorithm} --"
     trainer_factory = tyro_cli(prog=prog, default=trainer_factory, args=extra_args)
-    trainer_factory().run_training_loop()
+    trainer_factory(trial_metadata={"tyro_args": list(extra_args)}).run_training_loop()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
+import json
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -48,6 +50,8 @@ class Trial:
             The iteration number of the loaded checkpoint.
         checkpoint_path (Path):
             The full path to the selected checkpoint file.
+        metadata (dict):
+            The metadata of the trial.
 
     Raises:
         FileNotFoundError:
@@ -91,7 +95,15 @@ class Trial:
             self.environment_name, self.algorithm_name = self.experiment_name.split(":")
         else:  # If the naming does not follow the convention
             self.environment_name = self.algorithm_name = self.experiment_name = None
+        self.info_dir: Path = self.home / "info"
+
+        self.metadata_path: Path = self.info_dir / "trial/metadata.json"
         self.checkpoint_path: Path = self.home / f"ckpt/ckpt_{self.iteration}.pt"
+        try:
+            with open(self.metadata_path) as f:
+                self.metadata: dict[str, Any] = json.load(f)
+        except FileNotFoundError:
+            self.metadata = {}
 
         if verbose:
             print(f"Trial loaded from \033[4m{self.checkpoint_path}\033[0m.")

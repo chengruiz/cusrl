@@ -115,7 +115,9 @@ class Logger:
         torch.save(state_dict, self.ckpt_dir / f"ckpt_{iteration}.pt")
 
     def save_info(self, info_str: str, filename: str):
-        with open(self.info_dir / filename, "w") as f:
+        path = self.info_dir / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
             f.write(info_str)
 
     def _collect_data(self):

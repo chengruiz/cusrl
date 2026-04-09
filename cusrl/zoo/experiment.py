@@ -72,7 +72,8 @@ class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
     callbacks: Sequence[Callable[["Trainer"], None]] = ()
     """Callbacks invoked during the trainer lifecycle."""
 
-    def __call__(self) -> Trainer:
+    def __call__(self, trial_metadata: dict[str, Any] | None = None) -> Trainer:
+        """Build a trainer, optionally attaching extra trial metadata."""
         trainer = Trainer(
             environment=self.make_environment(),
             agent_factory=self.agent_factory,
@@ -86,6 +87,7 @@ class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
             init_iteration=self.init_iteration,
             checkpoint_interval=self.checkpoint_interval,
             checkpoint_path=self.checkpoint_path,
+            trial_metadata=trial_metadata,
             callbacks=self.callbacks,
         )
         return trainer
