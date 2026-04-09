@@ -2,7 +2,7 @@ import importlib
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
-from cusrl.template import AgentFactory, Environment, Player, PlayerHook, Trainer
+from cusrl.template import AgentFactory, Environment, Player, PlayerHook, TrainerHook
 from cusrl.zoo.experiment import ExperimentSpec
 
 __all__ = [
@@ -33,7 +33,7 @@ def register_experiment(
     training_env_config_factory: Callable[..., Any] | None = None,
     training_env_config_factory_kwargs: dict[str, Any] | None = None,
     training_env_factory_kwargs: dict[str, Any] | None = None,
-    trainer_callbacks: Iterable[Callable[["Trainer"], None]] = (),
+    trainer_hooks: Iterable[TrainerHook] = (),
     player_factory: Callable[..., Player] = Player,
     playing_env_factory: Callable[..., Environment] | None = None,
     playing_env_config_factory: Callable[..., Any] | None = None,
@@ -61,7 +61,7 @@ def register_experiment(
             training_env_config_factory=training_env_config_factory,
             training_env_config_factory_kwargs=training_env_config_factory_kwargs or {},
             training_env_factory_kwargs=training_env_factory_kwargs or {},
-            trainer_callbacks=tuple(trainer_callbacks),
+            trainer_hooks=tuple(trainer_hooks),
             player_factory=player_factory,
             playing_env_factory=playing_env_factory,
             playing_env_config_factory=playing_env_config_factory,

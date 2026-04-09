@@ -6,7 +6,7 @@ from .hook import Hook
 from .logger import Logger, LoggerFactory, LoggerFactoryLike, make_logger_factory
 from .optimizer import OptimizerFactory
 from .player import Player, PlayerHook
-from .trainer import Trainer
+from .trainer import Trainer, TrainerHook
 from .trial import Trial
 
 __all__ = [
@@ -25,6 +25,7 @@ __all__ = [
     "Player",
     "PlayerHook",
     "Trainer",
+    "TrainerHook",
     "Trial",
     "make_logger_factory",
 ]

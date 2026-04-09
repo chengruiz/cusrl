@@ -1,7 +1,7 @@
 import argparse
 import importlib
 import sys
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, fields
 from typing import Any, Literal, cast
 
@@ -9,7 +9,7 @@ import gymnasium as gym
 import torch
 
 import cusrl.utils
-from cusrl.template import AgentFactory, Environment, Trainer
+from cusrl.template import AgentFactory, Environment, Trainer, TrainerHook
 from cusrl.template.environment import EnvironmentFactoryLike
 from cusrl.template.logger import LoggerFactoryLike
 from cusrl.utils import from_dict, to_dict
@@ -220,7 +220,7 @@ class TrainerCfg:
     num_iterations: int | None = None
     checkpoint_interval: int | None = None
     checkpoint_path: str | None = None
-    callbacks: Iterable[Callable[["Trainer"], None]] = ()
+    hooks: Iterable[TrainerHook] = ()
 
     max_iterations: int | None = None  # For compatibility with IsaacLab environments
     experiment_name: str | None = None  # For compatibility with IsaacLab environments
@@ -271,7 +271,7 @@ class TrainerCfg:
         checkpoint_interval: int | None = None,
         checkpoint_path: str | None | Literal[False] = False,
         verbose: bool = True,
-        callbacks: Iterable[Callable[["Trainer"], None]] = (),
+        hooks: Iterable[TrainerHook] = (),
     ) -> "Trainer":
         if environment is None:
             if self.environment_factory is None:
@@ -297,7 +297,7 @@ class TrainerCfg:
             checkpoint_interval = self.checkpoint_interval
         if checkpoint_path is False:
             checkpoint_path = self.checkpoint_path
-        callbacks = list(self.callbacks) + list(callbacks)
+        hooks = list(self.hooks) + list(hooks)
 
         return Trainer(
             environment=environment,
@@ -308,5 +308,5 @@ class TrainerCfg:
             checkpoint_interval=checkpoint_interval,
             checkpoint_path=checkpoint_path,
             verbose=verbose,
-            callbacks=callbacks,
+            hooks=hooks,
         )

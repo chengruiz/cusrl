@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 import sys
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,7 @@ from cusrl.utils.nest import flatten_nested
 from cusrl.utils.str_utils import format_float
 from cusrl.utils.typing import Array, Slice
 
-__all__ = ["EnvironmentStats", "Trainer"]
+__all__ = ["EnvironmentStats", "Trainer", "TrainerHook"]
 
 
 class EnvironmentStats:
@@ -133,6 +133,62 @@ def save_version_info(output_dir: str | os.PathLike, workspace: str | os.PathLik
         f.write(version)
 
 
+class TrainerHook:
+    """Base class for hooks that receive callbacks during training."""
+
+    trainer: "Trainer"
+    environment: Environment
+    agent: Agent
+
+    def init(self, trainer: "Trainer"):
+        self.trainer = trainer
+        self.environment = trainer.environment
+        self.agent = trainer.agent
+
+    def pre_load_checkpoint(self, checkpoint: dict[str, Any]):
+        pass
+
+    def pre_log_info(self, info: dict[str, float]):
+        pass
+
+    def post_update(self):
+        pass
+
+    def post_save_trial_info(self):
+        pass
+
+    def post_save_checkpoint(self):
+        pass
+
+
+class TrainerHookComposite(TrainerHook, list[TrainerHook]):
+    """Delegates every callback to all contained hooks in order."""
+
+    def init(self, trainer: "Trainer"):
+        for hook in self:
+            hook.init(trainer)
+
+    def pre_load_checkpoint(self, checkpoint: dict[str, Any]):
+        for hook in self:
+            hook.pre_load_checkpoint(checkpoint)
+
+    def pre_log_info(self, info: dict[str, float]):
+        for hook in self:
+            hook.pre_log_info(info)
+
+    def post_update(self):
+        for hook in self:
+            hook.post_update()
+
+    def post_save_trial_info(self):
+        for hook in self:
+            hook.post_save_trial_info()
+
+    def post_save_checkpoint(self):
+        for hook in self:
+            hook.post_save_checkpoint()
+
+
 class Trainer:
     """Orchestrates and manages a reinforcement learning training loop.
 
@@ -165,17 +221,16 @@ class Trainer:
         verbose (bool):
             Whether to print progress and checkpoint messages (only on the main
             process).
-        callbacks (Iterable[Callable[['Trainer'], None]]):
-            Sequence of functions to be executed at initialization and after
-            each iteration.
+        hooks (Iterable[TrainerHook]):
+            A sequence of hooks to initialize and invoke during checkpoint
+            loading, metric logging, updates, and trial persistence.
 
     Methods:
-        register_callback(callback):
-            Add a new callback to be executed at initialization and after each
-            iteration.
         run_training_loop():
             Execute the training loop until reaching num_iterations.
     """
+
+    Hook = TrainerHook
 
     def __init__(
         self,
@@ -188,10 +243,12 @@ class Trainer:
         checkpoint_path: str | None = None,
         trial_metadata: Mapping[str, Any] | None = None,
         verbose: bool = True,
-        callbacks: Iterable[Callable[["Trainer"], None]] = (),
+        hooks: Iterable[TrainerHook] = (),
     ):
         self.environment = environment if isinstance(environment, Environment) else environment()
         self.agent: Agent = agent_factory.from_environment(self.environment)
+        self.hook = TrainerHookComposite(hooks)
+        self.hook.init(self)
         self.stats = EnvironmentStats(self.environment.num_instances, self.environment.spec.reward_dim)
         self.verbose = verbose and is_main_process()
         self.iteration = self._load_checkpoint(checkpoint_path)
@@ -202,18 +259,11 @@ class Trainer:
 
         self.num_iterations = num_iterations
         self.checkpoint_interval = checkpoint_interval
-        self.callbacks: list[Callable[[Trainer], None]] = list(callbacks)
         self.trial_metadata = dict(trial_metadata or {})
-        for callback in self.callbacks:
-            callback(self)
 
         self.timer = Timer(self.agent.device)
         self._last_checkpoint_iteration: int | None = None
         self._save_trial_info()
-
-    def register_callback(self, callback: Callable[["Trainer"], None]):
-        self.callbacks.append(callback)
-        callback(self)
 
     def run_training_loop(self):
         self._save_checkpoint()
@@ -223,8 +273,6 @@ class Trainer:
                 observation, state, _ = self.environment.reset(randomize_episode_progress=True)
             while self.iteration < self.num_iterations:
                 observation, state = self._rollout_and_update(observation, state)
-                for callback in self.callbacks:
-                    callback(self)
                 self.iteration += 1
                 if self.iteration % self.checkpoint_interval == 0:
                     self._save_checkpoint()
@@ -257,6 +305,7 @@ class Trainer:
         with self.timer.record("agent"):
             agent_info = self.agent.update()
         self._log_info(agent_info)
+        self.hook.post_update()
         return observation, state
 
     def _save_checkpoint(self):
@@ -276,12 +325,14 @@ class Trainer:
         self._last_checkpoint_iteration = self.iteration
         if self.verbose:
             print(f"\033[F\033[0K\rIteration {self.iteration}: Checkpoint saved.")
+        self.hook.post_save_checkpoint()
 
     def _load_checkpoint(self, checkpoint_path: str | None):
         if checkpoint_path is None:
             return 0
         trial = Trial(checkpoint_path, verbose=distributed.is_main_process())
         checkpoint = trial.load_checkpoint(map_location=self.agent.device)
+        self.hook.pre_load_checkpoint(checkpoint)
         self.agent.load_state_dict(checkpoint["agent"])
         self.environment.load_state_dict(checkpoint["environment"])
         self.stats.load_state_dict(checkpoint.get("stats", {}))
@@ -306,6 +357,7 @@ class Trainer:
             self.logger.save_info(json.dumps(metadata, indent=2), "trial/metadata.json")
         except Exception as error:
             print(f"Failed to write metadata: {error}")
+        self.hook.post_save_trial_info()
 
     def _log_info(self, info: dict[str, float]):
         info.update(prefix_dict_keys(self.environment.get_metrics(), "Environment/"))
@@ -328,6 +380,7 @@ class Trainer:
         info["Perf/environment_fps"] = num_steps / info["Perf/environment_time"]
         info["Perf/agent_fps"] = num_steps / info["Perf/agent_time"]
 
+        self.hook.pre_log_info(info)
         if self.logger is not None:
             self.logger.log(info, self.iteration)
         if self.verbose:

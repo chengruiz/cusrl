@@ -51,9 +51,10 @@ def test_symmetry_loss_with_schedule():
         cusrl.hook.HookParameterSchedule("mirror_symmetry_loss", "weight", StepScheduler(0.1, (3, 1.0)))
     )
 
-    def assert_weight_equals(trainer):
-        assert trainer.agent.hook["mirror_symmetry_loss"].weight == 0.1 if trainer.iteration + 1 < 3 else 1.0
+    class AssertWeightHook(cusrl.TrainerHook):
+        def post_update(self):
+            expected = 0.1 if self.trainer.iteration + 1 < 3 else 1.0
+            assert self.agent.hook["mirror_symmetry_loss"].weight == expected
 
-    trainer = cusrl.Trainer(environment, agent_factory, num_iterations=5)
-    trainer.register_callback(assert_weight_equals)
+    trainer = cusrl.Trainer(environment, agent_factory, num_iterations=5, hooks=[AssertWeightHook()])
     trainer.run_training_loop()

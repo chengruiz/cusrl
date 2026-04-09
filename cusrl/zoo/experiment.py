@@ -6,7 +6,7 @@ from typing import Annotated, Any
 import tyro
 
 import cusrl
-from cusrl.template import AgentFactory, Environment, Player, PlayerHook, Trainer
+from cusrl.template import AgentFactory, Environment, Player, PlayerHook, Trainer, TrainerHook
 from cusrl.utils.tyro_utils import JsonDict
 
 __all__ = ["ExperimentSpec"]
@@ -69,8 +69,8 @@ class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
     """Checkpoint path to load before training starts."""
     checkpoint_interval: int = 50
     """Number of iterations between checkpoint saves."""
-    callbacks: Sequence[Callable[["Trainer"], None]] = ()
-    """Callbacks invoked during the trainer lifecycle."""
+    hooks: Sequence[TrainerHook] = ()
+    """Hooks invoked during the trainer lifecycle."""
 
     def __call__(self, trial_metadata: dict[str, Any] | None = None) -> Trainer:
         """Build a trainer, optionally attaching extra trial metadata."""
@@ -88,7 +88,7 @@ class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
             checkpoint_interval=self.checkpoint_interval,
             checkpoint_path=self.checkpoint_path,
             trial_metadata=trial_metadata,
-            callbacks=self.callbacks,
+            hooks=self.hooks,
         )
         return trainer
 
@@ -172,8 +172,8 @@ class ExperimentSpec:
     """Keyword arguments passed to ``training_env_config_factory``."""
     training_env_factory_kwargs: dict[str, Any] = field(default_factory=dict)
     """Keyword arguments passed to ``training_env_factory``."""
-    trainer_callbacks: Sequence[Callable[["Trainer"], None]] = ()
-    """Callbacks attached to the training factory."""
+    trainer_hooks: Sequence[TrainerHook] = ()
+    """Hooks attached to the training factory."""
     num_iterations: int = 1000
     """Default number of training iterations."""
     checkpoint_interval: int = 50
@@ -228,7 +228,7 @@ class ExperimentSpec:
                 self.training_env_config_factory_kwargs,
             ),
             environment_kwargs=self.training_env_factory_kwargs,
-            callbacks=self.trainer_callbacks,
+            hooks=self.trainer_hooks,
             num_iterations=self.num_iterations,
             checkpoint_interval=self.checkpoint_interval,
         )
