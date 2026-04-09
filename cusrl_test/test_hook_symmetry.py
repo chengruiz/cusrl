@@ -6,6 +6,34 @@ from cusrl.utils.scheduler import StepScheduler
 from cusrl_test import create_dummy_env
 
 
+def test_transition_mirror_rewrites_transition_with_selected_variant():
+    def stacked_self_inverse_mirror(tensor):
+        return torch.stack([tensor.flip(-1), -tensor], dim=0)
+
+    hook = cusrl.hook.TransitionMirror(index=1)
+    hook.mirror_observation = stacked_self_inverse_mirror
+    hook.mirror_state = stacked_self_inverse_mirror
+    hook.mirror_action = stacked_self_inverse_mirror
+
+    transition = {
+        "observation": torch.tensor([[1.0, 2.0, 3.0]]),
+        "state": torch.tensor([[4.0, 5.0, 6.0]]),
+    }
+    hook.pre_act(transition)
+    torch.testing.assert_close(transition["observation"], torch.tensor([[-1.0, -2.0, -3.0]]))
+    torch.testing.assert_close(transition["state"], torch.tensor([[-4.0, -5.0, -6.0]]))
+
+    transition["action"] = torch.tensor([[7.0, 8.0, 9.0]])
+    hook.post_act(transition)
+    torch.testing.assert_close(transition["action"], torch.tensor([[-7.0, -8.0, -9.0]]))
+
+    transition["next_observation"] = torch.tensor([[10.0, 11.0, 12.0]])
+    transition["next_state"] = torch.tensor([[13.0, 14.0, 15.0]])
+    hook.post_step(transition)
+    torch.testing.assert_close(transition["next_observation"], torch.tensor([[-10.0, -11.0, -12.0]]))
+    torch.testing.assert_close(transition["next_state"], torch.tensor([[-13.0, -14.0, -15.0]]))
+
+
 @pytest.mark.parametrize("with_state", [False, True])
 @pytest.mark.parametrize("weight", [0.0, 1.0])
 def test_mirror_symmetry_loss(with_state, weight):

@@ -85,6 +85,20 @@ class _SymmetryHook(Hook[ActorCritic]):
             raise ValueError("'mirror_action' must be defined for symmetry hooks")
         self.mirror_action = self.agent.environment_spec.mirror_action
 
+    @staticmethod
+    def _build_mirrored(original: Tensor, mirror: MirrorFn) -> Tensor:
+        mirrored = mirror(original)
+        if mirrored.shape[1:] == original.shape:
+            return mirrored
+        if mirrored.shape[1:] == original.shape[1:]:
+            return mirrored.reshape(-1, *original.shape)
+
+        original_shape_str = ", ".join(str(s) for s in original.shape)
+        raise ValueError(
+            f"Mirrored tensor has incompatible shape: expected (N * {original_shape_str}) or "
+            f"(N, {original_shape_str}), got {mirrored.shape}"
+        )
+
 
 class TransitionMirror(_SymmetryHook):
     """Replaces collected transitions with one selected mirrored variant.
@@ -109,7 +123,7 @@ class TransitionMirror(_SymmetryHook):
     def __init__(self, index: int = 0):
         if not isinstance(index, int):
             raise TypeError("'index' must be an int")
-        super().__init__(training_only=True)
+        super().__init__()
         self.index = index
 
     def pre_act(self, transition):
@@ -136,7 +150,7 @@ class TransitionMirror(_SymmetryHook):
 
     @classmethod
     def _select_mirrored_tensor(cls, original: Tensor, mirror: MirrorFn, index: int) -> Tensor:
-        mirrored = cls._stack_mirrored_tensor(original, mirror)
+        mirrored = cls._build_mirrored(original, mirror)
         num_symmetries = mirrored.shape[0]
         if not -num_symmetries <= index < num_symmetries:
             raise IndexError(f"Mirror index {index} is out of range for {num_symmetries} symmetry transforms")
@@ -339,21 +353,11 @@ class SymmetricDataAugmentation(_SymmetryHook):
             if (augmented_critic_memory := batch.get("augmented_critic_memory")) is not None:
                 batch["critic_memory"] = augmented_critic_memory
 
-    @staticmethod
+    @classmethod
     def _build_augmented_tensor(
-        original: Tensor, mirror: Callable[[Tensor], Tensor], augmentation_dim: int = 1
+        cls, original: Tensor, mirror: Callable[[Tensor], Tensor], augmentation_dim: int = 1
     ) -> tuple[Tensor, Tensor]:
-        mirrored = mirror(original)
-        if mirrored.shape[1:] == original.shape:
-            mirrored = mirrored.movedim(0, augmentation_dim)
-        elif mirrored.shape[1:] == original.shape[1:]:
-            mirrored = mirrored.reshape(-1, *original.shape).movedim(0, augmentation_dim)
-        else:
-            original_shape_str = ", ".join(str(s) for s in original.shape)
-            raise ValueError(
-                f"Mirrored tensor has incompatible shape: expected (N * {original_shape_str}) or "
-                f"(N, {original_shape_str}), got {mirrored.shape}"
-            )
+        mirrored = cls._build_mirrored(original, mirror).movedim(0, augmentation_dim)
         return mirrored, torch.cat([original.unsqueeze(augmentation_dim), mirrored], dim=augmentation_dim)
 
 
