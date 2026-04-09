@@ -52,10 +52,66 @@ class FeedForward(nn.Module):
         self.layers.append(nn.Linear(hidden_dim, self.output_dim))
 
     def forward(self, input: Tensor) -> Tensor:
+        """Apply the feed-forward stack to the input tensor.
+
+        Args:
+            input (Tensor):
+                Input tensor whose last dimension matches ``input_dim``.
+
+        Returns:
+            Tensor:
+                Output tensor with the same leading dimensions as ``input`` and
+                last dimension ``output_dim``.
+        """
         return self.layers(input)
 
 
 class TransformerEncoderLayer(nn.Module):
+    """Transformer encoder block with configurable normalization and gating.
+
+    The block optionally projects inputs into the model embedding dimension,
+    applies self-attention and a feed-forward network, and then optionally
+    projects the result to ``output_dim``. Normalization can be applied in
+    either pre-norm or post-norm order, and residual-style merges are delegated
+    to the gate implementation selected by ``gate_type``.
+
+    Args:
+        embed_dim (int):
+            Internal embedding dimension used by attention and feed-forward
+            sublayers.
+        num_heads (int):
+            Number of attention heads in the self-attention sublayer.
+        feedforward_dim (int | None, optional):
+            Hidden dimension of the feed-forward sublayer. Defaults to
+            ``embed_dim * 4``.
+        activation_fn (type[nn.Module], optional):
+            Activation module used inside the feed-forward sublayer. Defaults to
+            :class:`nn.GELU`.
+        rope_base (float | None, optional):
+            Base frequency for rotary positional embeddings in self-attention.
+        dropout (float, optional):
+            Dropout applied after attention and feed-forward outputs. Defaults
+            to ``0.0``.
+        batch_first (bool, optional):
+            Whether sequence tensors follow ``(batch, seq, channel)`` layout.
+            Defaults to ``True``.
+        gate_type (str | None, optional):
+            Residual merge strategy used after each sublayer. Defaults to
+            ``"residual"``.
+        qk_norm (Literal["rms", "layer"] | None, optional):
+            Normalization applied to query and key heads.
+        block_norm (Literal["rms", "layer"] | None, optional):
+            Normalization applied around attention and feed-forward sublayers.
+            Defaults to ``"layer"``.
+        block_norm_order (Literal["pre", "post"], optional):
+            Whether block normalization is applied before or after each
+            sublayer. Defaults to ``"post"``.
+        input_dim (int | None, optional):
+            Input feature dimension before the optional input projection.
+        output_dim (int | None, optional):
+            Output feature dimension after the optional output projection.
+    """
+
     def __init__(
         self,
         embed_dim: int,
@@ -67,7 +123,7 @@ class TransformerEncoderLayer(nn.Module):
         batch_first: bool = True,
         gate_type: str | None = "residual",
         qk_norm: Literal["rms", "layer"] | None = None,
-        block_norm: Literal["rms", "layer"] | None = None,
+        block_norm: Literal["rms", "layer"] | None = "layer",
         block_norm_order: Literal["pre", "post"] = "post",
         input_dim: int | None = None,
         output_dim: int | None = None,
@@ -114,6 +170,23 @@ class TransformerEncoderLayer(nn.Module):
             self.out_proj = nn.Identity()
 
     def forward(self, input: Tensor, attn_mask: Tensor | None = None, is_causal: bool = False) -> Tensor:
+        """Run the encoder block on a sequence.
+
+        Args:
+            input (Tensor):
+                Sequence tensor of shape ``(N, L, C_in)`` when ``batch_first``
+                is ``True``, otherwise ``(L, N, C_in)``.
+            attn_mask (Tensor | None, optional):
+                Optional mask passed to the self-attention sublayer.
+            is_causal (bool, optional):
+                Whether the self-attention sublayer should apply causal masking.
+                Defaults to ``False``.
+
+        Returns:
+            Tensor:
+                Encoded sequence with the same leading dimensions as ``input``
+                and channel size ``output_dim``.
+        """
         input = self.in_proj(input)
         if self.block_norm_order == "pre":
             # pre-norm: norm -> attn -> add -> norm -> ff -> add
@@ -134,6 +207,56 @@ class TransformerEncoderLayer(nn.Module):
 
 
 class TransformerDecoderLayer(nn.Module):
+    """Transformer decoder block with self-attention, cross-attention, and MLP.
+
+    The block optionally projects target features into the model embedding
+    dimension, applies masked self-attention over the target sequence,
+    cross-attention against a context sequence, and a feed-forward network, and
+    then optionally projects the result to ``output_dim``. Each sublayer output
+    is merged through the gate selected by ``gate_type``.
+
+    Args:
+        embed_dim (int):
+            Internal embedding dimension used by attention and feed-forward
+            sublayers.
+        num_heads (int):
+            Number of attention heads in the self-attention and cross-attention
+            sublayers.
+        context_dim (int | None, optional):
+            Feature dimension of the context sequence consumed by the
+            cross-attention sublayer. Defaults to ``embed_dim``.
+        feedforward_dim (int | None, optional):
+            Hidden dimension of the feed-forward sublayer. Defaults to
+            ``embed_dim * 4``.
+        activation_fn (type[nn.Module], optional):
+            Activation module used inside the feed-forward sublayer. Defaults to
+            :class:`nn.GELU`.
+        rope_base (float | None, optional):
+            Base frequency for rotary positional embeddings in self-attention.
+        dropout (float, optional):
+            Dropout applied after attention and feed-forward outputs. Defaults
+            to ``0.0``.
+        batch_first (bool, optional):
+            Whether sequence tensors follow ``(batch, seq, channel)`` layout.
+            Defaults to ``True``.
+        gate_type (str | None, optional):
+            Residual merge strategy used after each sublayer. Defaults to
+            ``"residual"``.
+        qk_norm (Literal["rms", "layer"] | None, optional):
+            Normalization applied to query and key heads.
+        block_norm (Literal["rms", "layer"] | None, optional):
+            Normalization applied around attention and feed-forward sublayers.
+            Defaults to ``"layer"``.
+        block_norm_order (Literal["pre", "post"], optional):
+            Whether block normalization is applied before or after each
+            sublayer. Defaults to ``"post"``.
+        input_dim (int | None, optional):
+            Input feature dimension of the target sequence before the optional
+            input projection.
+        output_dim (int | None, optional):
+            Output feature dimension after the optional output projection.
+    """
+
     def __init__(
         self,
         embed_dim: int,
@@ -146,7 +269,7 @@ class TransformerDecoderLayer(nn.Module):
         batch_first: bool = True,
         gate_type: str | None = "residual",
         qk_norm: Literal["rms", "layer"] | None = None,
-        block_norm: Literal["rms", "layer"] | None = None,
+        block_norm: Literal["rms", "layer"] | None = "layer",
         block_norm_order: Literal["pre", "post"] = "post",
         input_dim: int | None = None,
         output_dim: int | None = None,
@@ -213,6 +336,31 @@ class TransformerDecoderLayer(nn.Module):
         target_is_causal: bool = False,
         context_is_causal: bool = False,
     ) -> Tensor:
+        """Run the decoder block on target and context sequences.
+
+        Args:
+            target (Tensor):
+                Target sequence of shape ``(N, L_t, C_in)`` when ``batch_first``
+                is ``True``, otherwise ``(L_t, N, C_in)``.
+            context (Tensor):
+                Context sequence consumed by cross-attention, with the same
+                leading layout convention as ``target``.
+            target_attn_mask (Tensor | None, optional):
+                Optional mask passed to the target self-attention sublayer.
+            context_attn_mask (Tensor | None, optional):
+                Optional mask passed to the cross-attention sublayer.
+            target_is_causal (bool, optional):
+                Whether target self-attention applies causal masking. Defaults
+                to ``False``.
+            context_is_causal (bool, optional):
+                Whether cross-attention applies causal masking. Defaults to
+                ``False``.
+
+        Returns:
+            Tensor:
+                Decoded target sequence with the same leading dimensions as
+                ``target`` and channel size ``output_dim``.
+        """
         target = self.in_proj(target)
         if self.block_norm_order == "pre":
             self_attn_out = self.self_attn(
