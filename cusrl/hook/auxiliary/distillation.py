@@ -1,7 +1,7 @@
 from typing import cast
 
 import torch
-from torch import Tensor, nn
+from torch import nn
 
 from cusrl.nn.module.distribution import MeanStdDict
 from cusrl.template import ActorCritic, Hook
@@ -10,6 +10,21 @@ __all__ = ["PolicyDistillation", "PolicyDistillationLoss"]
 
 
 class PolicyDistillationLoss(Hook[ActorCritic]):
+    """Matches the policy mean against precomputed expert actions.
+
+    This hook assumes another component has already written expert actions into
+    each transition or training batch. During optimization it compares the
+    current policy mean with that target action tensor using an MSE loss.
+
+    Args:
+        target_name (str):
+            Transition or batch key containing the expert action targets.
+            Defaults to ``"expert_action"``.
+        weight (float):
+            Multiplicative weight applied to the distillation loss. Defaults to
+            ``1.0``.
+    """
+
     def __init__(
         self,
         target_name: str = "expert_action",
@@ -35,17 +50,24 @@ class PolicyDistillationLoss(Hook[ActorCritic]):
 class PolicyDistillation(PolicyDistillationLoss):
     """Distills a pre-trained expert.
 
-    This hook computes a loss that encourages the agent's policy to mimic the
-    actions of a pre-trained expert policy.
+    This hook loads an exported TorchScript expert, queries it on each rollout
+    step, and stores the resulting actions under ``target_name`` inherited from
+    :class:`PolicyDistillationLoss`. The inherited objective then trains the
+    current policy to match those expert actions with an MSE loss on the policy
+    mean.
+
+    The expert is treated as a recurrent policy and is reset with the
+    transition ``"done"`` mask after each environment step.
 
     Args:
         expert_path (str):
-            The file path to the exported TorchScript expert policy.
-        observation_name (str, optional):
-            The key in the transition dictionary that corresponds to the
-            observation tensor. Defaults to `"observation"`.
-        weight (float, optional):
-            Weight for the distillation loss. Defaults to 1.0.
+            Path to the exported TorchScript expert policy.
+        observation_name (str):
+            Transition key used as input to the expert policy. Defaults to
+            ``"observation"``.
+        weight (float):
+            Multiplicative weight applied to the inherited distillation loss.
+            Defaults to ``1.0``.
     """
 
     def __init__(
@@ -71,4 +93,5 @@ class PolicyDistillation(PolicyDistillationLoss):
     @torch.no_grad()
     def post_step(self, transition):
         transition[self.target_name] = self.expert(transition[self.observation_name])
-        self.expert.reset(cast(torch.Tensor, transition["done"]).squeeze(-1))
+        if hasattr(self.expert, "reset"):
+            self.expert.reset(transition["done"].squeeze(-1))

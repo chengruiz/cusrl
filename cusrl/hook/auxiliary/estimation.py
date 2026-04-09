@@ -11,7 +11,50 @@ __all__ = ["StateEstimation"]
 
 
 class StateEstimation(Hook[ActorCritic]):
-    """A hook to estimate states from observations."""
+    """Learns an auxiliary estimator between transition entries.
+
+    This hook runs a dedicated estimator on a selected slice of one transition
+    entry, stores the prediction in the rollout transition, and optimizes the
+    estimator with an MSE loss against a selected slice of another entry. It is
+    typically used to reconstruct privileged state information from
+    observations, but it can target any pair of transition tensors.
+
+    The estimator is made RNN-compatible and its memory is threaded through
+    rollout collection via the ``"estimator_memory"`` transition key so the
+    same module can be trained on sequential batches.
+
+    Args:
+        estimator_factory (ModuleFactoryLike):
+            Factory used to build the estimator module. It receives the sliced
+            source and target dimensions and must return a module compatible
+            with :class:`cusrl.nn.Module`.
+        source_name (str):
+            Transition key used as the estimator input. Defaults to
+            ``"observation"``.
+        source_indices (Slice):
+            Slice applied to ``source_name`` before passing it to the
+            estimator. Defaults to ``slice(None)``.
+        source_dim (int | None):
+            Full dimension of ``source_name`` before slicing. When omitted, it
+            is inferred for ``"observation"``, ``"next_observation"``,
+            ``"state"``, and ``"next_state"``. Defaults to ``None``.
+        target_name (str):
+            Transition key used as the supervision target. Defaults to
+            ``"state"``.
+        target_indices (Slice):
+            Slice applied to ``target_name`` before computing the loss.
+            Defaults to ``slice(None)``.
+        target_dim (int | None):
+            Full dimension of ``target_name`` before slicing. When omitted, it
+            is inferred for ``"observation"``, ``"next_observation"``,
+            ``"state"``, and ``"next_state"``. Defaults to ``None``.
+        estimation_name (str):
+            Transition key used to store the estimator output during rollout.
+            Defaults to ``"state_estimation"``.
+        weight (float):
+            Multiplicative weight applied to the state estimation loss in the
+            returned objective dictionary. Defaults to ``1.0``.
+    """
 
     def __init__(
         self,

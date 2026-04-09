@@ -14,7 +14,6 @@ from cusrl.utils.nest import map_nested
 from cusrl.utils.typing import Memory, NestedTensor, Slice
 
 __all__ = [
-    # Elements
     "MirrorDef",
     "MirrorFn",
     "MirrorSymmetryLoss",
