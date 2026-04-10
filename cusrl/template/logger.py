@@ -90,6 +90,7 @@ class Logger:
                 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
                 self.name = f"{timestamp}_{self.name}" if self.name else timestamp
             self.log_dir /= self.name
+        self.log_dir = Path(cusrl.utils.distributed.gather_obj(str(self.log_dir))[0])
         os.environ["TRIAL_LOG_DIR"] = str(self.log_dir)
         self.info_dir = self.log_dir / "info"
         self.ckpt_dir = self.log_dir / "ckpt"
