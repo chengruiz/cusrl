@@ -75,7 +75,7 @@ class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
     def __call__(self, trial_metadata: dict[str, Any] | None = None) -> Trainer:
         """Build a trainer, optionally attaching extra trial metadata."""
         trainer = Trainer(
-            environment=self.make_environment(),
+            environment=self.make_environment,
             agent_factory=self.agent_factory,
             logger_factory=cusrl.make_logger_factory(
                 self.logger,
@@ -112,7 +112,7 @@ class PlayingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
 
     def __call__(self, checkpoint_path: str | None) -> Player:
         return self.player_factory(
-            environment=self.make_environment(),
+            environment=self.make_environment,
             agent=self.agent_factory,
             checkpoint_path=checkpoint_path,
             num_steps=self.num_steps,
@@ -141,7 +141,7 @@ class BenchmarkingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
 
     def __call__(self, checkpoint_path: str | None) -> Player:
         return self.benchmarker_factory(
-            environment=self.make_environment(),
+            environment=self.make_environment,
             agent=self.agent_factory,
             checkpoint_path=checkpoint_path,
             num_steps=self.num_steps,
