@@ -1,5 +1,6 @@
 import os
 
+import cusrl
 from cusrl.template.logger import Logger, LoggerFactory
 
 __all__ = ["Tensorboard"]
@@ -51,8 +52,13 @@ class Tensorboard(Logger):
             interval=interval,
             add_datetime_prefix=add_datetime_prefix,
         )
-        self.provider = SummaryWriter(log_dir=self.log_dir, **kwargs)
+        if cusrl.utils.is_main_process():
+            self.provider = SummaryWriter(log_dir=self.log_dir, **kwargs)
+        else:
+            self.provider = None
 
     def _log_impl(self, data: dict[str, float], iteration: int):
+        if self.provider is None:
+            return
         for key, val in data.items():
             self.provider.add_scalar(key, val, global_step=iteration)

@@ -245,6 +245,7 @@ class Trainer:
         verbose: bool = True,
         hooks: Iterable[TrainerHook] = (),
     ):
+        self.logger = None if logger_factory is None else logger_factory()
         self.environment = environment if isinstance(environment, Environment) else environment()
         self.agent: Agent = agent_factory.from_environment(self.environment)
         self.hook = TrainerHookComposite(hooks)
@@ -255,7 +256,6 @@ class Trainer:
         if init_iteration is not None:
             self.iteration = init_iteration
         self.agent.set_iteration(self.iteration)
-        self.logger = None if logger_factory is None or not is_main_process() else logger_factory()
 
         self.num_iterations = num_iterations
         self.checkpoint_interval = checkpoint_interval
@@ -309,7 +309,7 @@ class Trainer:
         return observation, state
 
     def _save_checkpoint(self):
-        if self.logger is None:
+        if self.logger is None or not is_main_process():
             return
         if self.verbose:
             print(f"Iteration {self.iteration}: Saving current checkpoint.")
@@ -342,7 +342,7 @@ class Trainer:
         return checkpoint["iteration"]
 
     def _save_trial_info(self):
-        if self.logger is None:
+        if self.logger is None or not is_main_process():
             return
         save_version_info(f"{self.logger.info_dir}/workspace")
         save_version_info(f"{self.logger.info_dir}/cusrl", cusrl.__path__[0])

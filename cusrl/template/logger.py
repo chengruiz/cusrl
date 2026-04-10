@@ -6,6 +6,8 @@ from typing import TypeAlias
 
 import torch
 
+import cusrl
+
 __all__ = [
     "LoggerFactory",
     "LoggerFactoryLike",
@@ -88,15 +90,18 @@ class Logger:
                 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
                 self.name = f"{timestamp}_{self.name}" if self.name else timestamp
             self.log_dir /= self.name
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-        if self.name is not None:
-            symlink_path = self.log_dir.parent / "latest"
-            symlink_path.unlink(missing_ok=True)
-            symlink_path.symlink_to(self.log_dir.name, target_is_directory=True)
+        os.environ["TRIAL_LOG_DIR"] = str(self.log_dir)
         self.info_dir = self.log_dir / "info"
-        self.info_dir.mkdir(exist_ok=True)
         self.ckpt_dir = self.log_dir / "ckpt"
-        self.ckpt_dir.mkdir(exist_ok=True)
+
+        if cusrl.utils.is_main_process():
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+            if self.name is not None:
+                symlink_path = self.log_dir.parent / "latest"
+                symlink_path.unlink(missing_ok=True)
+                symlink_path.symlink_to(self.log_dir.name, target_is_directory=True)
+            self.info_dir.mkdir(exist_ok=True)
+            self.ckpt_dir.mkdir(exist_ok=True)
 
         self.interval = interval
         self.data_list: list[dict[str, float]] = []

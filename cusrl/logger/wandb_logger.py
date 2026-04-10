@@ -1,6 +1,7 @@
 import os
 from typing import Literal
 
+import cusrl
 from cusrl.template.logger import Logger, LoggerFactory
 
 __all__ = ["Wandb"]
@@ -72,8 +73,11 @@ class Wandb(Logger):
             import wandb
         except ImportError:
             raise ImportError("Install Weights & Biases with 'pip install wandb' to use the W&B logger")
-        self.run = wandb.init(name=name, **kwargs)
-        self.provider = wandb
+        if cusrl.utils.is_main_process():
+            self.wandb_run = wandb.init(name=name, **kwargs)
+            self.provider = wandb
+        else:
+            self.wandb_run = self.provider = None
 
         super().__init__(
             log_dir=log_dir,
@@ -83,4 +87,6 @@ class Wandb(Logger):
         )
 
     def _log_impl(self, data: dict[str, float], iteration: int):
+        if self.provider is None:
+            return
         self.provider.log(data, step=iteration)

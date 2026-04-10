@@ -1,6 +1,7 @@
 import os
 from typing import Literal
 
+import cusrl
 from cusrl.template.logger import Logger, LoggerFactory
 
 __all__ = ["Swanlab"]
@@ -78,8 +79,11 @@ class Swanlab(Logger):
             import swanlab
         except ImportError:
             raise ImportError("Install SwanLab with 'pip install swanlab' to use the SwanLab logger")
-        self.run = swanlab.init(experiment_name=name, **kwargs)
-        self.provider = swanlab
+        if cusrl.utils.is_main_process():
+            self.swanlab_run = swanlab.init(experiment_name=name, **kwargs)
+            self.provider = swanlab
+        else:
+            self.swanlab_run = self.provider = None
 
         super().__init__(
             log_dir=log_dir,
@@ -89,4 +93,6 @@ class Swanlab(Logger):
         )
 
     def _log_impl(self, data: dict[str, float], iteration: int):
+        if self.provider is None:
+            return
         self.provider.log(data, step=iteration)
