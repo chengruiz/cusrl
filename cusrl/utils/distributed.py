@@ -93,8 +93,9 @@ def gather_print(*args, **kwargs):
     output = make_none_obj_list()
     torch.distributed.all_gather_object(output, buf.getvalue())
     if CONFIG.rank == 0:
+        rank_width = len(str(CONFIG.world_size - 1))
         for rank, out in enumerate(output):
-            print(f"Rank {rank}: {out}", end="")
+            print(f"Rank {rank:0{rank_width}}: {out}", end="")
 
 
 def gather_stack(tensor: torch.Tensor) -> torch.Tensor:
