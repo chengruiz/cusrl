@@ -86,6 +86,12 @@ class Value(Module):
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         return self.value_head(latent), memory
 
+    def clear_intermediate_repr(self):
+        super().clear_intermediate_repr()
+        self.backbone.clear_intermediate_repr()
+        if hasattr(self.value_head, "clear_intermediate_repr"):
+            self.value_head.clear_intermediate_repr()
+
     def step_memory(self, state, memory: Memory = None, **kwargs):
         return self.backbone.step_memory(state, memory, **kwargs)
 

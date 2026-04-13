@@ -1,4 +1,3 @@
-import itertools
 import os
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -18,7 +17,7 @@ from cusrl.utils.dict_utils import from_dict, to_dict
 from cusrl.utils.distributed import broadcast_parameters, reduce_gradients
 from cusrl.utils.typing import ArrayType, Nested, NestedArray, NestedTensor, Observation, State
 
-__all__ = ["ActorCritic"]
+__all__ = ["ActorCritic", "ActorCriticFactory", "HookList"]
 
 
 class HookList(list[Hook]):
@@ -219,23 +218,11 @@ class ActorCritic(Agent):
             self.actor.compile(**self._get_compile_kwargs())
             self.critic.compile(**self._get_compile_kwargs())
             self.hook.compile(**self._get_compile_kwargs())
-            self.hook.objective = torch.compile(self.hook.objective, **self._get_compile_kwargs())
-        self.optimizer = self.optimizer_factory(
-            itertools.chain(
-                self.actor.named_parameters(prefix="actor"),
-                self.critic.named_parameters(prefix="critic"),
-                self.hook.named_parameters(prefix="hook"),
-            )
-        )
+        self.optimizer = self.optimizer_factory(self.named_parameters())
         self._set_training_mode(False)
         self.hook.post_init()
         broadcast_parameters(self.parameters())
         self.hook.apply_schedule(0)
-
-    def parameters(self):
-        yield from self.actor.parameters()
-        yield from self.critic.parameters()
-        yield from self.hook.parameters()
 
     @torch.no_grad()
     @Agent._decorator_act__preserve_io_format
@@ -329,7 +316,7 @@ class ActorCritic(Agent):
             self.grad_scaler.update()
             self.hook.post_optim()
             self.record(**objectives)
-        self.hook.post_objective(batch)
+        self.hook.post_objective(metadata, batch)
 
     def set_iteration(self, iteration: int):
         if iteration != self.iteration:

@@ -42,7 +42,7 @@ class OnPolicyPreparation(Hook[ActorCritic]):
         if self.calculate_kl_divergence:
             batch["kl_divergence"] = actor.compute_kl_div(batch["action_dist"], action_dist)
 
-    def post_objective(self, batch):
+    def post_objective(self, metadata, batch):
         self.agent.record(
             ratio=batch["action_logp_ratio"].abs(),
             entropy=batch["curr_entropy"],

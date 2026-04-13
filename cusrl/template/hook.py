@@ -1,3 +1,4 @@
+import itertools
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any, Generic
 
@@ -7,7 +8,7 @@ from typing_extensions import Self
 
 import cusrl
 from cusrl.nn import FlowGraph
-from cusrl.template.agent import AgentType
+from cusrl.template.agent import Agent, AgentType
 from cusrl.template.buffer import Buffer
 from cusrl.utils import distributed
 from cusrl.utils.misc import MISSING
@@ -30,6 +31,7 @@ class Hook(Generic[AgentType]):
     def __init__(self, training_only: bool = False):
         """Initializes the hook."""
         self._modules: dict[str, nn.Module | None] = {}
+        self._statefuls: dict[str, Any] = {}
         self._mutable: set[str] = set()
         self._name: str = camel_to_snake(self.__class__.__name__)
         self._active: bool = True
@@ -86,6 +88,21 @@ class Hook(Generic[AgentType]):
             module = self.agent.setup_module(module)
         setattr(self, name, module)
         self._modules[name] = module
+
+    def register_stateful(self, name: str, value: Any):
+        """Registers a stateful attribute with the hook.
+
+        Stateful attributes are included in the hook's state dict, but are not
+        treated as parameters and are not moved to the agent's device.
+
+        Args:
+            name (str):
+                The name of the attribute.
+            value (Any):
+                The value to assign.
+        """
+        setattr(self, name, value)
+        self._statefuls[name] = value
 
     def register_mutable(self, name: str, value: Any = MISSING):
         """Registers a mutable attribute with the hook.
@@ -146,9 +163,9 @@ class Hook(Generic[AgentType]):
     def state_dict(self):
         """Returns a dictionary containing the state of the hook."""
         result = {}
-        for module_name, module in self._modules.items():
-            if module is not None:
-                result[module_name] = module.state_dict()
+        for stateful_name, stateful in itertools.chain(self._modules.items(), self._statefuls.items()):
+            if stateful is not None:
+                result[stateful_name] = stateful.state_dict()
         return result
 
     def load_state_dict(self, state_dict: Mapping[str, Any]):
@@ -158,17 +175,17 @@ class Hook(Generic[AgentType]):
             state_dict: A dictionary containing the state of the hook.
         """
         keys = set(state_dict.keys())
-        for module_name, module in self._modules.items():
-            if module is None:
+        for stateful_name, stateful in itertools.chain(self._modules.items(), self._statefuls.items()):
+            if stateful is None:
                 continue
-            if module_name not in keys:
-                self.warn(f"No state_dict entry was found for '{module_name}'.")
+            if stateful_name not in keys:
+                self.warn(f"No state_dict entry was found for '{stateful_name}'.")
                 continue
-            keys.discard(module_name)
+            keys.discard(stateful_name)
             try:
-                module.load_state_dict(state_dict[module_name])
-            except RuntimeError as error:
-                self.warn(f"State dict for '{module_name}' is incompatible: {error}")
+                stateful.load_state_dict(state_dict[stateful_name])
+            except (RuntimeError, ValueError) as error:
+                self.warn(f"State dict for '{stateful_name}' is incompatible: {error}")
                 continue
 
         if keys:
@@ -269,14 +286,6 @@ class Hook(Generic[AgentType]):
         """
         return None
 
-    def post_objective(self, batch: dict[str, NestedTensor | Any]):
-        """Called after computing the objective for a batch of experience.
-
-        Args:
-            batch (dict[str, NestedTensor | Any]):
-                A batch of experience sampled from the buffer.
-        """
-
     def pre_optim(self, optimizer: torch.optim.Optimizer):
         """Called before the optimizer's step.
 
@@ -286,6 +295,17 @@ class Hook(Generic[AgentType]):
 
     def post_optim(self):
         """Called after the optimizer's step."""
+
+    def post_objective(self, metadata: dict[str, Any], batch: dict[str, NestedTensor | Any]):
+        """Called after computing the objective and optimizing for a batch of
+        experience.
+
+        Args:
+            metadata (dict[str, Any]):
+                Metadata associated with the sampled batch.
+            batch (dict[str, NestedTensor | Any]):
+                A batch of experience sampled from the buffer.
+        """
 
     def post_update(self):
         """Called after the agent's update phase."""
@@ -320,7 +340,7 @@ class Hook(Generic[AgentType]):
         distributed.print_rank0(f"\033[1;31m{cls.__name__}: {message}\033[0m")
 
 
-class HookComposite(Hook):
+class HookComposite(Hook[Agent]):
     """Wraps multiple hooks and executes them in sequence."""
 
     def __init__(self, hooks: Iterable[Hook]):
@@ -368,6 +388,7 @@ class HookComposite(Hook):
     def compile(self, **kwargs):
         for hook in self:
             hook.compile(**kwargs)
+        self.objective = torch.compile(self.objective, **kwargs)
 
     def train(self, mode=True):
         for hook in self.active_hooks():
@@ -415,10 +436,6 @@ class HookComposite(Hook):
             return objectives
         return None
 
-    def post_objective(self, batch: dict[str, NestedTensor | Any]):
-        for hook in self.active_hooks():
-            hook.post_objective(batch)
-
     def pre_optim(self, optimizer):
         for hook in self.active_hooks():
             hook.pre_optim(optimizer)
@@ -426,6 +443,10 @@ class HookComposite(Hook):
     def post_optim(self):
         for hook in self.active_hooks():
             hook.post_optim()
+
+    def post_objective(self, metadata: dict[str, Any], batch: dict[str, NestedTensor | Any]):
+        for hook in self.active_hooks():
+            hook.post_objective(metadata, batch)
 
     def post_update(self):
         for hook in self.active_hooks():

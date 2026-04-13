@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar, overload
@@ -22,6 +22,8 @@ AgentType = TypeVar("AgentType", bound="Agent")
 
 @dataclass(kw_only=True)
 class AgentFactory(ABC, Generic[AgentType]):
+    """Base factory configuration for constructing an :class:`Agent`."""
+
     num_steps_per_update: int
     """Number of environment steps to collect before performing an update."""
     name: str = "Agent"
@@ -36,9 +38,11 @@ class AgentFactory(ABC, Generic[AgentType]):
 
     @abstractmethod
     def __call__(self, environment_spec: EnvironmentSpec) -> AgentType:
+        """Creates an agent instance for the provided environment spec."""
         raise NotImplementedError
 
     def from_environment(self, environment: Environment) -> AgentType:
+        """Creates an agent instance using the provided environment."""
         return self(environment.spec)
 
 
@@ -131,6 +135,18 @@ class Agent(ABC):
         self.iteration = 0
         self.step_index = 0
 
+    def named_parameters(self) -> Iterable[tuple[str, torch.nn.Parameter]]:
+        """Yields named parameters from registered modules."""
+        for name in self.MODULES:
+            module: nn.Module | None = getattr(self, name, None)
+            if module is not None:
+                yield from module.named_parameters(prefix=f"{name}")
+
+    def parameters(self):
+        """Yields parameters from registered modules."""
+        for _name, param in self.named_parameters():
+            yield param
+
     @abstractmethod
     def act(self, observation: ArrayType, state: ArrayType | None = None) -> ArrayType:
         """Selects an action based on the current observation and state.
@@ -217,6 +233,12 @@ class Agent(ABC):
             self.deterministic = mode and deterministic
 
     def set_iteration(self, iteration: int):
+        """Sets the current training iteration.
+
+        Args:
+            iteration (int):
+                The non-negative iteration index to assign to the agent.
+        """
         if iteration < 0:
             raise ValueError("Iteration must be non-negative")
         self.iteration = iteration
@@ -246,6 +268,7 @@ class Agent(ABC):
         return self.to_tensor(input)
 
     def setup_module(self, module: _ModuleType) -> _ModuleType:
+        """Moves a module onto the agent device and returns it."""
         module = module.to(device=self.device)
         return module
 
@@ -303,14 +326,21 @@ class Agent(ABC):
             self.warn(f"Unused state_dict keys: {keys}.")
 
     def export(self, output_dir, **kwargs):
+        """Exports the agent to an artifact in ``output_dir``.
+
+        Subclasses should override this method to define format-specific export
+        behavior.
+        """
         pass
 
     @classmethod
     def warn(cls, info_str):
+        """Prints an agent-scoped warning message on rank 0."""
         distributed.print_rank0(f"\033[1;33mAgent: {info_str}\033[0m")
 
     @contextmanager
     def _autocast(self):
+        """Enters the agent's configured automatic mixed-precision context."""
         with torch.autocast(
             device_type=self.device.type,
             dtype=self.dtype,
@@ -319,17 +349,20 @@ class Agent(ABC):
             yield
 
     def _get_compile_kwargs(self) -> dict[str, str]:
+        """Builds keyword arguments for :func:`torch.compile`."""
         if isinstance(self.compile, str):
             return {"mode": self.compile}
         return {}
 
     def _set_training_mode(self, mode: bool = True):
+        """Sets training mode on modules registered in :attr:`MODULES`."""
         for name in self.MODULES:
             if (module := getattr(self, name, None)) is not None:
                 module.train(mode)
 
     @contextmanager
     def _training_mode(self):
+        """Temporarily enables training mode for registered modules."""
         self._set_training_mode(True)
         try:
             yield
@@ -338,6 +371,8 @@ class Agent(ABC):
 
     @classmethod
     def _decorator_act__preserve_io_format(cls, act_method):
+        """Wraps ``act`` so its output matches the caller's input array format."""
+
         def wrapped_act(self, observation: Array, state: Array | None = None):
             action: torch.Tensor = act_method(self, observation, state)
             if isinstance(observation, np.ndarray):

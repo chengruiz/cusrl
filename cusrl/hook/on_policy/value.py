@@ -133,7 +133,7 @@ class ValueLoss(Hook[ActorCritic]):
 
         return {"value_loss": value_loss * self.weight}
 
-    def post_objective(self, batch):
+    def post_objective(self, metadata, batch):
         curr_value = cast(Tensor, batch["curr_value"])
         self.agent.record(value=curr_value.sum(dim=-1))
         with torch.no_grad():
