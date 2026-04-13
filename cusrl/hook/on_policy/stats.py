@@ -1,3 +1,5 @@
+from typing import cast
+
 import torch
 
 from cusrl.template import ActorCritic, Hook, Sampler
@@ -30,5 +32,8 @@ class OnPolicyStatistics(Hook[ActorCritic]):
         for _, batch in self.sampler(self.agent.buffer):
             action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
             self.agent.record(kl_divergence=actor.compute_kl_div(batch["action_dist"], action_dist))
+            action_logp = actor.compute_logp(action_dist, batch["action"])
+            logp_ratio = action_logp - cast(torch.Tensor, batch["action_logp"])
+            self.agent.record(importance_weighted_advantage=batch["advantage"] * logp_ratio.exp())
             if "std" in action_dist:
                 self.agent.record(action_std=action_dist["std"])
