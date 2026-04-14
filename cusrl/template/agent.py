@@ -206,7 +206,7 @@ class Agent(ABC):
         if self.inference_mode:
             return False
         self.step_index += 1
-        return self.step_index == self.num_steps_per_update
+        return self.step_index >= self.num_steps_per_update
 
     @abstractmethod
     def update(self) -> dict[str, float]:

@@ -253,6 +253,23 @@ class Hook(Generic[AgentType]):
                 information.
         """
 
+    def should_update(self, transition: dict[str, NestedTensor]) -> bool:
+        """Returns whether the most recent transition should trigger an update.
+
+        Hooks can override this to impose additional update constraints beyond
+        the agent's own ``num_steps_per_update`` cadence. The default
+        implementation allows updates unconditionally.
+
+        Args:
+            transition:
+                The latest transition collected from the environment.
+
+        Returns:
+            bool:
+                ``True`` if the update may proceed, ``False`` otherwise.
+        """
+        return True
+
     def pre_update(self, buffer: Buffer):
         """Called before the agent's update phase.
 
@@ -405,6 +422,9 @@ class HookComposite(Hook[Agent]):
     def post_step(self, transition):
         for hook in self.active_hooks():
             hook.post_step(transition)
+
+    def should_update(self, transition: dict[str, NestedTensor]) -> bool:
+        return all(hook.should_update(transition) for hook in self.active_hooks())
 
     def pre_update(self, buffer):
         for hook in self.active_hooks():

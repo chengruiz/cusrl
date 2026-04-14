@@ -287,7 +287,7 @@ class ActorCritic(Agent):
             truncated=truncated,
             next_state=next_state,
             **kwargs,
-        )
+        ) and self.hook.should_update(self.transition)
 
     def update(self):
         self.hook.pre_update(self.buffer)
