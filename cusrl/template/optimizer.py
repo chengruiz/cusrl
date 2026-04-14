@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 import torch
@@ -13,7 +13,7 @@ class OptimizerFactory:
 
     ``defaults`` defines the base optimizer kwargs. They are passed to the
     optimizer constructor and also used for parameters that do not match any
-    configured prefix. Prefix groups can be supplied through ``optim_groups``
+    configured prefix. Prefix groups can be supplied through ``param_groups``
     or ``**kwargs``; the two mappings are merged and keyword arguments win on
     duplicate prefixes. Prefixes are sorted by length so the most specific
     match is applied first.
@@ -21,7 +21,8 @@ class OptimizerFactory:
     A parameter matches a prefix when its name is exactly that prefix or begins
     with ``"{prefix}."``. Empty prefixes are not allowed. Unmatched parameters
     use ``defaults`` directly. Parameters with ``requires_grad=False`` are
-    skipped.
+    skipped. ``param_filter`` can be used to keep only parameters whose
+    names match one of the configured prefixes before grouping.
 
     Args:
         cls (str | type[Optimizer]):
@@ -30,31 +31,45 @@ class OptimizerFactory:
         defaults (dict[str, Any] | None, optional):
             Base optimizer keyword arguments. These are passed to the optimizer
             constructor and reused for unmatched parameters.
-        optim_groups (dict[str, Any] | None, optional):
+        param_groups (dict[str, Any] | None, optional):
             Mapping from parameter-name prefix to optimizer keyword arguments
             for that group. Use this when a prefix is not a valid Python
-            keyword argument name.
+            keyword argument name. If ``None``, all parameters use ``defaults``.
+            Defaults to ``None``.
+        param_filter (Sequence[str] | None, optional):
+            Optional parameter-name prefixes used to keep only a subset of the
+            parameters before grouping. If ``None``, all parameters are kept.
+            Defaults to ``None``.
         **kwargs (dict[str, Any]):
             Additional prefix groups provided as keyword arguments. These are
-            merged with ``optim_groups`` and override duplicate prefixes.
+            merged with ``param_groups`` and override duplicate prefixes.
     """
 
     def __init__(
         self,
         cls: str | type[Optimizer],
         defaults: dict[str, Any] | None = None,
-        optim_groups: dict[str, Any] | None = None,
+        param_groups: dict[str, Any] | None = None,
+        param_filter: Sequence[str] | None = None,
         **kwargs: dict[str, Any],
     ):
         self.cls = cls
         self.defaults = defaults or {}
+        if param_filter is None:
+            self.param_filter = None
+        else:
+            param_filter = tuple(param_filter)
+            for prefix in param_filter:
+                if not prefix:
+                    raise ValueError("Empty prefixes are not allowed in 'param_filter'")
+            self.param_filter = tuple(sorted(param_filter, key=len, reverse=True))
 
-        optim_groups = (optim_groups or {}) | kwargs
-        for prefix in optim_groups.keys():
+        param_groups = (param_groups or {}) | kwargs
+        for prefix in param_groups.keys():
             if not prefix:
                 raise ValueError("Empty prefixes are not allowed; use the default group instead")
         # Sort by length of prefix
-        self.optim_groups = dict(sorted(optim_groups.items(), key=lambda x: len(x[0]), reverse=True))
+        self.param_groups = dict(sorted(param_groups.items(), key=lambda x: len(x[0]), reverse=True))
 
     def __call__(self, named_parameters: Iterable[tuple[str, nn.Parameter]]) -> Optimizer:
         """Instantiates the configured optimizer from named parameters.
@@ -79,20 +94,25 @@ class OptimizerFactory:
         for name, param in named_parameters:
             if not param.requires_grad:
                 continue
-            prefix = self._match_prefix(name)
+            if self.param_filter is not None and not self._get_matched_prefix(name, self.param_filter):
+                continue
+            prefix = self._get_matched_prefix(name, self.param_groups)
             param_group = param_groups.get(prefix)
             if param_group is None:
-                params = self.optim_groups.get(prefix, self.defaults)
+                params = self.param_groups.get(prefix, self.defaults)
                 param_group = {"param_names": [], "params": [], **params}
                 param_groups[prefix] = param_group
             param_group["param_names"].append(name)
             param_group["params"].append(param)
+        if not param_groups:
+            raise ValueError("No trainable parameters matched the optimizer filter")
         return optim_cls(param_groups.values(), **self.defaults)
 
-    def _match_prefix(self, name):
+    @staticmethod
+    def _get_matched_prefix(name, prefixes) -> str:
         """Returns the most specific configured prefix for ``name``."""
         matched_prefix = ""
-        for prefix in self.optim_groups:
+        for prefix in prefixes:
             if name == prefix or name.startswith(f"{prefix}."):
                 matched_prefix = prefix
                 break

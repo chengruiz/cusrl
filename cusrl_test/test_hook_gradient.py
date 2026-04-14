@@ -31,7 +31,7 @@ def test_gradient_clipping_clips_default_and_prefixed_groups():
     optimizer = OptimizerFactory(
         "SGD",
         defaults={"lr": 0.1},
-        optim_groups={"actor": {"lr": 0.01}},
+        param_groups={"actor": {"lr": 0.01}},
     )(model.named_parameters())
     hook = cusrl.hook.GradientClipping(max_grad_norm=0.5, actor=0.25)
     hook.agent = DummyAgent()

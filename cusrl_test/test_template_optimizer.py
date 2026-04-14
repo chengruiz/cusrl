@@ -3,6 +3,7 @@ import torch
 from torch import nn
 
 from cusrl.template.optimizer import OptimizerFactory
+from cusrl.utils import from_dict, to_dict
 
 
 class ToyActor(nn.Module):
@@ -24,19 +25,22 @@ class ToyModel(nn.Module):
 
 def test_optimizer_factory_rejects_empty_prefix():
     with pytest.raises(ValueError, match="Empty prefixes"):
-        OptimizerFactory("SGD", defaults={"lr": 0.1}, optim_groups={"": {"lr": 0.2}})
+        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_groups={"": {"lr": 0.2}})
+
+    with pytest.raises(ValueError, match="Empty prefixes"):
+        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("",))
 
 
 def test_optimizer_factory_keyword_groups_override_and_sort_prefixes():
     factory = OptimizerFactory(
         torch.optim.SGD,
         defaults={"lr": 0.1},
-        optim_groups={"actor": {"lr": 0.01}, "actor.backbone": {"lr": 0.001}},
+        param_groups={"actor": {"lr": 0.01}, "actor.backbone": {"lr": 0.001}},
         actor={"lr": 0.02},
     )
 
-    assert list(factory.optim_groups) == ["actor.backbone", "actor"]
-    assert factory.optim_groups["actor"] == {"lr": 0.02}
+    assert list(factory.param_groups) == ["actor.backbone", "actor"]
+    assert factory.param_groups["actor"] == {"lr": 0.02}
 
 
 def test_optimizer_factory_accepts_optimizer_class():
@@ -52,7 +56,7 @@ def test_optimizer_factory_builds_expected_param_groups():
     factory = OptimizerFactory(
         "SGD",
         defaults={"lr": 0.1, "momentum": 0.9},
-        optim_groups={
+        param_groups={
             "actor": {"lr": 0.01},
             "actor.backbone": {"lr": 0.001},
             "special": {"lr": 0.2},
@@ -80,3 +84,41 @@ def test_optimizer_factory_builds_expected_param_groups():
     assert group_by_name["actor_extra.bias"]["lr"] == pytest.approx(0.1)
     assert group_by_name["critic.weight"]["lr"] == pytest.approx(0.1)
     assert group_by_name["critic.bias"]["lr"] == pytest.approx(0.1)
+
+
+def test_optimizer_factory_filters_named_parameters_before_grouping():
+    model = ToyModel()
+    factory = OptimizerFactory(
+        "SGD",
+        defaults={"lr": 0.1},
+        param_groups={"actor": {"lr": 0.01}, "actor.backbone": {"lr": 0.001}},
+        param_filter=("actor",),
+    )
+
+    optimizer = factory(model.named_parameters())
+    group_by_name = {name: group for group in optimizer.param_groups for name in group["param_names"]}
+
+    assert set(group_by_name) == {
+        "actor.backbone.weight",
+        "actor.backbone.bias",
+        "actor.head.weight",
+        "actor.head.bias",
+    }
+    assert group_by_name["actor.backbone.weight"]["lr"] == pytest.approx(0.001)
+    assert group_by_name["actor.head.weight"]["lr"] == pytest.approx(0.01)
+
+
+def test_optimizer_factory_rejects_empty_filtered_parameter_set():
+    model = ToyModel()
+
+    with pytest.raises(ValueError, match="optimizer filter"):
+        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("missing",))(model.named_parameters())
+
+
+def test_optimizer_factory_round_trips_param_filter():
+    factory = OptimizerFactory("Adam", defaults={"lr": 1e-3}, param_filter=("actor", "actor.backbone"))
+
+    restored = from_dict(None, to_dict(factory))
+
+    assert isinstance(restored, OptimizerFactory)
+    assert restored.param_filter == ("actor.backbone", "actor")
