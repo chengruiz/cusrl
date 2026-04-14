@@ -49,7 +49,7 @@ class HookList(list[Hook]):
         """Normalizes serialized / CLI-expanded hook data back into HookList."""
         if isinstance(data, cls):
             return cls(data)
-        if isinstance(data, list):
+        if isinstance(data, (list, tuple)):
             return cls(data)
 
         restored = from_dict(None, to_dict(data))
@@ -57,7 +57,7 @@ class HookList(list[Hook]):
             return restored
         if isinstance(restored, dict):
             return cls.from_dict(restored)
-        if isinstance(restored, list):
+        if isinstance(restored, (list, tuple)):
             return cls(restored)
         raise TypeError(f"Unsupported hooks payload: {type(data)!r}")
 
@@ -302,7 +302,7 @@ class ActorCritic(Agent):
         self.actor.clear_intermediate_repr()
         self.critic.clear_intermediate_repr()
         self.hook.pre_objective(metadata, batch)
-        with self._autocast():
+        with self.autocast():
             objectives = self.hook.objective(metadata, batch)
         if objectives is not None:
             loss = sum(objectives.values())

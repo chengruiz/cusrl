@@ -4,6 +4,7 @@ from .condition import (
 )
 from .empty_cuda_cache import EmptyCudaCache
 from .initialization import ModuleInitialization
+from .optimization_stage import OptimizationStage
 from .schedule import (
     HookActivationSchedule,
     HookParameterSchedule,
@@ -16,4 +17,5 @@ __all__ = [
     "HookActivationSchedule",
     "HookParameterSchedule",
     "ModuleInitialization",
+    "OptimizationStage",
 ]

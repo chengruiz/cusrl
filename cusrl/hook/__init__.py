@@ -20,6 +20,7 @@ from .control import (
     HookActivationSchedule,
     HookParameterSchedule,
     ModuleInitialization,
+    OptimizationStage,
 )
 from .mdp import (
     DynamicEnvironmentSpecOverride,
@@ -70,6 +71,7 @@ __all__ = [
     "OnPolicyBufferCapacitySchedule",
     "OnPolicyPreparation",
     "OnPolicyStatistics",
+    "OptimizationStage",
     "PolicyDistillation",
     "PolicyDistillationLoss",
     "PpoSurrogateLoss",

@@ -339,7 +339,7 @@ class Agent(ABC):
         distributed.print_rank0(f"\033[1;33mAgent: {info_str}\033[0m")
 
     @contextmanager
-    def _autocast(self):
+    def autocast(self):
         """Enters the agent's configured automatic mixed-precision context."""
         with torch.autocast(
             device_type=self.device.type,

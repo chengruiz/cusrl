@@ -345,21 +345,26 @@ class HookComposite(Hook[Agent]):
 
     def __init__(self, hooks: Iterable[Hook]):
         super().__init__()
-        self.hooks = tuple(hooks)
+        self._hooks = tuple(hooks)
         self._named_hooks: dict[str, Hook] = {}
-        for hook in self.hooks:
+        for hook in self._hooks:
             if not isinstance(hook, Hook):
                 raise TypeError(f"Expected a Hook instance, but got '{type(hook).__name__}'")
             if hook.name in self._named_hooks:
                 raise RuntimeError(f"Hook '{hook.name}' already exists")
             self._named_hooks[hook.name] = hook
+        self._statefuls.update(self._named_hooks)
+        self._compiled_objective = None
 
     def __getitem__(self, name: str) -> Hook:
         """Returns the hook with the given name."""
+        if "." in name:
+            hook_name, sub_name = name.split(".", 1)
+            return self._named_hooks[hook_name][sub_name]
         return self._named_hooks[name]
 
     def __iter__(self) -> Iterator[Hook]:
-        yield from self.hooks
+        yield from self._hooks
 
     def named_parameters(self, prefix: str = ""):
         if prefix and not prefix.endswith("."):
@@ -367,28 +372,10 @@ class HookComposite(Hook[Agent]):
         for hook_name, hook in self._named_hooks.items():
             yield from hook.named_parameters(prefix=f"{prefix}{hook_name}")
 
-    def state_dict(self):
-        result = {}
-        for hook_name, hook in self._named_hooks.items():
-            if state_dict := hook.state_dict():
-                result[hook_name] = state_dict
-        return result
-
-    def load_state_dict(self, state_dict: Mapping[str, Any]):
-        keys = set(state_dict.keys())
-        for hook_name, hook in self._named_hooks.items():
-            if state := state_dict.get(hook_name):
-                hook.load_state_dict(state)
-            elif hook.state_dict():
-                self.warn(f"No state_dict entry was found for '{hook.name}'.")
-            keys.discard(hook_name)
-        if keys:
-            self.warn(f"Unused state_dict keys: {keys}.")
-
     def compile(self, **kwargs):
         for hook in self:
             hook.compile(**kwargs)
-        self.objective = torch.compile(self.objective, **kwargs)
+        self._compiled_objective = torch.compile(self._objective, **kwargs)
 
     def train(self, mode=True):
         for hook in self.active_hooks():
@@ -428,6 +415,9 @@ class HookComposite(Hook[Agent]):
             hook.pre_objective(metadata, batch)
 
     def objective(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]) -> dict[str, torch.Tensor] | None:
+        return (self._objective if self._compiled_objective is None else self._compiled_objective)(metadata, batch)
+
+    def _objective(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]) -> dict[str, torch.Tensor] | None:
         objectives = {}
         for hook in self.active_hooks():
             if (obj := hook.objective(metadata, batch)) is not None:
