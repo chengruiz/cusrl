@@ -16,18 +16,12 @@ __all__ = [
 
 
 def distillation_hook_suite(
-    init_distribution_std: float | None = None,
     expert_path: str = "",
     expert_observation_name: str = "observation",
     normalize_observation: bool = False,
     max_grad_norm: float | None = 1.0,
 ) -> list[cusrl.template.Hook]:
     hooks = [
-        cusrl.hook.ModuleInitialization(
-            init_actor=False,
-            init_critic=False,
-            distribution_std=init_distribution_std,
-        ),
         cusrl.hook.ObservationNormalization() if normalize_observation else None,
         cusrl.hook.OnPolicyPreparation(),
         cusrl.hook.PolicyDistillation(expert_path, expert_observation_name),
@@ -72,7 +66,7 @@ class DistillationAgentFactory(AgentFactory["ActorCritic"]):
                     activation_fn=self.activation_fn,
                     ends_with_activation=True,
                 ),
-                distribution_factory=cusrl.NormalDist.Factory(),
+                distribution_factory=cusrl.NormalDist.Factory(init_std=self.init_distribution_std),
             ),
             critic_factory=cusrl.Value.Factory(
                 backbone_factory=cusrl.StubModule.Factory(),
@@ -83,7 +77,6 @@ class DistillationAgentFactory(AgentFactory["ActorCritic"]):
                 num_mini_batches=self.sampler_mini_batches,
             ),
             hooks=distillation_hook_suite(
-                init_distribution_std=self.init_distribution_std,
                 expert_path=self.expert_path,
                 expert_observation_name=self.expert_observation_name,
                 normalize_observation=self.normalize_observation,

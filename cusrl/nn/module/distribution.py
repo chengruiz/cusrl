@@ -200,25 +200,18 @@ class _Normal(Distribution[MeanStdDict]):
 
 
 class StddevVector(nn.Module):
-    def __init__(self, output_dim: int, bijector: str | Bijector | None = None):
+    def __init__(
+        self,
+        output_dim: int,
+        init_std: float | None = None,
+        bijector: str | Bijector | None = None,
+    ):
         super().__init__()
         self.bijector = make_bijector(bijector)
-        self.param = nn.Parameter(torch.ones(output_dim) * self.bijector.inverse(1.0))
+        self.param = nn.Parameter(torch.ones(output_dim) * self.bijector.inverse(init_std or 1.0))
 
     def forward(self, input: Tensor):
         return self.bijector(self.param.repeat(*input.shape[:-1], 1))
-
-    def clamp_(self, lb: float | None = None, ub: float | None = None, indices=slice(None)):
-        if lb is None and ub is None:
-            return
-        if lb is not None:
-            lb = self.bijector.inverse(lb)
-        if ub is not None:
-            ub = self.bijector.inverse(ub)
-        self.param.data[indices].clamp_(min=lb, max=ub)
-
-    def fill_(self, value):
-        self.param.data[:] = self.bijector.inverse(value)
 
     def __repr__(self):
         return f"StddevVector(bijector={self.bijector})"
@@ -226,28 +219,29 @@ class StddevVector(nn.Module):
 
 @dataclass(slots=True)
 class NormalDistFactory(DistributionFactory["NormalDist"]):
+    init_std: float | None = None
     bijector: str | Bijector | None = None
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         assert input_dim is not None and output_dim is not None
-        return NormalDist(input_dim, output_dim, bijector=self.bijector)
+        return NormalDist(input_dim, output_dim, init_std=self.init_std, bijector=self.bijector)
 
 
 class NormalDist(_Normal):
     Factory = NormalDistFactory
 
-    def __init__(self, input_dim: int, output_dim: int, bijector: str | Bijector | None = None):
+    def __init__(
+        self,
+        input_dim: int,
+        output_dim: int,
+        init_std: float | None = None,
+        bijector: str | Bijector | None = None,
+    ):
         super().__init__(input_dim, output_dim)
-        self.std: StddevVector = StddevVector(output_dim, bijector=bijector)
+        self.std: StddevVector = StddevVector(output_dim, init_std=init_std, bijector=bijector)
 
     def forward(self, latent: Tensor, **kwargs):
         return MeanStdDict(mean=self.mean_head(latent), std=self.std(latent))
-
-    def set_std(self, std):
-        self.std.fill_(std)
-
-    def clamp_std(self, lb: float | None = None, ub: float | None = None, indices=slice(None)):
-        self.std.clamp_(lb=lb, ub=ub, indices=indices)
 
 
 @dataclass(slots=True)
@@ -267,19 +261,18 @@ class AdaptiveNormalDist(_Normal):
         self,
         input_dim: int,
         output_dim: int,
+        init_std: float | None = None,
         bijector: str | Bijector | None = "exp",
         backward: bool = True,
     ):
         super().__init__(input_dim, output_dim)
 
-        self.std_head: nn.Linear = nn.Linear(input_dim, output_dim)
+        self.std_head = nn.Linear(input_dim, output_dim)
         self.bijector = make_bijector(bijector)
         self.backward = backward
 
-    def clear_intermediate_repr(self):
-        super().clear_intermediate_repr()
-        if hasattr(self.std_head, "clear_intermediate_repr"):
-            self.std_head.clear_intermediate_repr()
+        self.std_head.weight.data.zero_()
+        self.std_head.bias.data[:] = self.bijector.inverse(init_std or 1.0)
 
     def forward(self, latent: Tensor, **kwargs):
         action_mean = self.mean_head(latent)
@@ -288,10 +281,6 @@ class AdaptiveNormalDist(_Normal):
         std = self.std_head(latent)
         return MeanStdDict(mean=action_mean, std=self.bijector(std))
 
-    def set_std(self, std):
-        self.std_head.weight.data.zero_()
-        self.std_head.bias.data[:] = self.bijector.inverse(std)
-
 
 class OneHotCategoricalDistFactory(DistributionFactory["OneHotCategoricalDist"]):
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
@@ -299,25 +288,25 @@ class OneHotCategoricalDistFactory(DistributionFactory["OneHotCategoricalDist"])
         return OneHotCategoricalDist(input_dim, output_dim)
 
 
-class LogitDict(TypedDict):
-    logit: Tensor
+class LogitsDict(TypedDict):
+    logits: Tensor
 
 
-class OneHotCategoricalDist(Distribution[LogitDict]):
+class OneHotCategoricalDist(Distribution[LogitsDict]):
     Factory = OneHotCategoricalDistFactory
 
     def forward(self, latent: Tensor, **kwargs):
-        logit: Tensor = self.mean_head(latent)
-        return LogitDict(logit=logit)
+        logits: Tensor = self.mean_head(latent)
+        return LogitsDict(logits=logits)
 
     def determine(self, latent: Tensor, **kwargs) -> Tensor:
-        logit: Tensor = self.mean_head(latent)
-        mode = one_hot(logit.argmax(dim=-1), logit.size(-1))
+        logits: Tensor = self.mean_head(latent)
+        mode = one_hot(logits.argmax(dim=-1), logits.size(-1))
         return mode
 
     @classmethod
     def _dist(cls, dist_params) -> distributions.OneHotCategorical:
-        return distributions.OneHotCategorical(logits=dist_params["logit"], validate_args=False)
+        return distributions.OneHotCategorical(logits=dist_params["logits"], validate_args=False)
 
     def sample_from_dist(self, dist_params) -> tuple[Tensor, Tensor]:
         dist = self._dist(dist_params)

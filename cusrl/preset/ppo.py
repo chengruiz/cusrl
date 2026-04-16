@@ -18,7 +18,6 @@ __all__ = [
 
 def ppo_hook_suite(
     orthogonal_init: bool = True,
-    init_distribution_std: float | None = None,
     normalize_observation: bool = False,
     gae_gamma: float = 0.99,
     gae_lamda: float = 0.95,
@@ -38,7 +37,6 @@ def ppo_hook_suite(
         cusrl.hook.ModuleInitialization(
             init_actor=orthogonal_init,
             init_critic=orthogonal_init,
-            distribution_std=init_distribution_std,
         ),
         cusrl.hook.ObservationNormalization() if normalize_observation else None,
         cusrl.hook.ValueComputation(),
@@ -60,9 +58,9 @@ def ppo_hook_suite(
     return [hook for hook in hooks if hook is not None]
 
 
-def get_distribution_factory(action_space_type: str):
+def get_distribution_factory(action_space_type: str, **kwargs):
     if action_space_type == "continuous":
-        return cusrl.NormalDist.Factory()
+        return cusrl.NormalDist.Factory(**kwargs)
     if action_space_type == "discrete":
         return cusrl.OneHotCategoricalDist.Factory()
     raise ValueError(f"Unsupported action space type '{action_space_type}'")
@@ -129,7 +127,10 @@ class PpoAgentFactory(AgentFactory[ActorCritic]):
                     activation_fn=self.activation_fn,
                     ends_with_activation=True,
                 ),
-                distribution_factory=get_distribution_factory(self.action_space_type),
+                distribution_factory=get_distribution_factory(
+                    self.action_space_type,
+                    init_std=self.init_distribution_std,
+                ),
             ),
             critic_factory=cusrl.Value.Factory(
                 backbone_factory=cusrl.Mlp.Factory(
@@ -145,7 +146,6 @@ class PpoAgentFactory(AgentFactory[ActorCritic]):
             ),
             hooks=ppo_hook_suite(
                 orthogonal_init=self.orthogonal_init,
-                init_distribution_std=self.init_distribution_std,
                 normalize_observation=self.normalize_observation,
                 gae_gamma=self.gae_gamma,
                 gae_lamda=self.gae_lamda,
@@ -238,7 +238,10 @@ class RecurrentPpoAgentFactory(AgentFactory[ActorCritic]):
                     num_layers=self.actor_num_layers,
                     hidden_size=self.actor_hidden_size,
                 ),
-                distribution_factory=get_distribution_factory(self.action_space_type),
+                distribution_factory=get_distribution_factory(
+                    self.action_space_type,
+                    init_std=self.init_distribution_std,
+                ),
             ),
             critic_factory=cusrl.Value.Factory(
                 backbone_factory=cusrl.Rnn.Factory(
@@ -254,7 +257,6 @@ class RecurrentPpoAgentFactory(AgentFactory[ActorCritic]):
             ),
             hooks=ppo_hook_suite(
                 orthogonal_init=self.orthogonal_init,
-                init_distribution_std=self.init_distribution_std,
                 normalize_observation=self.normalize_observation,
                 gae_gamma=self.gae_gamma,
                 gae_lamda=self.gae_lamda,

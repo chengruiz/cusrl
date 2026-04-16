@@ -40,9 +40,6 @@ class ModuleInitialization(Hook[ActorCritic]):
             Whether to initialize the actor network. Defaults to ``True``.
         init_critic (bool, optional):
             Whether to initialize the critic network. Defaults to ``True``.
-        distribution_std (float | None, optional):
-            If provided, sets the initial standard deviation for the action
-            distribution. Defaults to ``None``.
     """
 
     def __init__(
@@ -55,7 +52,6 @@ class ModuleInitialization(Hook[ActorCritic]):
         conv_nonlinearity: Literal["relu", "leaky_relu"] = "leaky_relu",
         init_actor: bool = True,
         init_critic: bool = True,
-        distribution_std: float | None = None,
     ):
         super().__init__()
         self.scale = scale
@@ -66,7 +62,6 @@ class ModuleInitialization(Hook[ActorCritic]):
         self.conv_nonlinearity = conv_nonlinearity
         self.init_actor = init_actor
         self.init_critic = init_critic
-        self.distribution_std = distribution_std
 
     def init(self):
         if self.init_actor:
@@ -74,8 +69,6 @@ class ModuleInitialization(Hook[ActorCritic]):
                 self._init_module(module, self.scale, self.zero_bias)
             if self.scale_dist != self.scale:
                 self._init_linear(self.agent.actor.distribution.mean_head, self.scale_dist, self.zero_bias)
-        if self.distribution_std is not None:
-            self.agent.actor.set_distribution_std(self.distribution_std)
         if self.init_critic:
             for module in itertools.chain(self.agent.critic.modules()):
                 self._init_module(module, self.scale, self.zero_bias)

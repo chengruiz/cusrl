@@ -272,11 +272,3 @@ class Actor(Module):
 
     def reset_memory(self, memory: Memory, done: Slice | Tensor | None = None):
         self.backbone.reset_memory(memory, done)
-
-    def set_distribution_std(self, action_std):
-        if hasattr(self.distribution, "set_std"):
-            self.distribution.set_std(action_std)
-
-    def clamp_distribution_std(self, lb=None, ub=None, indices=slice(None)):
-        if hasattr(self.distribution, "clamp_std"):
-            self.distribution.clamp_std(lb, ub, indices)
