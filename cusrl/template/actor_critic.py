@@ -15,7 +15,7 @@ from cusrl.template.hook import Hook, HookComposite
 from cusrl.template.optimizer import OptimizerFactory
 from cusrl.utils.dict_utils import from_dict, to_dict
 from cusrl.utils.distributed import broadcast_parameters, reduce_gradients
-from cusrl.utils.typing import ArrayType, Nested, NestedArray, NestedTensor, Observation, State
+from cusrl.utils.typing import ArrayT, Nested, NestedArray, NestedTensor, Observation, State
 
 __all__ = ["ActorCritic", "ActorCriticFactory", "HookList"]
 
@@ -254,12 +254,12 @@ class ActorCritic(Agent):
     @torch.no_grad()
     def step(
         self,
-        next_observation: ArrayType,
-        reward: ArrayType,
-        terminated: ArrayType,
-        truncated: ArrayType,
-        next_state: ArrayType | None = None,
-        **kwargs: Nested[ArrayType],
+        next_observation: ArrayT,
+        reward: ArrayT,
+        terminated: ArrayT,
+        truncated: ArrayT,
+        next_state: ArrayT | None = None,
+        **kwargs: Nested[ArrayT],
     ) -> bool:
         self._save_transition(
             next_observation=next_observation,

@@ -17,16 +17,16 @@ __all__ = [
     "OneHotCategoricalDist",
 ]
 
-DistributionType = TypeVar("DistributionType", bound="Distribution")
-ParamType = TypeVar("ParamType")
+DistributionT = TypeVar("DistributionT", bound="Distribution")
+DistributionParamsT = TypeVar("DistributionParamsT")
 
 
-class DistributionFactory(ModuleFactory[DistributionType]):
+class DistributionFactory(ModuleFactory[DistributionT]):
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         raise NotImplementedError
 
 
-class Distribution(Module, Generic[ParamType]):
+class Distribution(Module, Generic[DistributionParamsT]):
     """Abstract base class for probability distributions.
 
     Args:
@@ -42,7 +42,7 @@ class Distribution(Module, Generic[ParamType]):
         super().__init__(input_dim, output_dim)
         self.mean_head = nn.Linear(input_dim, output_dim)
 
-    def forward(self, latent: Tensor, **kwargs) -> ParamType:
+    def forward(self, latent: Tensor, **kwargs) -> DistributionParamsT:
         """Computes the parameters of the distribution from a latent tensor.
 
         This method must be implemented by subclasses. It should return the
@@ -56,22 +56,22 @@ class Distribution(Module, Generic[ParamType]):
                 Additional keyword arguments.
 
         Returns:
-            dist_params (ParamType):
+            dist_params (DistributionParamsT):
                 A dictionary containing the distribution parameters.
         """
         raise NotImplementedError
 
-    def sample(self, latent: Tensor, **kwargs) -> tuple[ParamType, tuple[Tensor, Tensor]]:
+    def sample(self, latent: Tensor, **kwargs) -> tuple[DistributionParamsT, tuple[Tensor, Tensor]]:
         dist_params = self(latent, **kwargs)
         action, logp = self.sample_from_dist(dist_params)
         return dist_params, (action, logp)
 
-    def sample_from_dist(self, dist_params: ParamType) -> tuple[Tensor, Tensor]:
+    def sample_from_dist(self, dist_params: DistributionParamsT) -> tuple[Tensor, Tensor]:
         """Samples an action and computes its log-probability from the
         distribution defined by dist_params.
 
         Args:
-            dist_params (ParamType):
+            dist_params (DistributionParamsT):
                 The parameters of the distribution as produced by forward().
 
         Outputs:
@@ -83,12 +83,12 @@ class Distribution(Module, Generic[ParamType]):
         """
         raise NotImplementedError
 
-    def compute_logp(self, dist_params: ParamType, sample: Tensor) -> Tensor:
+    def compute_logp(self, dist_params: DistributionParamsT, sample: Tensor) -> Tensor:
         """Computes the log probability of a sample given the distribution
         parameters.
 
         Args:
-            dist_params (ParamType):
+            dist_params (DistributionParamsT):
                 The parameters of the distribution.
             sample (Tensor):
                 The sample for which to compute the log probability.
@@ -100,7 +100,7 @@ class Distribution(Module, Generic[ParamType]):
         """
         raise NotImplementedError
 
-    def compute_entropy(self, dist_params: ParamType) -> Tensor:
+    def compute_entropy(self, dist_params: DistributionParamsT) -> Tensor:
         r"""Computes the entropy of the distribution. Defaults to a single-
         sample Monte Carlo estimate.
 
@@ -108,7 +108,7 @@ class Distribution(Module, Generic[ParamType]):
             H(P) = -\int P(x) \log P(x) dx
 
         Args:
-            dist_params (ParamType):
+            dist_params (DistributionParamsT):
                 The parameters of the distribution.
 
         Returns:
@@ -119,7 +119,7 @@ class Distribution(Module, Generic[ParamType]):
         _, logp = self.sample_from_dist(dist_params)
         return -logp
 
-    def compute_kl_div(self, dist_params1: ParamType, dist_params2: ParamType) -> Tensor:
+    def compute_kl_div(self, dist_params1: DistributionParamsT, dist_params2: DistributionParamsT) -> Tensor:
         r"""Computes the KL divergence between two distributions P and Q.
         Defaults to a single-sample Monte Carlo estimate.
 
@@ -127,9 +127,9 @@ class Distribution(Module, Generic[ParamType]):
             D_{KL}(P || Q) = \int P(x) \log \frac{P(x)}{Q(x)} dx
 
         Args:
-            dist_params1 (ParamType):
+            dist_params1 (DistributionParamsT):
                 The parameters of the first distribution (P).
-            dist_params2 (ParamType):
+            dist_params2 (DistributionParamsT):
                 The parameters of the second distribution (Q).
 
         Returns:

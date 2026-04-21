@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from cusrl.utils import distributed
-from cusrl.utils.typing import ArrayType
+from cusrl.utils.typing import ArrayT
 
 __all__ = [
     "mean_var_count",
@@ -14,25 +14,19 @@ __all__ = [
 ]
 
 
-@overload
-def mean_var_count(input: Tensor, *, uncentered: bool = False) -> tuple[Tensor, Tensor, int]: ...
-@overload
-def mean_var_count(input: np.ndarray, *, uncentered: bool = False) -> tuple[np.ndarray, np.ndarray, int]: ...
-
-
-def mean_var_count(input: ArrayType, *, uncentered: bool = False) -> tuple[ArrayType, ArrayType, int]:
+def mean_var_count(input: ArrayT, *, uncentered: bool = False) -> tuple[ArrayT, ArrayT, int]:
     """Calculates mean, variance and count of the input array.
 
     Args:
-        input (np.ndarray | Tensor):
+        input (ArrayT):
             Input array of shape :math:`(N, C)`.
         uncentered (bool, optional):
             Whether to calculate uncentered variance. Defaults to False.
 
     Returns:
-        - mean (np.ndarray | Tensor):
+        - mean (ArrayT):
             The mean of the input array.
-        - var (np.ndarray | Tensor):
+        - var (ArrayT):
             The variance of the input array.
         - count (int):
             The number of samples in the input array.

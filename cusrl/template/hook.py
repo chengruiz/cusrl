@@ -8,7 +8,7 @@ from typing_extensions import Self
 
 import cusrl
 from cusrl.nn import FlowGraph
-from cusrl.template.agent import Agent, AgentType
+from cusrl.template.agent import Agent, AgentT
 from cusrl.template.buffer import Buffer
 from cusrl.utils import distributed
 from cusrl.utils.misc import MISSING
@@ -18,7 +18,7 @@ from cusrl.utils.typing import NestedTensor
 __all__ = ["Hook", "HookComposite"]
 
 
-class Hook(Generic[AgentType]):
+class Hook(Generic[AgentT]):
     """A component that extends an agent's functionality.
 
     Hooks are executed at specific points in the agent's lifecycle, such as
@@ -26,7 +26,7 @@ class Hook(Generic[AgentType]):
     performed.
     """
 
-    agent: AgentType
+    agent: AgentT
 
     def __init__(self, training_only: bool = False):
         """Initializes the hook."""
@@ -212,7 +212,7 @@ class Hook(Generic[AgentType]):
         """Sets the hook's modules to evaluation mode."""
         self.train(False)
 
-    def pre_init(self, agent: AgentType):
+    def pre_init(self, agent: AgentT):
         """Called before the agent's modules are instantiated."""
         self.agent = agent
 

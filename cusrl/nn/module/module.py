@@ -9,19 +9,21 @@ from cusrl.utils.typing import Memory, Slice
 
 __all__ = [
     "Module",
-    "ModuleType",
     "ModuleFactory",
     "ModuleFactoryLike",
+    "ModuleT",
     "LayerFactoryLike",
+    "LayerT",
     "resolve_activation_fn",
 ]
 
 
-ModuleType = TypeVar("ModuleType", bound="Module")
+ModuleT = TypeVar("ModuleT", bound="Module")
+LayerT = TypeVar("LayerT", bound=nn.Module)
 
 
-class ModuleFactory(Generic[ModuleType]):
-    def __call__(self, input_dim: int | None = None, output_dim: int | None = None) -> ModuleType:
+class ModuleFactory(Generic[ModuleT]):
+    def __call__(self, input_dim: int | None = None, output_dim: int | None = None) -> ModuleT:
         raise NotImplementedError
 
 

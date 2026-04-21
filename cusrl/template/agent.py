@@ -9,19 +9,20 @@ import torch
 from torch import nn
 
 import cusrl
+from cusrl.nn.module.module import LayerT
 from cusrl.template.environment import Environment, EnvironmentSpec
 from cusrl.utils import Metrics, distributed
 from cusrl.utils.str_utils import parse_torch_dtype
-from cusrl.utils.typing import Array, ArrayType, ListOrTuple, Nested, NestedArray, NestedTensor
+from cusrl.utils.typing import Array, ArrayT, ListOrTuple, Nested, NestedArray, NestedTensor
 
-__all__ = ["Agent", "AgentType", "AgentFactory"]
+__all__ = ["Agent", "AgentT", "AgentFactory"]
 
 
-AgentType = TypeVar("AgentType", bound="Agent")
+AgentT = TypeVar("AgentT", bound="Agent")
 
 
 @dataclass(kw_only=True)
-class AgentFactory(ABC, Generic[AgentType]):
+class AgentFactory(ABC, Generic[AgentT]):
     """Base factory configuration for constructing an :class:`Agent`."""
 
     num_steps_per_update: int
@@ -37,16 +38,13 @@ class AgentFactory(ABC, Generic[AgentType]):
     is provided, it specifies the dtype for autocasting."""
 
     @abstractmethod
-    def __call__(self, environment_spec: EnvironmentSpec) -> AgentType:
+    def __call__(self, environment_spec: EnvironmentSpec) -> AgentT:
         """Creates an agent instance for the provided environment spec."""
         raise NotImplementedError
 
-    def from_environment(self, environment: Environment) -> AgentType:
+    def from_environment(self, environment: Environment) -> AgentT:
         """Creates an agent instance using the provided environment."""
         return self(environment.spec)
-
-
-_ModuleType = TypeVar("_ModuleType", bound=nn.Module)
 
 
 class Agent(ABC):
@@ -148,21 +146,21 @@ class Agent(ABC):
             yield param
 
     @abstractmethod
-    def act(self, observation: ArrayType, state: ArrayType | None = None) -> ArrayType:
+    def act(self, observation: ArrayT, state: ArrayT | None = None) -> ArrayT:
         """Selects an action based on the current observation and state.
 
         This method is responsible for choosing an action from the agent's
         policy, given the current state of the environment.
 
         Args:
-            observation (ArrayType):
+            observation (ArrayT):
                 The current observation from the environment.
-            state (ArrayType | None, optional):
+            state (ArrayT | None, optional):
                 The current state from the environment (e.g. privileged
                 information). Defaults to None.
 
         Returns:
-            action (ArrayType):
+            action (ArrayT):
                 The action to be taken in the environment.
         """
         ...
@@ -170,12 +168,12 @@ class Agent(ABC):
     @abstractmethod
     def step(
         self,
-        next_observation: ArrayType,
-        reward: ArrayType,
-        terminated: ArrayType,
-        truncated: ArrayType,
-        next_state: ArrayType | None = None,
-        **kwargs: Nested[ArrayType],
+        next_observation: ArrayT,
+        reward: ArrayT,
+        terminated: ArrayT,
+        truncated: ArrayT,
+        next_state: ArrayT | None = None,
+        **kwargs: Nested[ArrayT],
     ) -> bool:
         """Processes a single step of interaction with the environment.
 
@@ -184,19 +182,19 @@ class Agent(ABC):
         and prepare for the next action or update.
 
         Args:
-            next_observation (ArrayType):
+            next_observation (ArrayT):
                 The observation received from the environment after taking the
                 action.
-            reward (ArrayType):
+            reward (ArrayT):
                 The reward received from the environment.
-            terminated (ArrayType):
+            terminated (ArrayT):
                 A boolean array indicating whether the episode has terminated.
-            truncated (ArrayType):
+            truncated (ArrayT):
                 A boolean array indicating whether the episode has been
                 truncated.
-            next_state (ArrayType | None, optional):
+            next_state (ArrayT | None, optional):
                 The next state from the environment. Defaults to None.
-            **kwargs (Nested[ArrayType]):
+            **kwargs (Nested[ArrayT]):
                 Additional data from the environment step.
 
         Returns:
@@ -267,7 +265,7 @@ class Agent(ABC):
             return {k: self.to_nested_tensor(v) for k, v in input.items()}
         return self.to_tensor(input)
 
-    def setup_module(self, module: _ModuleType) -> _ModuleType:
+    def setup_module(self, module: LayerT) -> LayerT:
         """Moves a module onto the agent device and returns it."""
         module = module.to(device=self.device)
         return module

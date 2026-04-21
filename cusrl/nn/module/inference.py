@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from cusrl.nn.module.module import Module
-from cusrl.utils.typing import ArrayType, Memory, Slice
+from cusrl.utils.typing import ArrayT, Memory, Slice
 
 __all__ = ["InferenceWrapper"]
 
@@ -44,7 +44,7 @@ class InferenceWrapper(Module):
 
     @staticmethod
     def _decorator_forward__preserve_io_format(act_method):
-        def wrapped_forward(self, input: ArrayType, **kwargs) -> ArrayType:
+        def wrapped_forward(self, input: ArrayT, **kwargs) -> ArrayT:
             is_numpy = isinstance(input, np.ndarray)
             input_tensor = torch.as_tensor(input)
             device, dtype = input_tensor.device, input_tensor.dtype

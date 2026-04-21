@@ -13,7 +13,7 @@ __all__ = [
     "make_bijector",
 ]
 
-FloatOrTensor = TypeVar("FloatOrTensor", float, Tensor)
+FloatOrTensorT = TypeVar("FloatOrTensorT", float, Tensor)
 
 
 class Bijector(nn.Module):
@@ -37,10 +37,10 @@ class Bijector(nn.Module):
         params = [float(param) for param in spec.split("_")]
         return cls(*params)
 
-    def forward(self, input: FloatOrTensor) -> FloatOrTensor:
+    def forward(self, input: FloatOrTensorT) -> FloatOrTensorT:
         raise NotImplementedError
 
-    def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
+    def inverse(self, input: FloatOrTensorT) -> FloatOrTensorT:
         raise NotImplementedError
 
 
@@ -51,12 +51,12 @@ class ExponentialBijector(Bijector):
         self.min_input = self.inverse(min_value)
         self.max_input = self.inverse(max_value)
 
-    def forward(self, input: FloatOrTensor) -> FloatOrTensor:
+    def forward(self, input: FloatOrTensorT) -> FloatOrTensorT:
         if isinstance(input, Tensor):
             return torch.exp(input.clamp(self.min_input, self.max_input))
         return math.exp(min(max(input, self.min_input), self.max_input))
 
-    def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
+    def inverse(self, input: FloatOrTensorT) -> FloatOrTensorT:
         if isinstance(input, Tensor):
             return torch.log(input.clamp(self.min_value, self.max_value))
         return math.log(min(max(input, self.min_value), self.max_value))
@@ -66,10 +66,10 @@ class ExponentialBijector(Bijector):
 
 
 class IdentityBijector(Bijector):
-    def forward(self, input: FloatOrTensor) -> FloatOrTensor:
+    def forward(self, input: FloatOrTensorT) -> FloatOrTensorT:
         return input
 
-    def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
+    def inverse(self, input: FloatOrTensorT) -> FloatOrTensorT:
         return input
 
 
@@ -81,12 +81,12 @@ class SigmoidBijector(Bijector):
         self.range = max_value - min_value
         self.eps = eps
 
-    def forward(self, input: FloatOrTensor) -> FloatOrTensor:
+    def forward(self, input: FloatOrTensorT) -> FloatOrTensorT:
         if isinstance(input, Tensor):
             return self.min_value + self.range * torch.sigmoid(input)
         return self.min_value + self.range * (1 / (1 + math.exp(-input)))
 
-    def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
+    def inverse(self, input: FloatOrTensorT) -> FloatOrTensorT:
         if isinstance(input, Tensor):
             clamped_input = input.clamp(self.min_value + self.eps, self.max_value - self.eps)
             return torch.log((clamped_input - self.min_value) / (self.max_value - clamped_input))
@@ -105,14 +105,14 @@ class SoftplusBijector(Bijector):
         self.min_input = self.inverse(min_value)
         self.max_input = self.inverse(max_value)
 
-    def forward(self, input: FloatOrTensor) -> FloatOrTensor:
+    def forward(self, input: FloatOrTensorT) -> FloatOrTensorT:
         if isinstance(input, Tensor):
             clamped_input = input.clamp(self.min_input, self.max_input)
             return torch.nn.functional.softplus(clamped_input * self.scale) / self.scale
         clamped_input = max(self.min_input, min(input, self.max_input))
         return math.log1p(math.exp(clamped_input * self.scale)) / self.scale
 
-    def inverse(self, input: FloatOrTensor) -> FloatOrTensor:
+    def inverse(self, input: FloatOrTensorT) -> FloatOrTensorT:
         # log(exp(x) - 1) = x + log(1 - exp(-x)) = x + log1p(-exp(-x))
         if isinstance(input, Tensor):
             clamped_input = input.clamp(self.min_value, self.max_value)

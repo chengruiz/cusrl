@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias
 import gymnasium as gym
 from objprint import add_objprint
 
-from cusrl.utils.typing import Array, ArrayType, Nested, Slice, StateType
+from cusrl.utils.typing import Array, ArrayT, Nested, Slice
 
 if TYPE_CHECKING:
     from cusrl.hook.auxiliary.symmetry import MirrorFn
@@ -172,7 +172,7 @@ class EnvironmentSpec:
 EnvironmentFactoryLike: TypeAlias = Callable[[], "Environment"]
 
 
-class Environment(ABC, Generic[ArrayType]):
+class Environment(ABC, Generic[ArrayT]):
     """Environment class for defining the interface of an environment.
 
     Args:
@@ -257,17 +257,17 @@ class Environment(ABC, Generic[ArrayType]):
     def reset(
         self,
         *,
-        indices: ArrayType | Slice | None = None,
+        indices: ArrayT | Slice | None = None,
         randomize_episode_progress: bool = False,
     ) -> tuple[
-        ArrayType,
-        ArrayType | None,
-        dict[str, Nested[ArrayType]],
+        ArrayT,
+        ArrayT | None,
+        dict[str, Nested[ArrayT]],
     ]:
         """Resets the environment.
 
         Args:
-            indices (ArrayType | Slice | None, optional):
+            indices (ArrayT | Slice | None, optional):
                 Indices of instances to reset. If ``None``, resets all
                 instances. Defaults to ``None``.
             randomize_episode_progress (bool, optional):
@@ -275,55 +275,55 @@ class Environment(ABC, Generic[ArrayType]):
                 environment. Defaults to ``False``.
 
         Returns:
-        - observation (ArrayType):
+        - observation (ArrayT):
             Observations of reset instances of shape :math:`(Ni, Do)`, where
             :math:`Ni` is the number of reset instances and :math:`Do` is the
             observation dimension.
-        - state (ArrayType | None):
+        - state (ArrayT | None):
             States of reset instances of shape :math:`(Ni, Ds)`, where
             :math:`Ds` is the state dimension. If the environment does not have
             privileged information, the state should be ``None``, which means
             the states are the same as the observations.
-        - info (dict[str, Nested[ArrayType]]):
+        - info (dict[str, Nested[ArrayT]]):
             Additional information dict for reset instances as named arrays.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def step(self, action: ArrayType) -> tuple[
-        ArrayType,
-        ArrayType | None,
-        ArrayType,
-        ArrayType,
-        ArrayType,
-        dict[str, Nested[ArrayType]],
+    def step(self, action: ArrayT) -> tuple[
+        ArrayT,
+        ArrayT | None,
+        ArrayT,
+        ArrayT,
+        ArrayT,
+        dict[str, Nested[ArrayT]],
     ]:
         """Performs one environment step.
 
         Args:
-            action (ArrayType):
+            action (ArrayT):
                 Actions of all instances of shape :math:`(N, Da)`, where
                 :math:`N` is the number of instances and :math:`Da` is the
                 action dimension.
 
         Outputs:
-            - **next_observation** (ArrayType):
+            - **next_observation** (ArrayT):
                 Next observations of all instances of shape :math:`(N, Do)`,
                 where :math:`Do` is the observation dimension.
-            - **next_state** (ArrayType | None):
+            - **next_state** (ArrayT | None):
                 Next states of all instances of shape :math:`(N, Ds)`, where
                 :math:`Ds` is the state dimension; or ``None`` if equal to the
                 observations.
-            - **reward** (ArrayType):
+            - **reward** (ArrayT):
                 Rewards of all instances of shape :math:`(N, Dr)`, where
                 :math:`Dr` is the reward dimension.
-            - **terminated** (ArrayType):
+            - **terminated** (ArrayT):
                 Boolean array indicating terminal states of shape
                 :math:`(N, 1)`.
-            - **truncated** (ArrayType):
+            - **truncated** (ArrayT):
                 Boolean array indicating truncated states of shape
                 :math:`(N, 1)`.
-            - **info** (dict[str, Nested[ArrayType]]):
+            - **info** (dict[str, Nested[ArrayT]]):
                 Additional information dict for the step as named arrays of
                 shape :math:`(N, Dk)`, where :math:`Dk` is the dimension of a
                 specific information array.
@@ -343,7 +343,7 @@ class Environment(ABC, Generic[ArrayType]):
         pass
 
 
-def get_done_indices(terminated: ArrayType, truncated: ArrayType) -> list[int]:
+def get_done_indices(terminated: ArrayT, truncated: ArrayT) -> list[int]:
     done = terminated | truncated
     indices = done.squeeze(-1).nonzero()
     if isinstance(indices, tuple):  # for np.nonzero
@@ -353,12 +353,12 @@ def get_done_indices(terminated: ArrayType, truncated: ArrayType) -> list[int]:
 
 
 def update_observation_and_state(
-    last_observation: ArrayType,
-    last_state: StateType,
-    indices: ArrayType | Slice,
-    init_observation: ArrayType,
-    init_state: StateType,
-) -> tuple[ArrayType, StateType]:
+    last_observation: ArrayT,
+    last_state: ArrayT | None,
+    indices: ArrayT | Slice,
+    init_observation: ArrayT,
+    init_state: ArrayT | None,
+) -> tuple[ArrayT, ArrayT | None]:
     # If the complete observation of all instances is returned
     if init_observation.shape == last_observation.shape:
         return init_observation, init_state
