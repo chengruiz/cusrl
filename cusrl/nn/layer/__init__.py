@@ -37,11 +37,8 @@ from .mha import (
     MultiheadCrossAttention,
     MultiheadSelfAttention,
 )
-from .normalizer import (
-    ExponentialMovingNormalizer,
-    RunningMeanStd,
-)
 from .parameter import ParameterWrapper
+from .rms import RunningMeanStd
 from .separable_conv import SeparableConv2d
 from .transformer import (
     FeedForward,
@@ -52,7 +49,6 @@ from .transformer import (
 __all__ = [
     "DetachGradient",
     "ExponentialBijector",
-    "ExponentialMovingNormalizer",
     "FeedForward",
     "FlowGraph",
     "Gate",

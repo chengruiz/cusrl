@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from cusrl.nn.layer.normalizer import ExponentialMovingNormalizer, RunningMeanStd
+from cusrl.nn.layer.rms import RunningMeanStd
 
 
 def test_running_mean_std_applies_groups_and_excluded_indices():
@@ -63,12 +63,10 @@ def test_running_mean_std_rejects_invalid_extra_state():
         normalizer.set_extra_state(torch.tensor(-1))
 
 
-def test_exponential_moving_normalizer_warmup_uses_batch_ratio():
-    normalizer = ExponentialMovingNormalizer(num_channels=1, alpha=0.1, warmup=True, clamp=None)
-
-    normalizer.update_from_stats(torch.tensor([10.0]), torch.tensor([0.0]), batch_count=4, synchronize=False)
-    normalizer.update_from_stats(torch.tensor([0.0]), torch.tensor([0.0]), batch_count=1, synchronize=False)
-
-    assert torch.allclose(normalizer.mean, torch.tensor([8.0]))
-    assert torch.allclose(normalizer.var, torch.tensor([16.0]))
-    assert normalizer.count == 5
+def test_running_mean_std_rejects_overlap_between_groups_and_excluded_indices():
+    with pytest.raises(ValueError, match="must not overlap"):
+        RunningMeanStd(
+            num_channels=4,
+            groups=[slice(0, 2)],
+            excluded_indices=[0],
+        )

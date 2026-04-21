@@ -2,7 +2,6 @@ from . import layer, module
 from .layer import (
     DetachGradient,
     ExponentialBijector,
-    ExponentialMovingNormalizer,
     FeedForward,
     FlowGraph,
     Gate,
@@ -79,7 +78,6 @@ __all__ = [
     "Distribution",
     "DistributionFactoryLike",
     "ExponentialBijector",
-    "ExponentialMovingNormalizer",
     "FeedForward",
     "FlowGraph",
     "Gate",

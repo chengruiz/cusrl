@@ -8,10 +8,7 @@ from cusrl.nn.utils.normalization import mean_var_count, merge_mean_var_, synchr
 from cusrl.utils import distributed
 from cusrl.utils.typing import Slice
 
-__all__ = [
-    "ExponentialMovingNormalizer",
-    "RunningMeanStd",
-]
+__all__ = ["RunningMeanStd"]
 
 
 class RunningMeanStd(nn.Module):
@@ -29,10 +26,12 @@ class RunningMeanStd(nn.Module):
             The number of channels of the input data.
         groups (Iterable[Slice], optional):
             Indices of channel dimensions that share the same statistics.
-            Defaults to ``()``.
+            Defaults to ``()``. These indices must not overlap with each other
+            or with ``excluded_indices``.
         excluded_indices (Slice | None, optional):
             Indices of channel dimensions that are excluded from normalization.
-            Defaults to ``None``.
+            Defaults to ``None``. These indices must not overlap with
+            ``groups``.
         clamp (float | None, optional):
             If not ``None``, the normalized output will be clamped to the range
             ``[-clamp, clamp]``. Defaults to ``10.0``.
@@ -42,7 +41,6 @@ class RunningMeanStd(nn.Module):
         epsilon (float, optional):
             A small value added to the variance to avoid division by zero.
             Defaults to ``1e-8``.
-
     Attributes:
         mean (Tensor):
             The running mean, shape :math:`(C,)`, where :math:`C` is the number
@@ -57,6 +55,7 @@ class RunningMeanStd(nn.Module):
     Raises:
         ValueError: If `clamp` or `max_count` is non-positive.
         ValueError: If `groups` contain overlapping indices.
+        ValueError: If `groups` overlap with `excluded_indices`.
     """
 
     def __init__(
@@ -84,6 +83,11 @@ class RunningMeanStd(nn.Module):
             dummy_input[indices,] += 1
         if torch.any(dummy_input > 1):
             raise ValueError("Indices in 'groups' must not overlap")
+        if excluded_indices is not None:
+            excluded_mask = torch.zeros(num_channels, dtype=torch.bool)
+            excluded_mask[excluded_indices,] = True
+            if torch.any(dummy_input[excluded_mask] > 0):
+                raise ValueError("'excluded_indices' must not overlap with 'groups'")
 
         super().__init__()
         self.mean: Tensor
@@ -98,10 +102,13 @@ class RunningMeanStd(nn.Module):
         self._synchronized_state: tuple[Tensor, Tensor, int] | None = None
 
     def clear(self):
+        """Resets the running statistics to their initial state."""
         self.mean.fill_(0.0)
         self.var.fill_(1.0)
         self.std.fill_(1.0)
         self.count = 0
+        self._is_synchronized = False
+        self._synchronized_state = None
 
     def update(
         self,
@@ -134,6 +141,19 @@ class RunningMeanStd(nn.Module):
         *,
         synchronize: bool = True,
     ):
+        """Updates statistics from precomputed batch aggregates.
+
+        Args:
+            batch_mean (Tensor):
+                Mean computed from a batch of samples.
+            batch_var (Tensor):
+                Variance computed from the same batch.
+            batch_count (int):
+                Number of samples used to compute the batch statistics.
+            synchronize (bool, optional):
+                Whether to synchronize local and batch statistics across
+                distributed workers before merging them. Defaults to ``True``.
+        """
         if synchronize:
             self.synchronize()
             batch_mean, batch_var, batch_count = synchronize_mean_var_count(batch_mean, batch_var, batch_count)
@@ -150,6 +170,11 @@ class RunningMeanStd(nn.Module):
             self._synchronized_state = (self.mean.clone(), self.var.clone(), self.count)
 
     def synchronize(self):
+        """Synchronizes unsynced local statistics across distributed workers.
+
+        If the instance is already synchronized, or distributed execution is
+        disabled, this method is a no-op.
+        """
         if self._is_synchronized or not distributed.enabled():
             return
         if self._synchronized_state is None:
@@ -213,38 +238,9 @@ class RunningMeanStd(nn.Module):
         return torch.tensor(self.count, dtype=torch.int64)
 
     def set_extra_state(self, state: Any):
-        if state < 0:
-            raise ValueError("The normalizer state count must be non-negative")
-        self.count = int(state.item() if isinstance(state, Tensor) else state)
+        count = int(state.item() if isinstance(state, Tensor) else state)
+        if count < 0:
+            raise ValueError("'count' must be non-negative")
+        self.count = count
+        self._is_synchronized = True
         self._synchronized_state = (self.mean.clone(), self.var.clone(), self.count)
-
-
-class ExponentialMovingNormalizer(RunningMeanStd):
-    def __init__(
-        self,
-        num_channels: int,
-        alpha: float,
-        *,
-        groups: Iterable[Slice] = (),
-        excluded_indices: Slice | None = None,
-        warmup: bool = False,
-        clamp: float | None = 10.0,
-        epsilon: float = 1e-8,
-    ):
-        if not (0 < alpha <= 1):
-            raise ValueError("'alpha' must be in the range (0, 1]")
-        super().__init__(
-            num_channels,
-            groups=groups,
-            excluded_indices=excluded_indices,
-            clamp=clamp,
-            epsilon=epsilon,
-        )
-        self.alpha = alpha
-        self.warmup = warmup
-
-    def _update_mean_var(self, batch_mean: Tensor, batch_var: Tensor, batch_count: int):
-        wb = self.alpha
-        if self.warmup:
-            wb = max(batch_count / (batch_count + self.count), wb)
-        merge_mean_var_(self.mean, self.var, 1.0 - wb, batch_mean, batch_var, wb)
