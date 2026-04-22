@@ -26,12 +26,15 @@ class DistributionFactory(ModuleFactory[DistributionT]):
         raise NotImplementedError
 
 
+DistributionFactoryLike: TypeAlias = Callable[[int | None, int | None], "Distribution"]
+
+
 class Distribution(Module, Generic[DistributionParamsT]):
     """Abstract base class for probability distributions.
 
     Args:
         input_dim (int):
-            The dimensionality of the input latent space.
+            The dimensionality of the input space.
         output_dim (int):
             The dimensionality of the output action space.
     """
@@ -42,16 +45,16 @@ class Distribution(Module, Generic[DistributionParamsT]):
         super().__init__(input_dim, output_dim)
         self.mean_head = nn.Linear(input_dim, output_dim)
 
-    def forward(self, latent: Tensor, **kwargs) -> DistributionParamsT:
-        """Computes the parameters of the distribution from a latent tensor.
+    def forward(self, backbone_feat: Tensor, **kwargs) -> DistributionParamsT:
+        """Computes the parameters of the distribution from backbone features.
 
         This method must be implemented by subclasses. It should return the
         parameters that define the distribution (e.g., mean and standard
         deviation).
 
         Args:
-            latent (Tensor):
-                The input tensor from the latent space.
+            backbone_feat (Tensor):
+                The input tensor of backbone features.
             **kwargs:
                 Additional keyword arguments.
 
@@ -61,8 +64,22 @@ class Distribution(Module, Generic[DistributionParamsT]):
         """
         raise NotImplementedError
 
-    def sample(self, latent: Tensor, **kwargs) -> tuple[DistributionParamsT, tuple[Tensor, Tensor]]:
-        dist_params = self(latent, **kwargs)
+    def sample(self, backbone_feat: Tensor, **kwargs) -> tuple[DistributionParamsT, tuple[Tensor, Tensor]]:
+        """Computes distribution parameters and samples from the distribution.
+
+        Args:
+            backbone_feat (Tensor):
+                The input tensor of backbone features.
+            **kwargs:
+                Additional keyword arguments.
+
+        Returns:
+            dist_params (DistributionParamsT):
+                The parameters of the distribution produced by forward().
+            sampled (tuple[Tensor, Tensor]):
+                A tuple containing the sampled action and its log-probability.
+        """
+        dist_params = self(backbone_feat, **kwargs)
         action, logp = self.sample_from_dist(dist_params)
         return dist_params, (action, logp)
 
@@ -141,12 +158,12 @@ class Distribution(Module, Generic[DistributionParamsT]):
         logq = self.compute_logp(dist_params2, sample)
         return logp - logq
 
-    def determine(self, latent: Tensor, **kwargs) -> Tensor:
-        """Returns the deterministic action for a given latent state.
+    def determine(self, backbone_feat: Tensor, **kwargs) -> Tensor:
+        """Returns the deterministic action for given backbone features.
 
         Args:
-            latent (Tensor):
-                The input tensor from the latent space.
+            backbone_feat (Tensor):
+                The input tensor of backbone features.
             **kwargs:
                 Additional keyword arguments.
 
@@ -154,13 +171,10 @@ class Distribution(Module, Generic[DistributionParamsT]):
             action (Tensor):
                 The action with the highest probability.
         """
-        return self.mean_head(latent)
+        return self.mean_head(backbone_feat)
 
     def deterministic(self):
         return DeterministicWrapper(self)
-
-
-DistributionFactoryLike: TypeAlias = Callable[[int | None, int | None], Distribution]
 
 
 class DeterministicWrapper(nn.Module):
@@ -168,8 +182,8 @@ class DeterministicWrapper(nn.Module):
         super().__init__()
         self.dist = distribution
 
-    def forward(self, latent, **kwargs):
-        return self.dist.determine(latent, **kwargs)
+    def forward(self, backbone_feat, **kwargs):
+        return self.dist.determine(backbone_feat, **kwargs)
 
 
 class MeanStdDict(TypedDict):
@@ -240,8 +254,8 @@ class NormalDist(_Normal):
         super().__init__(input_dim, output_dim)
         self.std: StddevVector = StddevVector(output_dim, init_std=init_std, bijector=bijector)
 
-    def forward(self, latent: Tensor, **kwargs):
-        return MeanStdDict(mean=self.mean_head(latent), std=self.std(latent))
+    def forward(self, backbone_feat: Tensor, **kwargs):
+        return MeanStdDict(mean=self.mean_head(backbone_feat), std=self.std(backbone_feat))
 
 
 @dataclass(slots=True)
@@ -274,11 +288,11 @@ class AdaptiveNormalDist(_Normal):
         self.std_head.weight.data.zero_()
         self.std_head.bias.data[:] = self.bijector.inverse(init_std or 1.0)
 
-    def forward(self, latent: Tensor, **kwargs):
-        action_mean = self.mean_head(latent)
+    def forward(self, backbone_feat: Tensor, **kwargs):
+        action_mean = self.mean_head(backbone_feat)
         if not self.backward:
-            latent = latent.detach()
-        std = self.std_head(latent)
+            backbone_feat = backbone_feat.detach()
+        std = self.std_head(backbone_feat)
         return MeanStdDict(mean=action_mean, std=self.bijector(std))
 
 
@@ -295,18 +309,18 @@ class LogitsDict(TypedDict):
 class OneHotCategoricalDist(Distribution[LogitsDict]):
     Factory = OneHotCategoricalDistFactory
 
-    def forward(self, latent: Tensor, **kwargs):
-        logits: Tensor = self.mean_head(latent)
-        return LogitsDict(logits=logits)
-
-    def determine(self, latent: Tensor, **kwargs) -> Tensor:
-        logits: Tensor = self.mean_head(latent)
-        mode = one_hot(logits.argmax(dim=-1), logits.size(-1))
-        return mode
-
     @classmethod
     def _dist(cls, dist_params) -> distributions.OneHotCategorical:
         return distributions.OneHotCategorical(logits=dist_params["logits"], validate_args=False)
+
+    def forward(self, backbone_feat: Tensor, **kwargs):
+        logits: Tensor = self.mean_head(backbone_feat)
+        return LogitsDict(logits=logits)
+
+    def determine(self, backbone_feat: Tensor, **kwargs) -> Tensor:
+        logits: Tensor = self.mean_head(backbone_feat)
+        mode = one_hot(logits.argmax(dim=-1), logits.size(-1))
+        return mode
 
     def sample_from_dist(self, dist_params) -> tuple[Tensor, Tensor]:
         dist = self._dist(dist_params)

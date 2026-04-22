@@ -186,7 +186,7 @@ class Actor(Module):
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
     ) -> tuple[NestedTensor, Memory]:
-        latent, memory = self.backbone(
+        backbone_feat, memory = self.backbone(
             observation,
             memory=memory,
             done=done,
@@ -194,12 +194,12 @@ class Actor(Module):
         )
 
         dist_params = self.distribution(
-            latent,
+            backbone_feat,
             observation=observation,
             **((distribution_kwargs or {}) | self.distribution_kwargs),
         )
 
-        self.intermediate_repr["backbone.output"] = latent
+        self.intermediate_repr["backbone.output"] = backbone_feat
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         self.intermediate_repr.update(prefix_dict_keys(self.distribution.intermediate_repr, "distribution."))
         return dist_params, memory
@@ -212,31 +212,31 @@ class Actor(Module):
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
     ) -> tuple[NestedTensor, tuple[Tensor, Tensor], Memory]:
-        latent, memory = self.backbone(
+        backbone_feat, memory = self.backbone(
             observation,
             memory=memory,
             **((backbone_kwargs or {}) | self.backbone_kwargs),
         )
         if deterministic:
             dist_params = self.distribution(
-                latent,
+                backbone_feat,
                 observation=observation,
                 **((distribution_kwargs or {}) | self.distribution_kwargs),
             )
             action = self.distribution.determine(
-                latent,
+                backbone_feat,
                 observation=observation,
                 **((distribution_kwargs or {}) | self.distribution_kwargs),
             )
             logp = self.distribution.compute_logp(dist_params, action)
         else:
             dist_params, (action, logp) = self.distribution.sample(
-                latent,
+                backbone_feat,
                 observation=observation,
                 **((distribution_kwargs or {}) | self.distribution_kwargs),
             )
 
-        self.intermediate_repr["backbone.output"] = latent
+        self.intermediate_repr["backbone.output"] = backbone_feat
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         self.intermediate_repr.update(prefix_dict_keys(self.distribution.intermediate_repr, "distribution."))
         return dist_params, (action, logp), memory
