@@ -15,6 +15,7 @@ from .ppo import (
     EntropyLoss,
     PpoSurrogateLoss,
 )
+from .rollback import UnsafeUpdateRollback
 from .stats import OnPolicyStatistics
 from .value import (
     ValueComputation,
@@ -34,6 +35,7 @@ __all__ = [
     "OnPolicyStatistics",
     "PpoSurrogateLoss",
     "ThresholdLRSchedule",
+    "UnsafeUpdateRollback",
     "ValueComputation",
     "ValueLoss",
 ]
