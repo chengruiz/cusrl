@@ -1,6 +1,7 @@
 """Find a cusrl trial directory or checkpoint path."""
 
 import argparse
+import re
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -10,6 +11,7 @@ import cusrl
 __all__ = ["parse_args", "main"]
 
 PROGRAM_NAME = "python -m cusrl find-trial"
+TRIAL_DATETIME_PREFIX_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}_(.+)$")
 
 
 def parse_args(argv: Sequence[str] | None = None):
@@ -22,7 +24,7 @@ def parse_args(argv: Sequence[str] | None = None):
     parser.add_argument("--log-dir", type=str, default="logs", metavar="DIR",
                         help="Root logs directory (default: logs)")
     parser.add_argument("--name", type=str, default=None, metavar="NAME",
-                        help="Substring to filter trial directory names by")
+                        help="Exact run name to filter trial directories by")
     parser.add_argument("--basename", action="store_true",
                         help="Print only the basename instead of the full path")
     parser.add_argument("--list", action="store_true",
@@ -39,6 +41,11 @@ def print_trial_path(trial: Path, *, print_ckpt: bool = False, print_basename: b
     if print_ckpt:
         trial = cusrl.Trial(trial, verbose=False).checkpoint_path
     print(trial.name if print_basename else str(trial))
+
+
+def trial_name_matches(trial_dir: Path, name: str) -> bool:
+    match = TRIAL_DATETIME_PREFIX_REGEX.fullmatch(trial_dir.name)
+    return (match.group(1) if match else trial_dir.name) == name
 
 
 def main(argv: Sequence[str] | None = None):
@@ -62,9 +69,9 @@ def main(argv: Sequence[str] | None = None):
     ]
     trial_dirs.sort(key=lambda path: path.name, reverse=True)
     if args.name:
-        trial_dirs = [path for path in trial_dirs if args.name in path.name]
+        trial_dirs = [path for path in trial_dirs if trial_name_matches(path, args.name)]
     if not trial_dirs:
-        name_hint = f" with name containing '{args.name}'" if args.name else ""
+        name_hint = f" with name '{args.name}'" if args.name else ""
         homes = ", ".join(f"'{path}'" for path in existing_experiment_homes)
         raise FileNotFoundError(f"No trial directories were found under {homes}{name_hint}")
 
