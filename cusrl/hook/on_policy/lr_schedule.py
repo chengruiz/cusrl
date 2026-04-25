@@ -1,3 +1,4 @@
+import copy
 import math
 from abc import abstractmethod
 from typing import cast
@@ -19,6 +20,8 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
+        *,
+        max_kl_divergence: float | None = None,
         scale_all_params: bool = False,
         warmup_iterations: int = 0,
         initial_scale: float = 0.0,
@@ -29,6 +32,8 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
             raise ValueError("'warmup_iterations' must be non-negative")
         if not 0 <= initial_scale <= 1:
             raise ValueError("'initial_scale' must be within [0, 1]")
+        if max_kl_divergence is not None and max_kl_divergence <= 0:
+            raise ValueError("'max_kl_divergence' must be positive")
 
         super().__init__(training_only=True)
         self.scale_all_params = scale_all_params
@@ -37,22 +42,42 @@ class KLDivergenceBasedLRSchedule(Hook[ActorCritic]):
 
         # Mutable attributes
         self.desired_kl_divergence: float = desired_kl_divergence
+        self.max_kl_divergence = max_kl_divergence
         self.register_mutable("desired_kl_divergence")
+        self.register_mutable("max_kl_divergence")
 
         self._lr_scale = 1.0
         self._base_lrs: list[float] = []
+        self._checkpoint: dict | None = None
 
     def post_init(self):
         self._base_lrs = [param_group["lr"] for param_group in self.agent.optimizer.param_groups]
 
+    def pre_update(self, buffer):
+        if self.max_kl_divergence is not None:
+            self._checkpoint = copy.deepcopy(self.agent.state_dict())
+
     def post_update(self):
-        if self.agent.iteration < self.warmup_iterations:
-            return
         kl_divergence = self.agent.metrics["kl_divergence"].mean.clone()
         distributed.reduce_mean_(kl_divergence)
-        scale = self._compute_scale(kl_divergence.item())
-        self._scale_lr(scale)
-        self.agent.record(lr_scale=self._lr_scale)
+
+        if self.agent.iteration >= self.warmup_iterations:
+            scale = self._compute_scale(kl_divergence.item())
+            self._scale_lr(scale)
+            self.agent.record(lr_scale=self._lr_scale)
+
+        if self.max_kl_divergence is not None:
+            checkpoint = self._checkpoint
+            self._checkpoint = None
+            if kl_divergence.item() > self.max_kl_divergence:
+                assert checkpoint is not None
+                lr_scale = self._lr_scale
+                self.agent.load_state_dict(checkpoint)
+                self._lr_scale = lr_scale
+                self._apply_lr_scale()
+                self.agent.record(update_rejected=1.0)
+            else:
+                self.agent.record(update_rejected=0.0)
 
     def apply_schedule(self, iteration: int):
         if self.warmup_iterations <= 0 or iteration > self.warmup_iterations:
@@ -91,6 +116,10 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
     Args:
         desired_kl_divergence (float, optional):
             Target KL divergence to maintain. Defaults to ``0.01``.
+        max_kl_divergence (float | None, optional):
+            Maximum accepted post-update KL divergence. If exceeded, the agent
+            restores its pre-update checkpoint while keeping the current LR
+            scale. Defaults to ``None``.
         threshold (float, optional):
             Ratio threshold (>1) for deciding when to adjust. Defaults to
             ``1.2``.
@@ -110,6 +139,8 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
+        *,
+        max_kl_divergence: float | None = None,
         threshold: float = 1.2,
         scale_factor: float = 1.1,
         scale_all_params: bool = False,
@@ -118,7 +149,8 @@ class ThresholdLRSchedule(KLDivergenceBasedLRSchedule):
     ):
         super().__init__(
             desired_kl_divergence,
-            scale_all_params,
+            max_kl_divergence=max_kl_divergence,
+            scale_all_params=scale_all_params,
             warmup_iterations=warmup_iterations,
             initial_scale=initial_scale,
         )
@@ -145,6 +177,10 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
     Args:
         desired_kl_divergence (float, optional):
             Target KL divergence to maintain. Defaults to ``0.01``.
+        max_kl_divergence (float | None, optional):
+            Maximum accepted post-update KL divergence. If exceeded, the agent
+            restores its pre-update checkpoint while keeping the current LR
+            scale. Defaults to ``None``.
         threshold (float, optional):
             Positive threshold for accumulated log-error before scaling.
             Defaults to ``1.0``.
@@ -165,6 +201,8 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
+        *,
+        max_kl_divergence: float | None = None,
         threshold: float = 1.0,
         scale_factor: float = 0.2,
         scale_all_params: bool = False,
@@ -173,7 +211,8 @@ class AdaptiveLRSchedule(KLDivergenceBasedLRSchedule):
     ):
         super().__init__(
             desired_kl_divergence,
-            scale_all_params,
+            max_kl_divergence=max_kl_divergence,
+            scale_all_params=scale_all_params,
             warmup_iterations=warmup_iterations,
             initial_scale=initial_scale,
         )
@@ -222,6 +261,7 @@ class MiniBatchWiseLRSchedule(ThresholdLRSchedule):
     def __init__(
         self,
         desired_kl_divergence: float = 0.01,
+        *,
         threshold: float = 2.0,
         scale_factor: float = 1.5,
         warmup_iterations: int = 0,

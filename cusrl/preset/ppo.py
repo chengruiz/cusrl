@@ -31,6 +31,7 @@ def ppo_hook_suite(
     max_grad_norm: float | None = 1.0,
     grad_clip_groups: dict[str, float] | None = None,
     desired_kl_divergence: float | None = None,
+    max_kl_divergence: float | None = None,
     empty_cuda_cache: bool = False,
 ) -> list[cusrl.template.Hook]:
     hooks = [
@@ -52,7 +53,14 @@ def ppo_hook_suite(
         cusrl.hook.EntropyLoss(weight=entropy_loss_weight),
         cusrl.hook.GradientClipping(max_grad_norm, grad_clip_groups),
         cusrl.hook.OnPolicyStatistics(sampler=cusrl.AutoMiniBatchSampler()),
-        cusrl.hook.AdaptiveLRSchedule(desired_kl_divergence) if desired_kl_divergence is not None else None,
+        (
+            cusrl.hook.AdaptiveLRSchedule(
+                desired_kl_divergence,
+                max_kl_divergence=max_kl_divergence,
+            )
+            if desired_kl_divergence is not None
+            else None
+        ),
         cusrl.hook.EmptyCudaCache() if empty_cuda_cache else None,
     ]
     return [hook for hook in hooks if hook is not None]
@@ -117,6 +125,9 @@ class PpoAgentFactory(AgentFactory[ActorCritic]):
     desired_kl_divergence: float | None = None
     """Desired KL divergence between the old and new policy for adaptive
     learning rate adjustment. If None, no adaptive adjustment is performed."""
+    max_kl_divergence: float | None = None
+    """Maximum accepted post-update KL divergence for the adaptive LR hook.
+    If None, unsafe-update rollback is disabled."""
 
     def to_underlying(self) -> ActorCriticFactory:
         return ActorCriticFactory(
@@ -159,6 +170,7 @@ class PpoAgentFactory(AgentFactory[ActorCritic]):
                 max_grad_norm=self.max_grad_norm,
                 grad_clip_groups=self.grad_clip_groups,
                 desired_kl_divergence=self.desired_kl_divergence,
+                max_kl_divergence=self.max_kl_divergence,
             ),
             name=self.name,
             device=self.device,
@@ -225,6 +237,9 @@ class RecurrentPpoAgentFactory(AgentFactory[ActorCritic]):
     desired_kl_divergence: float | None = None
     """Desired KL divergence between the old and new policy for adaptive
     learning rate adjustment. If None, no adaptive adjustment is performed."""
+    max_kl_divergence: float | None = None
+    """Maximum accepted post-update KL divergence for the adaptive LR hook.
+    If None, unsafe-update rollback is disabled."""
     empty_cuda_cache: bool = True
     """Whether to empty CUDA cache after each update to reduce memory
     fragmentation."""
@@ -270,6 +285,7 @@ class RecurrentPpoAgentFactory(AgentFactory[ActorCritic]):
                 max_grad_norm=self.max_grad_norm,
                 grad_clip_groups=self.grad_clip_groups,
                 desired_kl_divergence=self.desired_kl_divergence,
+                max_kl_divergence=self.max_kl_divergence,
                 empty_cuda_cache=self.empty_cuda_cache,
             ),
             name=self.name,

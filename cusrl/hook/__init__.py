@@ -42,7 +42,6 @@ from .on_policy import (
     OnPolicyStatistics,
     PpoSurrogateLoss,
     ThresholdLRSchedule,
-    UnsafeUpdateRollback,
     ValueComputation,
     ValueLoss,
 )
@@ -85,7 +84,6 @@ __all__ = [
     "SymmetricDataAugmentation",
     "TransitionMirror",
     "ThresholdLRSchedule",
-    "UnsafeUpdateRollback",
     "ValueComputation",
     "ValueLoss",
 ]
