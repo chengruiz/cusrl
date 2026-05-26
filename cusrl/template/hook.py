@@ -86,6 +86,8 @@ class Hook(Generic[AgentT]):
         """
         if module is not None:
             module = self.agent.setup_module(module)
+        if name in self._statefuls:
+            raise RuntimeError(f"Cannot register module '{name}': a stateful with the same name already exists")
         setattr(self, name, module)
         self._modules[name] = module
 
@@ -101,6 +103,8 @@ class Hook(Generic[AgentT]):
             value (Any):
                 The value to assign.
         """
+        if name in self._modules:
+            raise RuntimeError(f"Cannot register stateful '{name}': a module with the same name already exists")
         setattr(self, name, value)
         self._statefuls[name] = value
 

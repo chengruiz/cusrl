@@ -165,6 +165,7 @@ class TrainerHookComposite(TrainerHook, list[TrainerHook]):
     """Delegates every callback to all contained hooks in order."""
 
     def init(self, trainer: "Trainer"):
+        super().init(trainer)
         for hook in self:
             hook.init(trainer)
 
@@ -382,7 +383,7 @@ class Trainer:
 
         self.hook.pre_log_info(info)
         if self.logger is not None:
-            self.logger.log(info, self.iteration)
+            self.logger.log(info, self.iteration + 1)
         if self.verbose:
             episode_length_str = format_float(self.stats.mean_episode_length, 6)
             episode_reward_str = format_float(np.sum(self.stats.mean_episode_reward), 6)

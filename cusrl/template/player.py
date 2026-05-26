@@ -74,6 +74,7 @@ class PlayerHookComposite(PlayerHook, list[PlayerHook]):
     """Delegates every callback to all contained hooks in order."""
 
     def init(self, player: "Player"):
+        super().init(player)
         for hook in self:
             hook.init(player)
 
