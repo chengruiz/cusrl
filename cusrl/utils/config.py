@@ -120,7 +120,7 @@ class Configurations:
 
     def _get_distributed_identifier(self) -> str:
         """Build a process-specific cache directory suffix for distributed runs."""
-        if (job_id := os.getenv("TORCHELASTIC_RUN_ID")) == "none":
+        if (job_id := os.getenv("TORCHELASTIC_RUN_ID")) is None or job_id == "none":
             fallback_parts = []
             if (master_addr := os.getenv("MASTER_ADDR")) is not None:
                 fallback_parts.append(f"master_{_normalize_identifier(master_addr)}")

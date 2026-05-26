@@ -310,8 +310,8 @@ class OneHotCategoricalDist(Distribution[LogitsDict]):
     Factory = OneHotCategoricalDistFactory
 
     @classmethod
-    def _dist(cls, dist_params) -> distributions.OneHotCategorical:
-        return distributions.OneHotCategorical(logits=dist_params["logits"], validate_args=False)
+    def _dist(cls, dist_params) -> distributions.OneHotCategoricalStraightThrough:
+        return distributions.OneHotCategoricalStraightThrough(logits=dist_params["logits"], validate_args=False)
 
     def forward(self, backbone_feat: Tensor, **kwargs):
         logits: Tensor = self.mean_head(backbone_feat)
@@ -324,7 +324,7 @@ class OneHotCategoricalDist(Distribution[LogitsDict]):
 
     def sample_from_dist(self, dist_params) -> tuple[Tensor, Tensor]:
         dist = self._dist(dist_params)
-        action = dist.sample()
+        action = dist.rsample()
         logp = dist.log_prob(action).unsqueeze(-1)
         return action, logp
 
