@@ -399,7 +399,7 @@ class HookComposite(Hook[Agent]):
         self._compiled_objective = torch.compile(self._objective, **kwargs)
 
     def train(self, mode=True):
-        for hook in self.active_hooks():
+        for hook in self:
             hook.train(mode)
 
     def pre_init(self, agent: "cusrl.Agent"):

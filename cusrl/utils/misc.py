@@ -160,12 +160,12 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
         seed = 42 if deterministic else int.from_bytes(os.urandom(4), "big")
 
     distributed.print_rank0(f"Setting seed: {seed} (deterministic={deterministic})")
-    seed += distributed.rank()
-    random.seed(seed)
-    np.random.seed(seed % (2**32))
-    torch.manual_seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    torch.cuda.manual_seed_all(seed)
+    rank_seed = seed + distributed.rank()
+    random.seed(rank_seed)
+    np.random.seed(rank_seed % (2**32))
+    torch.manual_seed(rank_seed)
+    os.environ["PYTHONHASHSEED"] = str(rank_seed)
+    torch.cuda.manual_seed_all(rank_seed)
 
     if deterministic:
         # refer to https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility

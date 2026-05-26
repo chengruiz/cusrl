@@ -116,6 +116,8 @@ class GymVectorEnvAdapter(Environment[np.ndarray]):
     ):
         if indices is None:
             observation, info = self.wrapped.reset()
+            if self.wrapped.render_mode is not None:
+                self.wrapped.render()
             return observation, None, info
         if not isinstance(indices, np.ndarray):
             mask = np.zeros(self.num_instances, dtype=bool)

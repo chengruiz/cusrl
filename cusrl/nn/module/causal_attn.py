@@ -195,7 +195,7 @@ class CausalMultiheadSelfAttention(Module):
         output = self.out_proj(attn_out.flatten(-2))
 
         # Prepare new cache tensors
-        new_input_cache = full_input[:, -self.window_size :]
+        new_input_cache = full_input[:, -self.window_size :].detach()
         new_cache_mask = kv_mask[:, -self.window_size :]
 
         # Restore outputs to sequence first ( L, N, * )
