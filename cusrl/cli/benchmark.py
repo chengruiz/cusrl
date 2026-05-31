@@ -24,6 +24,8 @@ def parse_args(argv: Sequence[str] | None = None):
                         help="Path to a checkpoint to benchmark")
     parser.add_argument("--seed", type=int, metavar="N",
                         help="Seed for reproducibility (default: random)")
+    parser.add_argument("--inherit-args", type=cli_utils.parse_bool, default=True, metavar="BOOL",
+                        help="Inherit trial environment and agent args")
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, default=(), metavar="MODULE [ARG ...]",
                         help="Run library module as a script, with its arguments")
     parser.add_argument("-s", "--script", nargs=argparse.REMAINDER, default=(), metavar="SCRIPT [ARG ...]",
@@ -42,6 +44,7 @@ def main(argv: Sequence[str] | None = None):
     cusrl.set_global_seed(args.seed)
     cli_utils.import_module_from_args(args)
     trial = cli_utils.load_checkpoint_from_args(args)
+    extra_args = cli_utils.apply_inherited_tyro_args(trial, args, extra_args)
     experiment = cli_utils.load_experiment_spec_from_args(args)
     benchmarker_factory = experiment.to_benchmarking_factory()
     prog = f"{PROGRAM_NAME} --environment {args.environment} --algorithm {args.algorithm} --"
