@@ -1,13 +1,23 @@
 import math
-from typing import Any
+from typing import Any, TypeAlias
 
 __all__ = [
+    "CosineAnnealingScheduler",
     "LessThan",
     "NotLessThan",
     "PiecewiseLinearScheduler",
     "StepScheduler",
     "TanhScheduler",
 ]
+
+
+Anchor: TypeAlias = tuple[int, float]
+Transition: TypeAlias = tuple[int, Any]
+
+
+def _validate_strictly_increasing_steps(anchors: tuple[Transition, ...]) -> None:
+    if any(step0 >= step1 for (step0, _), (step1, _) in zip(anchors, anchors[1:])):
+        raise ValueError("step coordinates must be strictly increasing")
 
 
 class LessThan:
@@ -45,64 +55,86 @@ class StepScheduler:
     """A step function scheduler.
 
     The function starts with an initial value and changes its value at specific
-    points. The points must be sorted by their x-coordinate in increasing order.
+    transitions. The transitions must be sorted by their step in increasing order.
 
     Args:
         initial_value (Any):
             The initial value of the function.
-        *points (tuple[int, Any]):
-            A sequence of points (x, y) where the function value changes. At
-            each point, for an iteration >= x, the function value becomes y. The
-            x-coordinates of the points must be strictly increasing.
+        *transitions (tuple[int, Any]):
+            A sequence of transitions (step, value) where the scheduled value
+            changes. At each transition, for an iteration >= step, the scheduled
+            value becomes value. The steps must be strictly increasing.
     """
 
-    def __init__(self, initial_value: Any, *points: tuple[int, Any]):
+    def __init__(self, initial_value: Any, *transitions: Transition):
         self.initial_value = initial_value
-        self.points = points
-        if any(x0 >= x1 for (x0, _), (x1, _) in zip(self.points, self.points[1:])):
-            raise ValueError("x coordinates must be strictly increasing")
+        self.transitions = transitions
+        _validate_strictly_increasing_steps(self.transitions)
 
     def __call__(self, iteration: int) -> Any:
         value = self.initial_value
-        for x, y in self.points:
-            if iteration < x:
+        for step, scheduled_value in self.transitions:
+            if iteration < step:
                 break
-            value = y
+            value = scheduled_value
         return value
 
 
 class PiecewiseLinearScheduler:
     """A piecewise linear function scheduler.
 
-    The function is defined by a set of points. It linearly interpolates between
-    consecutive points. Before the first point, it returns the y-value of the
-    first point. After the last point, it returns the y-value of the last point.
+    The function is defined by a set of anchors. It linearly interpolates
+    between consecutive anchors. Before the first anchor, it returns the first
+    value. After the last anchor, it returns the last value.
 
     Args:
-        point1 (tuple[int, float]):
-            The first point (x, y).
-        point2 (tuple[int, float]):
-            The second point (x, y).
-        *points (tuple[int, float]):
-            Additional points (x, y). The x-coordinates of all points must be
-            strictly increasing.
+        *anchors (tuple[int, float]):
+            A sequence of anchors (step, value). At least two anchors are
+            required, and their steps must be strictly increasing.
     """
 
-    def __init__(self, point1: tuple[int, float], point2: tuple[int, float], *points: tuple[int, float]):
-        self.points = (point1, point2, *points)
-        if any(x0 >= x1 for (x0, _), (x1, _) in zip(self.points, self.points[1:])):
-            raise ValueError("x coordinates must be strictly increasing")
+    def __init__(self, *anchors: Anchor):
+        if len(anchors) < 2:
+            raise ValueError("at least two anchors are required")
+        self.anchors = anchors
+        _validate_strictly_increasing_steps(self.anchors)
 
     def __call__(self, iteration: int) -> float:
-        # Left of first point
-        if iteration <= self.points[0][0]:
-            return self.points[0][1]
-        # Interpolate within range
-        for (x0, y0), (x1, y1) in zip(self.points, self.points[1:]):
-            if iteration <= x1:
-                return y0 + (y1 - y0) * (iteration - x0) / (x1 - x0)
-        # Right of last point
-        return self.points[-1][1]
+        first_step, first_value = self.anchors[0]
+        if iteration <= first_step:
+            return first_value
+
+        for (start_step, start_value), (end_step, end_value) in zip(self.anchors, self.anchors[1:]):
+            if iteration <= end_step:
+                ratio = (iteration - start_step) / (end_step - start_step)
+                return start_value + (end_value - start_value) * ratio
+
+        return self.anchors[-1][1]
+
+
+class CosineAnnealingScheduler:
+    """A scheduler that interpolates between two values with cosine annealing.
+
+    Args:
+        start (tuple[int, float]):
+            The start anchor (step, value).
+        end (tuple[int, float]):
+            The end anchor (step, value).
+    """
+
+    def __init__(self, start: Anchor, end: Anchor):
+        self.start_step, self.start_value = start
+        self.end_step, self.end_value = end
+        _validate_strictly_increasing_steps((start, end))
+
+    def __call__(self, iteration: int) -> float:
+        if iteration <= self.start_step:
+            return self.start_value
+        if iteration >= self.end_step:
+            return self.end_value
+
+        ratio = (iteration - self.start_step) / (self.end_step - self.start_step)
+        return self.end_value + 0.5 * (self.start_value - self.end_value) * (1 + math.cos(math.pi * ratio))
 
 
 class TanhScheduler:
@@ -110,32 +142,34 @@ class TanhScheduler:
     tangent function.
 
     Args:
-        point0 (tuple[int, float]):
-            The first point (x0, y0).
-        point1 (tuple[int, float]):
-            The second point (x1, y1).
+        start (tuple[int, float]):
+            The start anchor (step, value).
+        end (tuple[int, float]):
+            The end anchor (step, value).
         eta (float):
             A positive parameter that controls the steepness of the transition.
     """
 
-    def __init__(self, point0: tuple[int, float], point1: tuple[int, float], eta: float):
-        self.x0, self.y0 = point0
-        self.x1, self.y1 = point1
+    def __init__(self, start: Anchor, end: Anchor, eta: float):
+        self.start_step, self.start_value = start
+        self.end_step, self.end_value = end
         self.eta = eta
-        if self.x0 >= self.x1:
-            raise ValueError("x coordinates must be strictly increasing")
+        _validate_strictly_increasing_steps((start, end))
         if self.eta <= 0:
             raise ValueError("'eta' must be positive")
-        self.mid = (self.x0 + self.x1) / 2
-        self.eps0 = self._get_epsilon(self.x0)
-        self.eps1 = self._get_epsilon(self.x1)
+        self.mid_step = (self.start_step + self.end_step) / 2
+        self.start_epsilon = self._get_epsilon(self.start_step)
+        self.end_epsilon = self._get_epsilon(self.end_step)
 
     def _get_epsilon(self, iteration: int) -> float:
-        return 0.5 + 0.5 * math.tanh(self.eta * 2 * (iteration - self.mid) / (self.x1 - self.x0))
+        ratio = 2 * (iteration - self.mid_step) / (self.end_step - self.start_step)
+        return 0.5 + 0.5 * math.tanh(self.eta * ratio)
 
     def __call__(self, iteration: int) -> float:
-        if iteration < self.x0:
-            return self.y0
-        if iteration <= self.x1:
-            return self.y0 + (self.y1 - self.y0) * (self._get_epsilon(iteration) - self.eps0) / (self.eps1 - self.eps0)
-        return self.y1
+        if iteration <= self.start_step:
+            return self.start_value
+        if iteration >= self.end_step:
+            return self.end_value
+
+        ratio = (self._get_epsilon(iteration) - self.start_epsilon) / (self.end_epsilon - self.start_epsilon)
+        return self.start_value + (self.end_value - self.start_value) * ratio
