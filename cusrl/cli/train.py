@@ -17,11 +17,15 @@ def parse_args(argv: Sequence[str] | None = None):
     parser = argparse.ArgumentParser(prog=PROGRAM_NAME, description=__doc__)
     # fmt: off
     parser.add_argument("-env", "--environment", type=str, metavar="NAME",
-                        help="Name of the environment for playing")
+                        help="Name of the environment for training")
     parser.add_argument("-alg", "--algorithm", type=str, metavar="NAME",
                         help="Name of the algorithm used during training")
+    parser.add_argument("--checkpoint", type=str, metavar="PATH",
+                        help="Path to a checkpoint to resume training from")
     parser.add_argument("--seed", type=int, metavar="N",
                         help="Seed for reproducibility (default: random)")
+    parser.add_argument("--inherit-args", type=cli_utils.parse_bool, default=True, metavar="BOOL",
+                        help="Inherit trial environment and agent args")
     parser.add_argument("-m", "--module", nargs=argparse.REMAINDER, default=(), metavar="MODULE [ARG ...]",
                         help="Run library module as a script, with its arguments")
     parser.add_argument("-s", "--script", nargs=argparse.REMAINDER, default=(), metavar="SCRIPT [ARG ...]",
@@ -39,11 +43,17 @@ def main(argv: Sequence[str] | None = None):
     args, extra_args = parse_args(argv)
     cusrl.set_global_seed(args.seed)
     cli_utils.import_module_from_args(args)
+    trial = cli_utils.load_checkpoint_from_args(args)
+    extra_args = cli_utils.apply_inherited_tyro_args(trial, args, extra_args)
     experiment = cli_utils.load_experiment_spec_from_args(args)
     trainer_factory = experiment.to_training_factory()
     prog = f"{PROGRAM_NAME} --environment {args.environment} --algorithm {args.algorithm} --"
     trainer_factory = tyro_cli(prog=prog, default=trainer_factory, args=extra_args)
-    trainer_factory(trial_metadata={"tyro_args": list(extra_args)}).run_training_loop()
+    checkpoint_path = str(trial.checkpoint_path) if trial is not None else None
+    trainer_factory(
+        checkpoint_path=checkpoint_path,
+        trial_metadata={"tyro_args": list(extra_args)},
+    ).run_training_loop()
 
 
 if __name__ == "__main__":

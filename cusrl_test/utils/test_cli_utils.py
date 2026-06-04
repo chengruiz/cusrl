@@ -68,6 +68,61 @@ def test_apply_inherited_tyro_args_prepends_filtered_training_args():
     ]
 
 
+def test_apply_inherited_tyro_args_chains_effective_training_args():
+    source_trial = SimpleNamespace(
+        metadata={
+            "tyro_args": [
+                "--agent.lr",
+                "0.001",
+                "--agent.hidden-dims",
+                "256",
+                "128",
+                "--env.device",
+                "cuda:0",
+                "--name",
+                "source-run",
+                "--logger",
+                "wandb",
+            ],
+        },
+    )
+
+    resumed_trial_metadata_args = cli_utils.apply_inherited_tyro_args(
+        source_trial,
+        Namespace(inherit_args=True),
+        [
+            "--agent.lr",
+            "0.0003",
+            "--name",
+            "resumed-run",
+        ],
+    )
+    resumed_trial = SimpleNamespace(metadata={"tyro_args": resumed_trial_metadata_args})
+
+    extra_args = cli_utils.apply_inherited_tyro_args(
+        resumed_trial,
+        Namespace(inherit_args=True),
+        [
+            "--agent.lr",
+            "0.0001",
+        ],
+    )
+
+    assert extra_args == [
+        "--agent.lr",
+        "0.001",
+        "--agent.hidden-dims",
+        "256",
+        "128",
+        "--env.device",
+        "cuda:0",
+        "--agent.lr",
+        "0.0003",
+        "--agent.lr",
+        "0.0001",
+    ]
+
+
 def test_apply_inherited_tyro_args_can_be_disabled():
     trial = SimpleNamespace(metadata={"tyro_args": ["--agent.num-steps-per-update", "48"]})
 

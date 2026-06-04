@@ -65,15 +65,22 @@ class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
     """Total number of training iterations to run."""
     init_iteration: int | None = None
     """Iteration to resume from when continuing training."""
-    checkpoint_path: Annotated[str | None, tyro.conf.arg(name="checkpoint")] = None
+    checkpoint_path: Annotated[str | None, tyro.conf.Suppress] = None
     """Checkpoint path to load before training starts."""
     checkpoint_interval: int = 50
     """Number of iterations between checkpoint saves."""
     hooks: Sequence[TrainerHook] = ()
     """Hooks invoked during the trainer lifecycle."""
 
-    def __call__(self, trial_metadata: dict[str, Any] | None = None) -> Trainer:
+    def __call__(
+        self,
+        *,
+        checkpoint_path: str | None = None,
+        trial_metadata: dict[str, Any] | None = None,
+    ) -> Trainer:
         """Build a trainer, optionally attaching extra trial metadata."""
+        if checkpoint_path is None:
+            checkpoint_path = self.checkpoint_path
         trainer = Trainer(
             environment=self.make_environment,
             agent_factory=self.agent_factory,
@@ -86,7 +93,7 @@ class TrainingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
             num_iterations=self.num_iterations,
             init_iteration=self.init_iteration,
             checkpoint_interval=self.checkpoint_interval,
-            checkpoint_path=self.checkpoint_path,
+            checkpoint_path=checkpoint_path,
             trial_metadata=trial_metadata,
             hooks=self.hooks,
         )
