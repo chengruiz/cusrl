@@ -121,6 +121,10 @@ class Player:
             agent will sample actions stochastically. Defaults to ``True``.
         verbose (bool, optional):
             Whether to enable verbose logging. Defaults to ``True``.
+        progress_bar (bool | None, optional):
+            Whether to show the playing-loop progress bar. If ``None``, this is
+            enabled only when ``num_steps`` or ``num_episodes`` is set. Defaults
+            to ``None``.
         hooks (Iterable[PlayerHook], optional):
             A sequence of PlayerHook classes or instances to be initialized and
             called at each step and reset event.
@@ -149,6 +153,7 @@ class Player:
         timestep: float | None = None,
         deterministic: bool = True,
         verbose: bool = True,
+        progress_bar: bool | None = None,
         hooks: Iterable[PlayerHook] = (),
     ):
         self.environment = environment if isinstance(environment, Environment) else environment()
@@ -165,6 +170,9 @@ class Player:
         self.timestep = self.environment.spec.timestep if timestep is None else timestep
         self.deterministic = deterministic
         self.verbose = verbose
+        if progress_bar is None:
+            progress_bar = num_steps is not None or num_episodes is not None
+        self.progress_bar = progress_bar
 
         self.step_count = 0
         self.stats = EnvironmentStats(
@@ -215,7 +223,7 @@ class Player:
             prev_handler = None
 
         try:
-            with tqdm(total=self.num_steps, disable=not self.verbose, dynamic_ncols=True) as progress_bar:
+            with tqdm(total=self.num_steps, disable=not self.progress_bar, dynamic_ncols=True) as progress_bar:
                 while (self.num_steps is None or self.step_count < self.num_steps) and not self.interrupted:
                     action = self.agent.act(observation, state)
                     observation, state, reward, terminated, truncated, info = self.environment.step(action)

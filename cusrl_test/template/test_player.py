@@ -4,6 +4,7 @@ import pytest
 import torch
 
 import cusrl
+import cusrl.template.player as player_module
 
 
 def _clone_value(value):
@@ -261,6 +262,66 @@ def test_player_runs_num_steps_invokes_hooks_and_reports_metrics():
     assert metrics["Mean episode reward"] == 0.0
     assert metrics["Mean episode length"] == 0.0
     assert metrics["environment/score"] == 3.0
+
+
+@pytest.mark.parametrize(
+    "num_steps, num_episodes, verbose, progress_bar, expected_disable",
+    [
+        (None, None, True, None, True),
+        (0, None, False, None, False),
+        (None, 1, False, None, False),
+        (0, None, True, False, True),
+        (None, None, False, True, False),
+    ],
+)
+def test_player_progress_bar_can_be_controlled_independently(
+    monkeypatch,
+    num_steps,
+    num_episodes,
+    verbose,
+    progress_bar,
+    expected_disable,
+):
+    tqdm_kwargs = []
+
+    class FakeTqdm:
+        def __init__(self, *args, **kwargs):
+            tqdm_kwargs.append(kwargs)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def update(self):
+            pass
+
+    monkeypatch.setattr(player_module, "tqdm", FakeTqdm)
+    environment = ScriptedEnvironment(
+        num_instances=1,
+        timestep=None,
+        reset_outputs=[{
+            "indices": None,
+            "observation": torch.tensor([[0.0]]),
+            "state": torch.tensor([[1.0]]),
+        }],
+        step_outputs=[],
+    )
+    agent = RecordingAgent(environment.spec)
+
+    player = cusrl.Player(
+        environment,
+        agent,
+        num_steps=num_steps,
+        num_episodes=num_episodes,
+        verbose=verbose,
+        progress_bar=progress_bar,
+    )
+    player.interrupted = True
+    player.run_playing_loop()
+
+    assert tqdm_kwargs == [{"total": num_steps, "disable": expected_disable, "dynamic_ncols": True}]
 
 
 def test_player_resets_done_instances_and_updates_next_agent_inputs():

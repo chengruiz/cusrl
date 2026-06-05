@@ -147,6 +147,7 @@ class MjlabPlayer(Player):
         timestep: float | None = None,
         deterministic: bool = True,
         verbose: bool = True,
+        progress_bar: bool | None = None,
         hooks: Iterable[PlayerHook] = (),
     ):
         super().__init__(
@@ -158,6 +159,7 @@ class MjlabPlayer(Player):
             timestep=timestep,
             deterministic=deterministic,
             verbose=verbose,
+            progress_bar=progress_bar,
             hooks=hooks,
         )
         self.is_first_step = True

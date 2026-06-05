@@ -105,6 +105,28 @@ def test_experiment_spec_builds_training_playing_and_benchmarking_factories():
     assert benchmarking_factory.make_environment() == training_factory.make_environment()
 
 
+def test_playing_factory_passes_progress_bar_option():
+    captured = {}
+
+    class RecordingPlayer:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    spec = ExperimentSpec(
+        environment_name="cartpole",
+        algorithm_name="ppo",
+        agent_meta_factory=lambda: object(),
+        training_env_factory=lambda name: object(),
+        player_factory=RecordingPlayer,
+    )
+
+    player_factory = spec.to_playing_factory()
+    player_factory.progress_bar = False
+    player_factory(checkpoint_path=None)
+
+    assert captured["progress_bar"] is False
+
+
 @pytest.mark.parametrize("environment_name, algorithm_name", [("bad_env", "ppo"), ("cartpole", "bad/ppo")])
 def test_experiment_spec_rejects_names_that_break_experiment_name_parsing(environment_name, algorithm_name):
     with pytest.raises(ValueError, match="cannot contain"):

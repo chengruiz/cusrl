@@ -114,6 +114,8 @@ class PlayingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
     """Whether to select actions deterministically."""
     verbose: bool = True
     """Whether to print runtime progress."""
+    progress_bar: bool | None = None
+    """Whether to show the playing-loop progress bar; defaults to enabled for finite runs."""
     hooks: Sequence[PlayerHook] = ()
     """Hooks invoked during the player's lifecycle."""
 
@@ -127,6 +129,7 @@ class PlayingExperimentFactory(AgentFactorySpec, EnvironmentFactorySpec):
             timestep=self.timestep,
             deterministic=self.deterministic,
             verbose=self.verbose,
+            progress_bar=self.progress_bar,
             hooks=self.hooks,
         )
 
