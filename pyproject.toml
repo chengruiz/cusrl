@@ -24,11 +24,6 @@ tensorboard = ["tensorboard"]
 wandb = ["wandb"]
 all = ["cusrl[export,swanlab,tensorboard,wandb]"]
 
-[tool.black]
-line-length = 120
-target-version = ["py310"]
-unstable = true
-
 [tool.codespell]
 ignore-words-list = "lamda,-"
 

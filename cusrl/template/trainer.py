@@ -395,7 +395,7 @@ class Trainer:
                 f"┌{header.center(34, '─')}┐",
                 f"│ mean episode length     {episode_length_str:<8} │",
                 f"│ mean episode reward     {episode_reward_str:<8} │",
-                f"│ mean step reward        {step_reward_str   :<8} │",
+                f"│ mean step reward        {step_reward_str:<8} │",
                 f"│ time consumption     {environment_time} / {agent_time} │",
                 f"└{'─' * 34}┘",
                 sep="\n",

@@ -12,10 +12,12 @@ def test_metrics_records_weighted_means_and_prefixes_summary_keys():
 
     assert len(metrics) == 2
     assert metrics["loss"].count == 5
-    assert metrics.summary("train") == pytest.approx({
-        "train/loss": 5.0,
-        "train/accuracy": 0.5,
-    })
+    assert metrics.summary("train") == pytest.approx(
+        {
+            "train/loss": 5.0,
+            "train/accuracy": 0.5,
+        }
+    )
 
 
 def test_metrics_ignores_empty_values_and_can_clear():

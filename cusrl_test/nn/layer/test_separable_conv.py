@@ -9,18 +9,22 @@ def test_separable_conv2d_matches_depthwise_then_pointwise_convolution():
     input = torch.arange(1, 1 + 2 * 4 * 4, dtype=torch.float32).reshape(1, 2, 4, 4)
 
     module.depthwise.weight.data.copy_(
-        torch.tensor([
-            [[[1.0, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]],
-            [[[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]]],
-        ])
+        torch.tensor(
+            [
+                [[[1.0, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]],
+                [[[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]]],
+            ]
+        )
     )
     module.depthwise.bias.data.copy_(torch.tensor([0.5, -0.5]))
     module.pointwise.weight.data.copy_(
-        torch.tensor([
-            [[[1.0]], [[0.0]]],
-            [[[0.0]], [[1.0]]],
-            [[[1.0]], [[-1.0]]],
-        ])
+        torch.tensor(
+            [
+                [[[1.0]], [[0.0]]],
+                [[[0.0]], [[1.0]]],
+                [[[1.0]], [[-1.0]]],
+            ]
+        )
     )
     module.pointwise.bias.data.copy_(torch.tensor([1.0, 2.0, 3.0]))
 

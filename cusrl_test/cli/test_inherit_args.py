@@ -58,16 +58,18 @@ def test_train_inherits_args_from_checkpoint(monkeypatch, tmp_path):
     monkeypatch.setattr(train.cli_utils, "load_experiment_spec_from_args", lambda args: ExperimentSpec())
     monkeypatch.setattr(train, "tyro_cli", tyro_cli)
 
-    train.main([
-        "--environment",
-        "Env",
-        "--algorithm",
-        "Alg",
-        "--checkpoint",
-        "run",
-        "--agent.lr",
-        "0.0003",
-    ])
+    train.main(
+        [
+            "--environment",
+            "Env",
+            "--algorithm",
+            "Alg",
+            "--checkpoint",
+            "run",
+            "--agent.lr",
+            "0.0003",
+        ]
+    )
 
     assert captured["checkpoint"] == "run"
     assert captured["tyro_args"] == [

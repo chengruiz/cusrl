@@ -290,7 +290,9 @@ class Environment(ABC, Generic[ArrayT]):
         raise NotImplementedError
 
     @abstractmethod
-    def step(self, action: ArrayT) -> tuple[
+    def step(
+        self, action: ArrayT
+    ) -> tuple[
         ArrayT,
         ArrayT | None,
         ArrayT,

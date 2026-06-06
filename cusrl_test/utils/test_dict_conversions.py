@@ -230,9 +230,9 @@ def test_dict_conversions():
     modified_agent_factory = from_dict(agent_factory, modified_dict)
 
     # Verify the modifications were applied correctly
-    assert (
-        modified_agent_factory.num_steps_per_update == 48
-    ), f"Expected 48, got {modified_agent_factory.num_steps_per_update}"
+    assert modified_agent_factory.num_steps_per_update == 48, (
+        f"Expected 48, got {modified_agent_factory.num_steps_per_update}"
+    )
     assert modified_agent_factory.device == "cpu", f"Expected 'cpu', got {modified_agent_factory.device}"
     assert modified_agent_factory.compile is True, f"Expected True, got {modified_agent_factory.compile}"
 
@@ -241,18 +241,18 @@ def test_dict_conversions():
         512,
         512,
     ), f"Expected (512, 512), got {modified_agent_factory.actor_factory.backbone_factory.hidden_dims}"
-    assert (
-        modified_agent_factory.critic_factory.backbone_factory.hidden_size == 512
-    ), f"Expected 512, got {modified_agent_factory.critic_factory.backbone_factory.hidden_size}"
-    assert (
-        modified_agent_factory.optimizer_factory.defaults["lr"] == 0.002
-    ), f"Expected 0.002, got {modified_agent_factory.optimizer_factory.defaults['lr']}"
-    assert (
-        modified_agent_factory.optimizer_factory.cls == torch.optim.SGD
-    ), f"Expected <class 'torch.optim.sgd.SGD'>, got {modified_agent_factory.optimizer_factory.cls}"
-    assert (
-        modified_agent_factory.sampler.num_epochs == 8
-    ), f"Expected 8, got {modified_agent_factory.sampler.num_epochs}"
+    assert modified_agent_factory.critic_factory.backbone_factory.hidden_size == 512, (
+        f"Expected 512, got {modified_agent_factory.critic_factory.backbone_factory.hidden_size}"
+    )
+    assert modified_agent_factory.optimizer_factory.defaults["lr"] == 0.002, (
+        f"Expected 0.002, got {modified_agent_factory.optimizer_factory.defaults['lr']}"
+    )
+    assert modified_agent_factory.optimizer_factory.cls == torch.optim.SGD, (
+        f"Expected <class 'torch.optim.sgd.SGD'>, got {modified_agent_factory.optimizer_factory.cls}"
+    )
+    assert modified_agent_factory.sampler.num_epochs == 8, (
+        f"Expected 8, got {modified_agent_factory.sampler.num_epochs}"
+    )
 
     # Verify hook modifications
     entropy_loss_hook = modified_agent_factory.hooks.entropy_loss
@@ -262,9 +262,9 @@ def test_dict_conversions():
 
     assert entropy_loss_hook.weight == 0.02, f"Expected 0.02, got {entropy_loss_hook.weight}"
     assert gae_hook.gamma == 0.95, f"Expected 0.95, got {gae_hook.gamma}"
-    assert (
-        next_state_prediction_hook.target_indices.start == 10
-    ), f"Expected 10, got {next_state_prediction_hook.target_indices.start}"
+    assert next_state_prediction_hook.target_indices.start == 10, (
+        f"Expected 10, got {next_state_prediction_hook.target_indices.start}"
+    )
     assert ppo_hook.clip_ratio == 0.3, f"Expected 0.3, got {ppo_hook.clip_ratio}"
 
     # Test round-trip conversion (to_dict -> from_dict should preserve the object)

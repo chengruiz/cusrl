@@ -42,14 +42,16 @@ class RecordingAgent(cusrl.Agent):
     def step(self, next_observation, reward, terminated, truncated, next_state=None, **kwargs):
         step_index = len(self.step_inputs) + 1
         marker = kwargs.get("marker")
-        self.step_inputs.append({
-            "next_observation": self.to_tensor(next_observation).clone(),
-            "next_state": None if next_state is None else self.to_tensor(next_state).clone(),
-            "reward": self.to_tensor(reward).clone(),
-            "terminated": self.to_tensor(terminated).clone(),
-            "truncated": self.to_tensor(truncated).clone(),
-            "marker": None if marker is None else self.to_tensor(marker).clone(),
-        })
+        self.step_inputs.append(
+            {
+                "next_observation": self.to_tensor(next_observation).clone(),
+                "next_state": None if next_state is None else self.to_tensor(next_state).clone(),
+                "reward": self.to_tensor(reward).clone(),
+                "terminated": self.to_tensor(terminated).clone(),
+                "truncated": self.to_tensor(truncated).clone(),
+                "marker": None if marker is None else self.to_tensor(marker).clone(),
+            }
+        )
         self.transition = {
             "step_call": torch.tensor([step_index], dtype=torch.long),
             "marker": None if marker is None else self.to_tensor(marker).clone(),
@@ -179,11 +181,13 @@ def test_player_loads_checkpoint_and_builds_from_factories(tmp_path):
         return ScriptedEnvironment(
             num_instances=2,
             timestep=0.25,
-            reset_outputs=[{
-                "indices": None,
-                "observation": torch.tensor([[1.0], [2.0]]),
-                "state": torch.tensor([[3.0], [4.0]]),
-            }],
+            reset_outputs=[
+                {
+                    "indices": None,
+                    "observation": torch.tensor([[1.0], [2.0]]),
+                    "state": torch.tensor([[3.0], [4.0]]),
+                }
+            ],
             step_outputs=[],
         )
 
@@ -222,11 +226,13 @@ def test_player_runs_num_steps_invokes_hooks_and_reports_metrics():
         num_instances=2,
         timestep=None,
         metrics={"environment/score": 3.0},
-        reset_outputs=[{
-            "indices": None,
-            "observation": torch.tensor([[0.0], [1.0]]),
-            "state": torch.tensor([[10.0], [11.0]]),
-        }],
+        reset_outputs=[
+            {
+                "indices": None,
+                "observation": torch.tensor([[0.0], [1.0]]),
+                "state": torch.tensor([[10.0], [11.0]]),
+            }
+        ],
         step_outputs=[
             {
                 "observation": torch.tensor([[2.0], [3.0]]),
@@ -301,11 +307,13 @@ def test_player_progress_bar_can_be_controlled_independently(
     environment = ScriptedEnvironment(
         num_instances=1,
         timestep=None,
-        reset_outputs=[{
-            "indices": None,
-            "observation": torch.tensor([[0.0]]),
-            "state": torch.tensor([[1.0]]),
-        }],
+        reset_outputs=[
+            {
+                "indices": None,
+                "observation": torch.tensor([[0.0]]),
+                "state": torch.tensor([[1.0]]),
+            }
+        ],
         step_outputs=[],
     )
     agent = RecordingAgent(environment.spec)
