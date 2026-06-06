@@ -1,11 +1,91 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 import torch
 from torch import nn
 from torch.optim import Optimizer
 
-__all__ = ["OptimizerFactory"]
+__all__ = ["OptimizerCollection", "OptimizerFactory", "build_optimizer"]
+
+
+class OptimizerCollection:
+    """A small optimizer-compatible wrapper around named optimizers.
+
+    The wrapper exposes the subset of the :class:`torch.optim.Optimizer`
+    interface used by agents and hooks while delegating all optimization work
+    to its child optimizers.
+    """
+
+    def __init__(self, optimizers: Mapping[str, Optimizer]):
+        if not optimizers:
+            raise ValueError("At least one optimizer is required")
+
+        self.optimizers = dict(optimizers)
+        for name in self.optimizers:
+            if not isinstance(name, str) or not name:
+                raise ValueError("Optimizer names must be non-empty strings")
+
+        self._tag_param_groups()
+        self._validate_unique_parameters()
+
+    @property
+    def param_groups(self) -> list[dict[str, Any]]:
+        """Returns a flattened view of all child optimizer parameter groups."""
+        return [param_group for optimizer in self.optimizers.values() for param_group in optimizer.param_groups]
+
+    def zero_grad(self, *args, **kwargs):
+        """Clears gradients for all child optimizers."""
+        for optimizer in self.optimizers.values():
+            optimizer.zero_grad(*args, **kwargs)
+
+    def step(self, *args, **kwargs):
+        """Steps all child optimizers in insertion order."""
+        for optimizer in self.optimizers.values():
+            optimizer.step(*args, **kwargs)
+
+    def state_dict(self) -> dict[str, Any]:
+        """Returns child optimizer states keyed by optimizer name."""
+        return {name: optimizer.state_dict() for name, optimizer in self.optimizers.items()}
+
+    def load_state_dict(self, state_dict: Mapping[str, Any]):
+        """Loads child optimizer states keyed by optimizer name."""
+        expected_names = set(self.optimizers)
+        found_names = set(state_dict)
+        if expected_names != found_names:
+            missing = expected_names - found_names
+            extra = found_names - expected_names
+            details = []
+            if missing:
+                details.append(f"missing={sorted(missing)!r}")
+            if extra:
+                details.append(f"extra={sorted(extra)!r}")
+            raise ValueError(f"Mismatched optimizer collection state_dict keys: {', '.join(details)}")
+
+        for name, optimizer in self.optimizers.items():
+            optimizer.load_state_dict(state_dict[name])
+        self._tag_param_groups()
+
+    def _tag_param_groups(self):
+        for name, optimizer in self.optimizers.items():
+            for param_group in optimizer.param_groups:
+                param_group["optimizer_name"] = name
+
+    def _validate_unique_parameters(self):
+        seen_parameters: dict[int, tuple[str, str]] = {}
+        for optimizer_name, optimizer in self.optimizers.items():
+            for param_group in optimizer.param_groups:
+                params = param_group["params"]
+                param_names = param_group.get("param_names", [""] * len(params))
+                for param, param_name in zip(params, param_names, strict=True):
+                    parameter_id = id(param)
+                    if parameter_id in seen_parameters:
+                        previous_optimizer_name, previous_param_name = seen_parameters[parameter_id]
+                        raise ValueError(
+                            "Parameter is assigned to multiple optimizers: "
+                            f"{previous_param_name!r} in {previous_optimizer_name!r} and "
+                            f"{param_name!r} in {optimizer_name!r}"
+                        )
+                    seen_parameters[parameter_id] = (optimizer_name, param_name)
 
 
 class OptimizerFactory:
@@ -117,3 +197,20 @@ class OptimizerFactory:
                 matched_prefix = prefix
                 break
         return matched_prefix
+
+
+def build_optimizer(
+    factory_or_factories: OptimizerFactory | Mapping[str, OptimizerFactory],
+    named_parameters: Iterable[tuple[str, nn.Parameter]],
+) -> Optimizer | OptimizerCollection:
+    """Builds either a single optimizer or a named optimizer collection."""
+    named_parameters = tuple(named_parameters)
+    if isinstance(factory_or_factories, OptimizerFactory):
+        return factory_or_factories(named_parameters)
+
+    optimizers = {}
+    for name, factory in factory_or_factories.items():
+        if not isinstance(name, str) or not name:
+            raise ValueError("Optimizer names must be non-empty strings")
+        optimizers[name] = factory(named_parameters)
+    return OptimizerCollection(optimizers)

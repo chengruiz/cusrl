@@ -4,7 +4,7 @@ from .buffer import Buffer, Sampler
 from .environment import Environment, EnvironmentSpec
 from .hook import Hook
 from .logger import Logger, LoggerFactory, LoggerFactoryLike, make_logger_factory
-from .optimizer import OptimizerFactory
+from .optimizer import OptimizerCollection, OptimizerFactory, build_optimizer
 from .player import Player, PlayerHook
 from .trainer import Trainer, TrainerHook
 from .trial import Trial
@@ -20,6 +20,7 @@ __all__ = [
     "Logger",
     "LoggerFactory",
     "LoggerFactoryLike",
+    "OptimizerCollection",
     "OptimizerFactory",
     "Sampler",
     "Player",
@@ -27,5 +28,6 @@ __all__ = [
     "Trainer",
     "TrainerHook",
     "Trial",
+    "build_optimizer",
     "make_logger_factory",
 ]

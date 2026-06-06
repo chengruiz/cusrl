@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from cusrl.template.optimizer import OptimizerFactory
+from cusrl.template.optimizer import OptimizerCollection, OptimizerFactory, build_optimizer
 from cusrl.utils import from_dict, to_dict
 
 
@@ -49,6 +49,101 @@ def test_optimizer_factory_accepts_optimizer_class():
 
     assert isinstance(optimizer, torch.optim.AdamW)
     assert optimizer.param_groups[0]["param_names"] == ["weight"]
+
+
+def test_build_optimizer_keeps_single_factory_behavior():
+    model = ToyModel()
+
+    optimizer = build_optimizer(OptimizerFactory("SGD", defaults={"lr": 0.1}), model.named_parameters())
+
+    assert isinstance(optimizer, torch.optim.SGD)
+    assert not isinstance(optimizer, OptimizerCollection)
+
+
+def test_build_optimizer_creates_named_optimizer_collection():
+    model = ToyModel()
+
+    optimizer = build_optimizer(
+        {
+            "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("actor",)),
+            "critic": OptimizerFactory("AdamW", defaults={"lr": 0.01}, param_filter=("critic",)),
+        },
+        model.named_parameters(),
+    )
+
+    assert isinstance(optimizer, OptimizerCollection)
+    assert isinstance(optimizer.optimizers["actor"], torch.optim.SGD)
+    assert isinstance(optimizer.optimizers["critic"], torch.optim.AdamW)
+    assert {group["optimizer_name"] for group in optimizer.param_groups} == {"actor", "critic"}
+
+    group_by_name = {name: group for group in optimizer.param_groups for name in group["param_names"]}
+    assert set(group_by_name) == {
+        "actor.backbone.weight",
+        "actor.backbone.bias",
+        "actor.head.weight",
+        "actor.head.bias",
+        "critic.weight",
+        "critic.bias",
+    }
+    assert group_by_name["actor.head.weight"]["lr"] == pytest.approx(0.1)
+    assert group_by_name["critic.weight"]["lr"] == pytest.approx(0.01)
+
+
+def test_optimizer_collection_zero_grad_step_and_state_dict():
+    model = ToyModel()
+    optimizer = build_optimizer(
+        {
+            "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("actor.head",)),
+            "critic": OptimizerFactory("AdamW", defaults={"lr": 0.01}, param_filter=("critic",)),
+        },
+        model.named_parameters(),
+    )
+    assert isinstance(optimizer, OptimizerCollection)
+
+    loss = model.actor.head.weight.sum() + model.critic.weight.sum()
+    loss.backward()
+    assert model.actor.head.weight.grad is not None
+    assert model.critic.weight.grad is not None
+
+    optimizer.zero_grad(set_to_none=True)
+    assert model.actor.head.weight.grad is None
+    assert model.critic.weight.grad is None
+
+    loss = model.actor.head.weight.sum() + model.critic.weight.sum()
+    loss.backward()
+    actor_weight = model.actor.head.weight.detach().clone()
+    critic_weight = model.critic.weight.detach().clone()
+    optimizer.step()
+    assert not torch.equal(model.actor.head.weight, actor_weight)
+    assert not torch.equal(model.critic.weight, critic_weight)
+
+    state_dict = optimizer.state_dict()
+    optimizer.optimizers["actor"].param_groups[0]["lr"] = 0.5
+    optimizer.load_state_dict(state_dict)
+    assert optimizer.optimizers["actor"].param_groups[0]["lr"] == pytest.approx(0.1)
+
+
+def test_optimizer_collection_rejects_duplicate_parameters():
+    model = ToyModel()
+
+    with pytest.raises(ValueError, match="multiple optimizers"):
+        build_optimizer(
+            {
+                "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("actor",)),
+                "actor_head": OptimizerFactory("Adam", defaults={"lr": 0.01}, param_filter=("actor.head",)),
+            },
+            model.named_parameters(),
+        )
+
+
+def test_optimizer_collection_rejects_empty_names():
+    model = ToyModel()
+
+    with pytest.raises(ValueError, match="non-empty"):
+        build_optimizer(
+            {"": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("actor",))},
+            model.named_parameters(),
+        )
 
 
 def test_optimizer_factory_builds_expected_param_groups():

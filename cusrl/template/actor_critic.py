@@ -1,5 +1,5 @@
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -12,7 +12,7 @@ from cusrl.template.agent import Agent, AgentFactory
 from cusrl.template.buffer import Buffer, Sampler
 from cusrl.template.environment import EnvironmentSpec
 from cusrl.template.hook import Hook, HookComposite
-from cusrl.template.optimizer import OptimizerFactory
+from cusrl.template.optimizer import OptimizerFactory, build_optimizer
 from cusrl.utils.dict_utils import from_dict, to_dict
 from cusrl.utils.distributed import broadcast_parameters, reduce_gradients
 from cusrl.utils.typing import ArrayT, Nested, NestedArray, NestedTensor, Observation, State
@@ -68,7 +68,7 @@ class ActorCriticFactory(AgentFactory["ActorCritic"]):
     """The factory for creating the actor module."""
     critic_factory: ValueFactory
     """The factory for creating the critic module."""
-    optimizer_factory: OptimizerFactory
+    optimizer_factory: OptimizerFactory | Mapping[str, OptimizerFactory]
     """The factory for creating the optimizer."""
     sampler: Sampler
     """The sampler for generating training batches."""
@@ -175,7 +175,7 @@ class ActorCritic(Agent):
         environment_spec: EnvironmentSpec,
         actor_factory: ActorFactory,
         critic_factory: ValueFactory,
-        optimizer_factory: OptimizerFactory,
+        optimizer_factory: OptimizerFactory | Mapping[str, OptimizerFactory],
         sampler: Sampler,
         hooks: Iterable[Hook],
         num_steps_per_update: int,
@@ -218,7 +218,7 @@ class ActorCritic(Agent):
             self.actor.compile(**self._get_compile_kwargs())
             self.critic.compile(**self._get_compile_kwargs())
             self.hook.compile(**self._get_compile_kwargs())
-        self.optimizer = self.optimizer_factory(self.named_parameters())
+        self.optimizer = build_optimizer(self.optimizer_factory, self.named_parameters())
         self._set_training_mode(False)
         self.hook.post_init()
         broadcast_parameters(self.parameters())
