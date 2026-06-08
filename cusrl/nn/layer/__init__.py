@@ -32,6 +32,7 @@ from .loss import (
     L2RegularizationLoss,
     NormalNllLoss,
 )
+from .linear import LinearFp32, disable_autocast
 from .mha import (
     MultiheadAttention,
     MultiheadCrossAttention,
@@ -60,6 +61,7 @@ __all__ = [
     "InputGate",
     "L2RegularizationLoss",
     "LearnablePositionalEncoding2D",
+    "LinearFp32",
     "MultiheadAttention",
     "MultiheadCrossAttention",
     "MultiheadSelfAttention",
@@ -78,6 +80,7 @@ __all__ = [
     "SwiGlu",
     "TransformerDecoderLayer",
     "TransformerEncoderLayer",
+    "disable_autocast",
     "get_gate_cls",
     "make_bijector",
 ]

@@ -53,6 +53,16 @@ def test_value_evaluate_matches_forward_for_state_value():
     assert "backbone.output" in critic.intermediate_repr
 
 
+def test_value_head_outputs_fp32_under_autocast():
+    critic = cusrl.Value.Factory(backbone_factory=cusrl.Mlp.Factory(hidden_dims=[8]))(4, 1)
+    state = torch.randn(3, 4)
+
+    with torch.autocast("cpu", dtype=torch.bfloat16):
+        value, _ = critic(state)
+
+    assert value.dtype is torch.float32
+
+
 def test_action_aware_value_requires_action_input():
     critic = cusrl.Value(
         backbone=cusrl.Mlp(input_dim=6, hidden_dims=[8]),

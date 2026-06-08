@@ -13,6 +13,7 @@ from .layer import (
     InputGate,
     L2RegularizationLoss,
     LearnablePositionalEncoding2D,
+    LinearFp32,
     MultiheadAttention,
     MultiheadCrossAttention,
     MultiheadSelfAttention,
@@ -31,6 +32,7 @@ from .layer import (
     SwiGlu,
     TransformerDecoderLayer,
     TransformerEncoderLayer,
+    disable_autocast,
     get_gate_cls,
     make_bijector,
 )
@@ -93,6 +95,7 @@ __all__ = [
     "L2RegularizationLoss",
     "LayerFactoryLike",
     "LearnablePositionalEncoding2D",
+    "LinearFp32",
     "Lstm",
     "Mlp",
     "Module",
@@ -125,6 +128,7 @@ __all__ = [
     "TransformerEncoderLayer",
     "Value",
     "ValueFactory",
+    "disable_autocast",
     "get_gate_cls",
     "make_bijector",
 ]
