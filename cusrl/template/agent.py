@@ -133,6 +133,11 @@ class Agent(ABC):
         self.iteration = 0
         self.step_index = 0
 
+    @property
+    def grad_scaler_enabled(self) -> bool:
+        """Return whether gradient scaling is needed for the autocast dtype."""
+        return self.autocast_enabled and self.dtype is torch.float16
+
     def named_parameters(self) -> Iterable[tuple[str, torch.nn.Parameter]]:
         """Yields named parameters from registered modules."""
         for name in self.MODULES:

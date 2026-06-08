@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 
+import pytest
 import torch
 
 import cusrl
@@ -46,6 +47,41 @@ def test_optimization_stage_supports_nested_control_hooks_and_checkpoint_state()
 
     assert {"dummy_stage_hook", "grad_scaler", "optimizer"} <= set(stage_state_dict)
     assert trainer.agent.hook["optimization_stage_aux.dummy_stage_hook"].name == "dummy_stage_hook"
+
+
+@pytest.mark.parametrize(
+    ("autocast", "expected"),
+    [
+        (False, False),
+        (True, True),
+        (torch.float16, True),
+        (torch.bfloat16, False),
+        ("torch.float16", True),
+        ("bfloat16", False),
+    ],
+)
+def test_grad_scaler_only_enabled_for_float16_autocast(autocast, expected):
+    agent = cusrl.preset.PpoAgentFactory(autocast=autocast).from_environment(create_dummy_env())
+
+    assert agent.grad_scaler_enabled is expected
+    assert agent.grad_scaler.is_enabled() is expected
+
+
+def test_optimization_stage_grad_scaler_follows_agent_dtype_policy():
+    environment = create_dummy_env(with_state=True)
+    agent_factory = cusrl.preset.PpoAgentFactory(autocast=torch.bfloat16).to_underlying()
+    agent_factory.register_hook(
+        cusrl.hook.OptimizationStage(
+            "aux",
+            [DummyOptimizationStageHook(1).name_("dummy_stage_hook")],
+            cusrl.OptimizerFactory("Adam", defaults={"lr": 1e-3}),
+        )
+    )
+
+    agent = agent_factory.from_environment(environment)
+
+    assert agent.grad_scaler.is_enabled() is False
+    assert agent.hook["optimization_stage_aux"].grad_scaler.is_enabled() is False
 
 
 def test_optimization_stage_round_trip_supports_iterable_stage_hooks():

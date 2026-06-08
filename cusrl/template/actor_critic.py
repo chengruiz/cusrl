@@ -207,7 +207,7 @@ class ActorCritic(Agent):
         )
         self.buffer = Buffer(self.buffer_capacity, self.parallelism, device=self.device)
         self.sampler = sampler
-        self.grad_scaler = torch.GradScaler(device=str(self.device), enabled=self.autocast_enabled)
+        self.grad_scaler = torch.GradScaler(device=str(self.device), enabled=self.grad_scaler_enabled)
 
         self.actor_memory = None
         self.hook.init()

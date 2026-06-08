@@ -51,7 +51,11 @@ class OptimizationStage(HookComposite):
         """Instantiates the stage-local optimizer and gradient scaler."""
         self.register_stateful("optimizer", self.optimizer_factory(self.agent.named_parameters()))
         self.register_stateful(
-            "grad_scaler", torch.GradScaler(device=str(self.agent.device), enabled=self.agent.autocast_enabled)
+            "grad_scaler",
+            torch.GradScaler(
+                device=str(self.agent.device),
+                enabled=self.agent.grad_scaler_enabled,
+            ),
         )
         super().post_init()
 
