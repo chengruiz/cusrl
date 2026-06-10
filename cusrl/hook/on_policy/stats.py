@@ -30,7 +30,8 @@ class OnPolicyStatistics(Hook[ActorCritic]):
     def post_update(self):
         actor = self.agent.actor
         for _, batch in self.sampler(self.agent.buffer):
-            action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
+            with self.agent.autocast():
+                action_dist, _ = actor(batch["observation"], memory=batch.get("actor_memory"), done=batch["done"])
             self.agent.record(kl_divergence=actor.compute_kl_div(batch["action_dist"], action_dist))
             action_logp = actor.compute_logp(action_dist, batch["action"])
             logp_ratio = action_logp - cast(torch.Tensor, batch["action_logp"])

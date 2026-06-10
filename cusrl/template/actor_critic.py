@@ -232,12 +232,13 @@ class ActorCritic(Agent):
         # enable hook to preprocess the observation and state
         self.hook.pre_act(self.transition)
 
-        action_dist, (action, action_logp), next_actor_memory = self.actor.explore(
-            self.transition["observation"],
-            memory=self.actor_memory,
-            deterministic=self.deterministic,
-            backbone_kwargs={"sequential": False},
-        )
+        with self.autocast():
+            action_dist, (action, action_logp), next_actor_memory = self.actor.explore(
+                self.transition["observation"],
+                memory=self.actor_memory,
+                deterministic=self.deterministic,
+                backbone_kwargs={"sequential": False},
+            )
 
         self._save_transition(
             actor_memory=self.actor_memory,
