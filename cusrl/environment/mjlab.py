@@ -167,6 +167,7 @@ class MjlabPlayer(Player):
     def run_playing_loop(self) -> dict[str, float]:
         from mjlab.rl import RslRlVecEnvWrapper
         from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
+        from viser import ViserServer
 
         environment = cast(MjlabEnvAdapter, self.environment)
         cfg = environment.wrapped.cfg
@@ -177,7 +178,11 @@ class MjlabPlayer(Player):
         if cfg.viewer_type == "native":
             viewer = NativeMujocoViewer(native_environment, self)
         elif cfg.viewer_type == "viser":
-            viewer = ViserPlayViewer(native_environment, self)
+            viewer = ViserPlayViewer(
+                native_environment,
+                self,
+                viser_server=ViserServer(host=cfg.viser_host, port=cfg.viser_port),
+            )
         else:
             raise ValueError(f"Unsupported viewer type '{cfg.viewer_type}'")
         try:
@@ -231,6 +236,8 @@ def make_mjlab_env_config(id: str, play: bool = False) -> MjlabEnvAdapter:
     class ManagerBasedRlEnvPlayCfg(ManagerBasedRlEnvCfgWithDevice):
         headless: bool = False
         viewer_type: Literal[None, "native", "viser"] = "viser"
+        viser_host: str = "0.0.0.0"
+        viser_port: int = 8080
 
     config_class = ManagerBasedRlEnvPlayCfg if play else ManagerBasedRlEnvCfgWithDevice
     env_cfg = load_env_cfg(id, play=play)
