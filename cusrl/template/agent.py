@@ -2,11 +2,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar, overload
+from typing import Any, Generic, overload
 
 import numpy as np
 import torch
 from torch import nn
+from typing_extensions import TypeVar
 
 import cusrl
 from cusrl.nn.module.module import LayerT
@@ -18,7 +19,7 @@ from cusrl.utils.typing import Array, ArrayT, ListOrTuple, Nested, NestedArray, 
 __all__ = ["Agent", "AgentT", "AgentFactory"]
 
 
-AgentT = TypeVar("AgentT", bound="Agent")
+AgentT = TypeVar("AgentT", bound="Agent", default="Agent")
 
 
 @dataclass(kw_only=True)

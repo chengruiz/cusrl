@@ -1,8 +1,10 @@
+import warnings
 from dataclasses import dataclass
 
 import pytest
 import torch
 from torch import nn
+from tyro._warnings import TyroWarning
 
 import cusrl
 from cusrl.utils.dataclass_utils import to_strict_typed_dataclass
@@ -13,6 +15,13 @@ def test_tyro_cli_parses_autocast_dtype():
     config = cusrl.preset.PpoAgentFactory().to_underlying()
     parsed = cli(type(config), default=config, args=["--autocast", "bfloat16"])
     assert parsed.autocast is torch.bfloat16
+
+
+def test_tyro_cli_does_not_warn_for_factory_typevars():
+    config = cusrl.preset.PpoAgentFactory().to_underlying()
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        cli(type(config), default=config, args=[])
+    assert not [warning for warning in caught_warnings if issubclass(warning.category, TyroWarning)]
 
 
 def test_tyro_cli_parses_prefixed_autocast_dtype():

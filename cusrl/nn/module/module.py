@@ -1,8 +1,9 @@
 from collections.abc import Callable
-from typing import Any, Generic, Optional, TypeAlias, TypeVar
+from typing import Any, Generic, Optional, TypeAlias
 
 import torch
 from torch import nn
+from typing_extensions import TypeVar
 
 from cusrl.utils.nest import iterate_nested
 from cusrl.utils.typing import Memory, Slice
@@ -18,7 +19,7 @@ __all__ = [
 ]
 
 
-ModuleT = TypeVar("ModuleT", bound="Module")
+ModuleT = TypeVar("ModuleT", bound="Module", default="Module")
 LayerT = TypeVar("LayerT", bound=nn.Module)
 
 
