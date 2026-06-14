@@ -20,7 +20,7 @@ __all__ = [
     "SymmetricActor",
     "SymmetricArchitecture",
     "SymmetricDataAugmentation",
-    "TransitionMirror",
+    "TransitionMirroring",
 ]
 
 
@@ -99,7 +99,7 @@ class _SymmetryHook(Hook[ActorCritic]):
         )
 
 
-class TransitionMirror(_SymmetryHook):
+class TransitionMirroring(_SymmetryHook):
     """Replaces collected transitions with one selected mirrored variant.
 
     During rollout, the actor consumes mirrored observations and states. The

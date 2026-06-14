@@ -15,7 +15,7 @@ from .symmetry import (
     MirrorSymmetryLoss,
     SymmetricArchitecture,
     SymmetricDataAugmentation,
-    TransitionMirror,
+    TransitionMirroring,
 )
 
 __all__ = [
@@ -31,5 +31,5 @@ __all__ = [
     "StatePrediction",
     "SymmetricArchitecture",
     "SymmetricDataAugmentation",
-    "TransitionMirror",
+    "TransitionMirroring",
 ]

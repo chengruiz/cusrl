@@ -12,7 +12,7 @@ from .auxiliary import (
     StatePrediction,
     SymmetricArchitecture,
     SymmetricDataAugmentation,
-    TransitionMirror,
+    TransitionMirroring,
 )
 from .control import (
     ConditionalObjectiveActivation,
@@ -82,7 +82,7 @@ __all__ = [
     "StatePrediction",
     "SymmetricArchitecture",
     "SymmetricDataAugmentation",
-    "TransitionMirror",
+    "TransitionMirroring",
     "ThresholdLRSchedule",
     "ValueComputation",
     "ValueLoss",

@@ -10,7 +10,7 @@ def test_transition_mirror_rewrites_transition_with_selected_variant():
     def stacked_self_inverse_mirror(tensor):
         return torch.stack([tensor.flip(-1), -tensor], dim=0)
 
-    hook = cusrl.hook.TransitionMirror(index=1)
+    hook = cusrl.hook.TransitionMirroring(index=1)
     hook.mirror_observation = stacked_self_inverse_mirror
     hook.mirror_state = stacked_self_inverse_mirror
     hook.mirror_action = stacked_self_inverse_mirror
