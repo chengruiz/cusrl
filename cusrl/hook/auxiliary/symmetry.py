@@ -68,10 +68,6 @@ class _SymmetryHook(Hook[ActorCritic]):
     mirror_action: MirrorFn
 
     def init(self):
-        num_symmetry_hooks = sum(isinstance(hook, _SymmetryHook) for hook in self.agent.hook)
-        if num_symmetry_hooks > 1:
-            raise ValueError("At most one symmetry hook may be registered")
-
         if self.agent.environment_spec.mirror_observation is None:
             raise ValueError("'mirror_observation' must be defined for symmetry hooks")
         self.mirror_observation = self.agent.environment_spec.mirror_observation
