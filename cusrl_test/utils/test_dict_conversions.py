@@ -156,7 +156,11 @@ def test_dict_conversions():
         critic_factory=cusrl.Value.Factory(
             backbone_factory=cusrl.Lstm.Factory(hidden_size=256),
         ),
-        optimizer_factory=cusrl.OptimizerFactory("AdamW", defaults={"lr": 1e-3}, actor={"lr": 1e-4}),
+        optimizer_factory=cusrl.OptimizerFactory(
+            "AdamW",
+            defaults={"lr": 1e-3},
+            group_overrides=[("actor", {"lr": 1e-4})],
+        ),
         sampler=cusrl.AutoMiniBatchSampler(
             num_epochs=4,
             num_mini_batches=4,
@@ -279,8 +283,8 @@ def test_dict_conversions():
 def test_actor_critic_factory_round_trips_optimizer_factory_mapping():
     agent_factory = cusrl.preset.PpoAgentFactory().to_underlying()
     agent_factory.optimizer_factory = {
-        "actor": cusrl.OptimizerFactory("Adam", defaults={"lr": 1e-4}, param_filter=("actor",)),
-        "critic": cusrl.OptimizerFactory("AdamW", defaults={"lr": 1e-3}, param_filter=("critic",)),
+        "actor": cusrl.OptimizerFactory("Adam", defaults={"lr": 1e-4}, param_filter="actor"),
+        "critic": cusrl.OptimizerFactory("AdamW", defaults={"lr": 1e-3}, param_filter="critic"),
     }
 
     restored = from_dict(None, to_dict(agent_factory))
@@ -290,6 +294,6 @@ def test_actor_critic_factory_round_trips_optimizer_factory_mapping():
     assert isinstance(restored.optimizer_factory["actor"], cusrl.OptimizerFactory)
     assert isinstance(restored.optimizer_factory["critic"], cusrl.OptimizerFactory)
     assert restored.optimizer_factory["actor"].cls == "Adam"
-    assert restored.optimizer_factory["actor"].param_filter == ("actor",)
+    assert restored.optimizer_factory["actor"].param_filter == "actor"
     assert restored.optimizer_factory["critic"].cls == "AdamW"
-    assert restored.optimizer_factory["critic"].param_filter == ("critic",)
+    assert restored.optimizer_factory["critic"].param_filter == "critic"

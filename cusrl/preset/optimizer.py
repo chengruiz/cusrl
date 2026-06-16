@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import Any
 
-from cusrl.template.optimizer import OptimizerFactory
+from cusrl.template.optimizer import OptimizerFactory, OptimizerGroupOverride, OptimizerParamSelector
 
 __all__ = ["AdamFactory", "AdamWFactory"]
 
@@ -12,16 +12,14 @@ class AdamFactory(OptimizerFactory):
     def __init__(
         self,
         defaults: dict[str, Any] | None = None,
-        param_groups: dict[str, Any] | None = None,
-        param_filter: Sequence[str] | None = None,
-        **kwargs: dict[str, Any],
+        group_overrides: Sequence[OptimizerGroupOverride] | None = None,
+        param_filter: str | Sequence[str] | OptimizerParamSelector | None = None,
     ):
         super().__init__(
             cls="Adam",
             defaults=defaults,
-            param_groups=param_groups,
+            group_overrides=group_overrides,
             param_filter=param_filter,
-            **kwargs,
         )
 
 
@@ -31,14 +29,12 @@ class AdamWFactory(OptimizerFactory):
     def __init__(
         self,
         defaults: dict[str, Any] | None = None,
-        param_groups: dict[str, Any] | None = None,
-        param_filter: Sequence[str] | None = None,
-        **kwargs: dict[str, Any],
+        group_overrides: Sequence[OptimizerGroupOverride] | None = None,
+        param_filter: str | Sequence[str] | OptimizerParamSelector | None = None,
     ):
         super().__init__(
             cls="AdamW",
             defaults=defaults,
-            param_groups=param_groups,
+            group_overrides=group_overrides,
             param_filter=param_filter,
-            **kwargs,
         )

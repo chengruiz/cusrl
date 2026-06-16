@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
 
 import torch
@@ -6,6 +6,9 @@ from torch import nn
 from torch.optim import Optimizer
 
 __all__ = ["OptimizerCollection", "OptimizerFactory", "build_optimizer"]
+
+OptimizerParamSelector = Callable[[str, nn.Parameter], bool]
+OptimizerGroupOverride = tuple[str | OptimizerParamSelector, dict[str, Any]]
 
 
 class OptimizerCollection:
@@ -89,20 +92,18 @@ class OptimizerCollection:
 
 
 class OptimizerFactory:
-    """Builds a PyTorch optimizer with per-prefix parameter overrides.
+    """Builds a PyTorch optimizer with configurable parameter grouping.
 
     ``defaults`` defines the base optimizer kwargs. They are passed to the
     optimizer constructor and also used for parameters that do not match any
-    configured prefix. Prefix groups can be supplied through ``param_groups``
-    or ``**kwargs``; the two mappings are merged and keyword arguments win on
-    duplicate prefixes. Prefixes are sorted by length so the most specific
-    match is applied first.
+    configured override rule.
 
-    A parameter matches a prefix when its name is exactly that prefix or begins
-    with ``"{prefix}."``. Empty prefixes are not allowed. Unmatched parameters
-    use ``defaults`` directly. Parameters with ``requires_grad=False`` are
-    skipped. ``param_filter`` can be used to keep only parameters whose
-    names match one of the configured prefixes before grouping.
+    ``group_overrides`` can provide prefix or callable selector rules such as
+    ``("actor", {"lr": 1e-4})`` or
+    ``(lambda name, p: p.ndim == 2, {"lr": 1e-4})``. Rules are checked in
+    order, and the first matching rule supplies the group kwargs. Parameters
+    with ``requires_grad=False`` are skipped. ``param_filter`` can be used to
+    keep only parameters accepted by a prefix, prefix sequence, or callable.
 
     Args:
         cls (str | type[Optimizer]):
@@ -111,45 +112,51 @@ class OptimizerFactory:
         defaults (dict[str, Any] | None, optional):
             Base optimizer keyword arguments. These are passed to the optimizer
             constructor and reused for unmatched parameters.
-        param_groups (dict[str, Any] | None, optional):
-            Mapping from parameter-name prefix to optimizer keyword arguments
-            for that group. Use this when a prefix is not a valid Python
-            keyword argument name. If ``None``, all parameters use ``defaults``.
-            Defaults to ``None``.
-        param_filter (Sequence[str] | None, optional):
-            Optional parameter-name prefixes used to keep only a subset of the
-            parameters before grouping. If ``None``, all parameters are kept.
-            Defaults to ``None``.
-        **kwargs (dict[str, Any]):
-            Additional prefix groups provided as keyword arguments. These are
-            merged with ``param_groups`` and override duplicate prefixes.
+        group_overrides (Sequence[OptimizerGroupOverride] | None, optional):
+            Ordered selector rules for optimizer keyword overrides. Rules are
+            checked before falling back to ``defaults``.
+        param_filter (str | Sequence[str] | OptimizerParamSelector | None, optional):
+            Optional filter used to keep only a subset of the parameters before
+            grouping. If ``None``, all parameters are kept.
     """
 
     def __init__(
         self,
         cls: str | type[Optimizer],
         defaults: dict[str, Any] | None = None,
-        param_groups: dict[str, Any] | None = None,
-        param_filter: Sequence[str] | None = None,
-        **kwargs: dict[str, Any],
+        group_overrides: Sequence[OptimizerGroupOverride] | None = None,
+        param_filter: str | Sequence[str] | OptimizerParamSelector | None = None,
     ):
         self.cls = cls
         self.defaults = defaults or {}
-        if param_filter is None:
-            self.param_filter = None
+        self.group_overrides = tuple(group_overrides or ())
+
+        for rule in self.group_overrides:
+            try:
+                selector, options = rule
+            except (TypeError, ValueError) as error:
+                raise TypeError("Optimizer group overrides must be (selector, options) tuples") from error
+            if isinstance(selector, str):
+                if not selector:
+                    raise ValueError("Empty prefixes are not allowed in optimizer group overrides")
+            elif not callable(selector):
+                raise TypeError("Group override selector must be a parameter-name prefix string or a callable")
+            if not isinstance(options, dict):
+                raise TypeError("Group override options must be a dict")
+
+        if isinstance(param_filter, str):
+            if not param_filter:
+                raise ValueError("Empty prefixes are not allowed in 'param_filter'")
+            self.param_filter = param_filter
+        elif param_filter is None or callable(param_filter):
+            self.param_filter = param_filter
         else:
-            param_filter = tuple(param_filter)
-            for prefix in param_filter:
+            self.param_filter = tuple(param_filter)
+            for prefix in self.param_filter:
+                if not isinstance(prefix, str):
+                    raise TypeError("'param_filter' prefixes must be strings")
                 if not prefix:
                     raise ValueError("Empty prefixes are not allowed in 'param_filter'")
-            self.param_filter = tuple(sorted(param_filter, key=len, reverse=True))
-
-        param_groups = (param_groups or {}) | kwargs
-        for prefix in param_groups.keys():
-            if not prefix:
-                raise ValueError("Empty prefixes are not allowed; use the default group instead")
-        # Sort by length of prefix
-        self.param_groups = dict(sorted(param_groups.items(), key=lambda x: len(x[0]), reverse=True))
 
     def __call__(self, named_parameters: Iterable[tuple[str, nn.Parameter]]) -> Optimizer:
         """Instantiates the configured optimizer from named parameters.
@@ -174,29 +181,37 @@ class OptimizerFactory:
         for name, param in named_parameters:
             if not param.requires_grad:
                 continue
-            if self.param_filter is not None and not self._get_matched_prefix(name, self.param_filter):
+            if not self._is_param_selected(name, param):
                 continue
-            prefix = self._get_matched_prefix(name, self.param_groups)
-            param_group = param_groups.get(prefix)
+            rule_index, group_options = self._get_matched_group(name, param)
+            param_group = param_groups.get(rule_index)
             if param_group is None:
-                params = self.param_groups.get(prefix, self.defaults)
-                param_group = {"param_names": [], "params": [], **params}
-                param_groups[prefix] = param_group
+                param_group = {"param_names": [], "params": [], **group_options}
+                param_groups[rule_index] = param_group
             param_group["param_names"].append(name)
             param_group["params"].append(param)
         if not param_groups:
             raise ValueError("No trainable parameters matched the optimizer filter")
         return optim_cls(param_groups.values(), **self.defaults)
 
-    @staticmethod
-    def _get_matched_prefix(name, prefixes) -> str:
-        """Returns the most specific configured prefix for ``name``."""
-        matched_prefix = ""
-        for prefix in prefixes:
-            if name == prefix or name.startswith(f"{prefix}."):
-                matched_prefix = prefix
-                break
-        return matched_prefix
+    def _is_param_selected(self, name: str, parameter: nn.Parameter) -> bool:
+        if self.param_filter is None:
+            return True
+        if isinstance(self.param_filter, str):
+            return name == self.param_filter or name.startswith(f"{self.param_filter}.")
+        if callable(self.param_filter):
+            return bool(self.param_filter(name, parameter))
+        return any(name == prefix or name.startswith(f"{prefix}.") for prefix in self.param_filter)
+
+    def _get_matched_group(self, name: str, parameter: nn.Parameter) -> tuple[int, dict[str, Any]]:
+        for index, (selector, options) in enumerate(self.group_overrides):
+            if isinstance(selector, str):
+                matched = name == selector or name.startswith(f"{selector}.")
+            else:
+                matched = selector(name, parameter)
+            if matched:
+                return index, options
+        return -1, self.defaults
 
 
 def build_optimizer(
@@ -205,12 +220,32 @@ def build_optimizer(
 ) -> Optimizer | OptimizerCollection:
     """Builds either a single optimizer or a named optimizer collection."""
     named_parameters = tuple(named_parameters)
+    remaining_named_parameters = tuple((name, param) for name, param in named_parameters if param.requires_grad)
+
+    def remove_optimized_parameters(optimizer: Optimizer):
+        optimized_parameter_ids = {id(param) for group in optimizer.param_groups for param in group["params"]}
+        return tuple(
+            (param_name, param)
+            for param_name, param in remaining_named_parameters
+            if id(param) not in optimized_parameter_ids
+        )
+
     if isinstance(factory_or_factories, OptimizerFactory):
-        return factory_or_factories(named_parameters)
+        optimizer = factory_or_factories(remaining_named_parameters)
+        remaining_named_parameters = remove_optimized_parameters(optimizer)
+        if remaining_named_parameters:
+            names = [name for name, _ in remaining_named_parameters]
+            raise ValueError(f"Trainable parameters were not assigned to any optimizer: {names!r}")
+        return optimizer
 
     optimizers = {}
     for name, factory in factory_or_factories.items():
         if not isinstance(name, str) or not name:
             raise ValueError("Optimizer names must be non-empty strings")
-        optimizers[name] = factory(named_parameters)
+        optimizer = factory(remaining_named_parameters)
+        remaining_named_parameters = remove_optimized_parameters(optimizer)
+        optimizers[name] = optimizer
+    if remaining_named_parameters:
+        names = [name for name, _ in remaining_named_parameters]
+        raise ValueError(f"Trainable parameters were not assigned to any optimizer: {names!r}")
     return OptimizerCollection(optimizers)

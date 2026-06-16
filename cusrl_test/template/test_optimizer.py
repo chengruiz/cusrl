@@ -23,24 +23,28 @@ class ToyModel(nn.Module):
         self.critic = nn.Linear(4, 1)
 
 
-def test_optimizer_factory_rejects_empty_prefix():
-    with pytest.raises(ValueError, match="Empty prefixes"):
-        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_groups={"": {"lr": 0.2}})
+def test_optimizer_factory_rejects_invalid_param_filter():
+    with pytest.raises(TypeError, match="param_filter"):
+        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=(object(),))
 
     with pytest.raises(ValueError, match="Empty prefixes"):
         OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("",))
 
 
-def test_optimizer_factory_keyword_groups_override_and_sort_prefixes():
+def test_optimizer_factory_keeps_group_override_order():
     factory = OptimizerFactory(
         torch.optim.SGD,
         defaults={"lr": 0.1},
-        param_groups={"actor": {"lr": 0.01}, "actor.backbone": {"lr": 0.001}},
-        actor={"lr": 0.02},
+        group_overrides=[
+            ("actor", {"lr": 0.02}),
+            ("actor.backbone", {"lr": 0.001}),
+        ],
     )
 
-    assert list(factory.param_groups) == ["actor.backbone", "actor"]
-    assert factory.param_groups["actor"] == {"lr": 0.02}
+    assert factory.group_overrides == (
+        ("actor", {"lr": 0.02}),
+        ("actor.backbone", {"lr": 0.001}),
+    )
 
 
 def test_optimizer_factory_accepts_optimizer_class():
@@ -65,8 +69,9 @@ def test_build_optimizer_creates_named_optimizer_collection():
 
     optimizer = build_optimizer(
         {
-            "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("actor",)),
-            "critic": OptimizerFactory("AdamW", defaults={"lr": 0.01}, param_filter=("critic",)),
+            "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter="actor"),
+            "critic": OptimizerFactory("AdamW", defaults={"lr": 0.01}, param_filter="critic"),
+            "rest": OptimizerFactory("Adam", defaults={"lr": 0.001}),
         },
         model.named_parameters(),
     )
@@ -74,27 +79,33 @@ def test_build_optimizer_creates_named_optimizer_collection():
     assert isinstance(optimizer, OptimizerCollection)
     assert isinstance(optimizer.optimizers["actor"], torch.optim.SGD)
     assert isinstance(optimizer.optimizers["critic"], torch.optim.AdamW)
-    assert {group["optimizer_name"] for group in optimizer.param_groups} == {"actor", "critic"}
+    assert isinstance(optimizer.optimizers["rest"], torch.optim.Adam)
+    assert {group["optimizer_name"] for group in optimizer.param_groups} == {"actor", "critic", "rest"}
 
     group_by_name = {name: group for group in optimizer.param_groups for name in group["param_names"]}
     assert set(group_by_name) == {
+        "special",
         "actor.backbone.weight",
         "actor.backbone.bias",
         "actor.head.weight",
         "actor.head.bias",
+        "actor_extra.weight",
+        "actor_extra.bias",
         "critic.weight",
         "critic.bias",
     }
     assert group_by_name["actor.head.weight"]["lr"] == pytest.approx(0.1)
     assert group_by_name["critic.weight"]["lr"] == pytest.approx(0.01)
+    assert group_by_name["actor_extra.weight"]["lr"] == pytest.approx(0.001)
 
 
 def test_optimizer_collection_zero_grad_step_and_state_dict():
     model = ToyModel()
     optimizer = build_optimizer(
         {
-            "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("actor.head",)),
-            "critic": OptimizerFactory("AdamW", defaults={"lr": 0.01}, param_filter=("critic",)),
+            "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter="actor.head"),
+            "critic": OptimizerFactory("AdamW", defaults={"lr": 0.01}, param_filter="critic"),
+            "rest": OptimizerFactory("Adam", defaults={"lr": 0.001}),
         },
         model.named_parameters(),
     )
@@ -123,17 +134,58 @@ def test_optimizer_collection_zero_grad_step_and_state_dict():
     assert optimizer.optimizers["actor"].param_groups[0]["lr"] == pytest.approx(0.1)
 
 
-def test_optimizer_collection_rejects_duplicate_parameters():
+def test_build_optimizer_consumes_parameters_between_factories():
     model = ToyModel()
 
-    with pytest.raises(ValueError, match="multiple optimizers"):
+    optimizer = build_optimizer(
+        {
+            "actor_head": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter="actor.head"),
+            "actor": OptimizerFactory("Adam", defaults={"lr": 0.01}, param_filter="actor"),
+            "rest": OptimizerFactory("AdamW", defaults={"lr": 0.001}),
+        },
+        model.named_parameters(),
+    )
+
+    assert isinstance(optimizer, OptimizerCollection)
+    names_by_optimizer = {
+        name: {
+            param_name
+            for param_group in child_optimizer.param_groups
+            for param_name in param_group["param_names"]
+        }
+        for name, child_optimizer in optimizer.optimizers.items()
+    }
+
+    assert names_by_optimizer["actor_head"] == {"actor.head.weight", "actor.head.bias"}
+    assert names_by_optimizer["actor"] == {"actor.backbone.weight", "actor.backbone.bias"}
+    assert "actor.head.weight" not in names_by_optimizer["actor"]
+    assert names_by_optimizer["rest"] == {
+        "special",
+        "actor_extra.weight",
+        "actor_extra.bias",
+        "critic.weight",
+        "critic.bias",
+    }
+
+
+def test_build_optimizer_rejects_unassigned_parameters():
+    model = ToyModel()
+
+    with pytest.raises(ValueError, match="not assigned"):
         build_optimizer(
             {
-                "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("actor",)),
-                "actor_head": OptimizerFactory("Adam", defaults={"lr": 0.01}, param_filter=("actor.head",)),
+                "actor": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter="actor"),
+                "critic": OptimizerFactory("AdamW", defaults={"lr": 0.01}, param_filter="critic"),
             },
             model.named_parameters(),
         )
+
+
+def test_build_optimizer_rejects_single_factory_with_unassigned_parameters():
+    model = ToyModel()
+
+    with pytest.raises(ValueError, match="not assigned"):
+        build_optimizer(OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter="actor"), model.named_parameters())
 
 
 def test_optimizer_collection_rejects_empty_names():
@@ -141,7 +193,7 @@ def test_optimizer_collection_rejects_empty_names():
 
     with pytest.raises(ValueError, match="non-empty"):
         build_optimizer(
-            {"": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("actor",))},
+            {"": OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter="actor")},
             model.named_parameters(),
         )
 
@@ -151,12 +203,12 @@ def test_optimizer_factory_builds_expected_param_groups():
     factory = OptimizerFactory(
         "SGD",
         defaults={"lr": 0.1, "momentum": 0.9},
-        param_groups={
-            "actor": {"lr": 0.01},
-            "actor.backbone": {"lr": 0.001},
-            "special": {"lr": 0.2},
-            "unused": {"lr": 0.3},
-        },
+        group_overrides=[
+            ("actor.backbone", {"lr": 0.001}),
+            ("actor", {"lr": 0.01}),
+            ("special", {"lr": 0.2}),
+            ("unused", {"lr": 0.3}),
+        ],
     )
 
     optimizer = factory(model.named_parameters())
@@ -186,8 +238,11 @@ def test_optimizer_factory_filters_named_parameters_before_grouping():
     factory = OptimizerFactory(
         "SGD",
         defaults={"lr": 0.1},
-        param_groups={"actor": {"lr": 0.01}, "actor.backbone": {"lr": 0.001}},
-        param_filter=("actor",),
+        group_overrides=[
+            ("actor.backbone", {"lr": 0.001}),
+            ("actor", {"lr": 0.01}),
+        ],
+        param_filter="actor",
     )
 
     optimizer = factory(model.named_parameters())
@@ -203,11 +258,78 @@ def test_optimizer_factory_filters_named_parameters_before_grouping():
     assert group_by_name["actor.head.weight"]["lr"] == pytest.approx(0.01)
 
 
+def test_optimizer_factory_accepts_callable_param_filter():
+    model = ToyModel()
+    factory = OptimizerFactory(
+        "SGD",
+        defaults={"lr": 0.1},
+        param_filter=lambda name, param: param.ndim == 2 and not name.startswith("actor.head"),
+    )
+
+    optimizer = factory(model.named_parameters())
+    group_by_name = {name: group for group in optimizer.param_groups for name in group["param_names"]}
+
+    assert set(group_by_name) == {
+        "actor.backbone.weight",
+        "actor_extra.weight",
+        "critic.weight",
+    }
+
+
+def test_optimizer_factory_applies_selector_group_overrides():
+    model = ToyModel()
+    factory = OptimizerFactory(
+        "SGD",
+        defaults={"lr": 0.1},
+        group_overrides=[
+            (lambda name, param: param.ndim == 1, {"lr": 0.03}),
+            (lambda name, param: name.startswith("actor"), {"lr": 0.02}),
+        ],
+    )
+
+    optimizer = factory(model.named_parameters())
+    group_by_name = {name: group for group in optimizer.param_groups for name in group["param_names"]}
+
+    assert group_by_name["actor.backbone.bias"]["lr"] == pytest.approx(0.03)
+    assert group_by_name["critic.bias"]["lr"] == pytest.approx(0.03)
+    assert group_by_name["actor.backbone.weight"]["lr"] == pytest.approx(0.02)
+    assert group_by_name["actor.head.weight"]["lr"] == pytest.approx(0.02)
+    assert group_by_name["critic.weight"]["lr"] == pytest.approx(0.1)
+
+
+def test_optimizer_factory_uses_first_matching_group_override():
+    model = ToyModel()
+    factory = OptimizerFactory(
+        "SGD",
+        defaults={"lr": 0.1},
+        group_overrides=[
+            (lambda name, param: param.ndim == 1, {"lr": 0.03}),
+            ("actor", {"lr": 0.02}),
+        ],
+    )
+
+    optimizer = factory(model.named_parameters())
+    group_by_name = {name: group for group in optimizer.param_groups for name in group["param_names"]}
+
+    assert group_by_name["actor.backbone.bias"]["lr"] == pytest.approx(0.03)
+    assert group_by_name["actor.backbone.weight"]["lr"] == pytest.approx(0.02)
+
+
 def test_optimizer_factory_rejects_empty_filtered_parameter_set():
     model = ToyModel()
 
     with pytest.raises(ValueError, match="optimizer filter"):
-        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=("missing",))(model.named_parameters())
+        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=lambda name, param: False)(
+            model.named_parameters()
+        )
+
+
+def test_optimizer_rule_rejects_invalid_selector():
+    with pytest.raises(ValueError, match="Empty prefixes"):
+        OptimizerFactory("SGD", defaults={"lr": 0.1}, group_overrides=[("", {"lr": 0.1})])
+
+    with pytest.raises(TypeError, match="selector"):
+        OptimizerFactory("SGD", defaults={"lr": 0.1}, group_overrides=[(object(), {"lr": 0.1})])
 
 
 def test_optimizer_factory_round_trips_param_filter():
@@ -216,4 +338,4 @@ def test_optimizer_factory_round_trips_param_filter():
     restored = from_dict(None, to_dict(factory))
 
     assert isinstance(restored, OptimizerFactory)
-    assert restored.param_filter == ("actor.backbone", "actor")
+    assert restored.param_filter == ("actor", "actor.backbone")
