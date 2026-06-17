@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 import cusrl
@@ -66,6 +67,15 @@ def test_adaptive_normal_dist_backward_flag_detaches_std_branch_from_latent():
     assert torch.allclose(latent.grad, expected_grad)
 
 
+def test_adaptive_normal_dist_factory_forwards_init_std():
+    dist = cusrl.AdaptiveNormalDist.Factory(init_std=0.5, bijector="exp")(3, 2)
+    latent = torch.zeros(4, 3)
+
+    dist_params = dist(latent)
+
+    assert torch.allclose(dist_params["std"], torch.full((4, 2), 0.5))
+
+
 def test_adaptive_normal_dist_keeps_distribution_math_in_float32():
     dist = cusrl.AdaptiveNormalDist(input_dim=4, output_dim=2, bijector="exp").half()
     latent = torch.randn(3, 4, dtype=torch.float16)
@@ -108,7 +118,8 @@ def test_one_hot_categorical_dist_returns_one_hot_actions_and_statistics():
     sample, logp = dist.sample_from_dist(dist_params)
 
     assert dist_params["logits"].shape == (5, 3)
-    assert torch.equal(mode, torch.tensor([[0, 1, 0]]).repeat(5, 1))
+    assert mode.dtype == dist_params["logits"].dtype
+    assert torch.equal(mode, torch.tensor([[0.0, 1.0, 0.0]]).repeat(5, 1))
     assert sample.shape == (5, 3)
     assert torch.equal(sample.sum(dim=-1), torch.ones(5))
     assert logp.shape == (5, 1)
@@ -131,6 +142,13 @@ def test_one_hot_categorical_dist_keeps_distribution_math_in_float32():
     assert dist.compute_logp(half_dist_params, sample.half()).dtype == torch.float32
     assert dist.compute_entropy(half_dist_params).dtype == torch.float32
     assert dist.compute_kl_div(half_dist_params, half_dist_params).dtype == torch.float32
+
+
+def test_normal_distributions_reject_non_positive_init_std():
+    with pytest.raises(ValueError, match="'init_std' must be positive"):
+        cusrl.NormalDist(input_dim=4, output_dim=2, init_std=0.0)
+    with pytest.raises(ValueError, match="'init_std' must be positive"):
+        cusrl.AdaptiveNormalDist(input_dim=4, output_dim=2, init_std=-1.0)
 
 
 def test_one_hot_categorical_dist_disables_autocast_for_logits_head():

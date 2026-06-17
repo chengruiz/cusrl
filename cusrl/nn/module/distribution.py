@@ -218,6 +218,14 @@ class _Normal(Distribution[MeanStdDict]):
             return kl.sum(dim=-1, keepdim=True)
 
 
+def _resolve_init_std(init_std: float | None) -> float:
+    if init_std is None:
+        return 1.0
+    if init_std <= 0:
+        raise ValueError("'init_std' must be positive")
+    return init_std
+
+
 class StddevVector(nn.Module):
     def __init__(
         self,
@@ -227,7 +235,8 @@ class StddevVector(nn.Module):
     ):
         super().__init__()
         self.bijector = make_bijector(bijector)
-        self.param = nn.Parameter(torch.ones(output_dim) * self.bijector.inverse(init_std or 1.0))
+        init_param_value = self.bijector.inverse(_resolve_init_std(init_std))
+        self.param = nn.Parameter(torch.ones(output_dim) * init_param_value)
 
     def forward(self, input: Tensor):
         with disable_autocast(input.device.type):
@@ -266,12 +275,19 @@ class NormalDist(_Normal):
 
 @dataclass(slots=True)
 class AdaptiveNormalDistFactory(DistributionFactory["AdaptiveNormalDist"]):
+    init_std: float | None = None
     bijector: str | Bijector | None = "exp"
     backward: bool = True
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         assert input_dim is not None and output_dim is not None
-        return AdaptiveNormalDist(input_dim, output_dim, bijector=self.bijector, backward=self.backward)
+        return AdaptiveNormalDist(
+            input_dim,
+            output_dim,
+            init_std=self.init_std,
+            bijector=self.bijector,
+            backward=self.backward,
+        )
 
 
 class AdaptiveNormalDist(_Normal):
@@ -292,7 +308,7 @@ class AdaptiveNormalDist(_Normal):
         self.backward = backward
 
         self.std_head.weight.data.zero_()
-        self.std_head.bias.data[:] = self.bijector.inverse(init_std or 1.0)
+        self.std_head.bias.data[:] = self.bijector.inverse(_resolve_init_std(init_std))
 
     def forward(self, backbone_feat: Tensor, **kwargs):
         action_mean = self.mean_head(backbone_feat)
@@ -327,7 +343,7 @@ class OneHotCategoricalDist(Distribution[LogitsDict]):
     def determine(self, backbone_feat: Tensor, **kwargs) -> Tensor:
         logits: Tensor = self.mean_head(backbone_feat)
         mode = one_hot(logits.argmax(dim=-1), logits.size(-1))
-        return mode
+        return mode.to(dtype=logits.dtype)
 
     def sample_from_dist(self, dist_params) -> tuple[Tensor, Tensor]:
         with disable_autocast(dist_params["logits"].device.type):
