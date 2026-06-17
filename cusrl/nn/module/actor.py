@@ -190,13 +190,13 @@ class Actor(Module):
             observation,
             memory=memory,
             done=done,
-            **((backbone_kwargs or {}) | self.backbone_kwargs),
+            **(self.backbone_kwargs | (backbone_kwargs or {})),
         )
 
         dist_params = self.distribution(
             backbone_feat,
             observation=observation,
-            **((distribution_kwargs or {}) | self.distribution_kwargs),
+            **(self.distribution_kwargs | (distribution_kwargs or {})),
         )
 
         self.intermediate_repr["backbone.output"] = backbone_feat
@@ -215,25 +215,25 @@ class Actor(Module):
         backbone_feat, memory = self.backbone(
             observation,
             memory=memory,
-            **((backbone_kwargs or {}) | self.backbone_kwargs),
+            **(self.backbone_kwargs | (backbone_kwargs or {})),
         )
         if deterministic:
             dist_params = self.distribution(
                 backbone_feat,
                 observation=observation,
-                **((distribution_kwargs or {}) | self.distribution_kwargs),
+                **(self.distribution_kwargs | (distribution_kwargs or {})),
             )
             action = self.distribution.determine(
                 backbone_feat,
                 observation=observation,
-                **((distribution_kwargs or {}) | self.distribution_kwargs),
+                **(self.distribution_kwargs | (distribution_kwargs or {})),
             )
             logp = self.distribution.compute_logp(dist_params, action)
         else:
             dist_params, (action, logp) = self.distribution.sample(
                 backbone_feat,
                 observation=observation,
-                **((distribution_kwargs or {}) | self.distribution_kwargs),
+                **(self.distribution_kwargs | (distribution_kwargs or {})),
             )
 
         self.intermediate_repr["backbone.output"] = backbone_feat

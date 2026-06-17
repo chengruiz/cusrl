@@ -80,7 +80,7 @@ class Value(Module):
             if action is None:
                 raise ValueError("Action must be provided when 'action_aware' is True")
             state = torch.cat([state, action], dim=-1)
-        kwargs.update(self.backbone_kwargs)
+        kwargs = self.backbone_kwargs | kwargs
         latent, memory = self.backbone(state, memory=memory, done=done, **kwargs)
         self.intermediate_repr["backbone.output"] = latent
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
