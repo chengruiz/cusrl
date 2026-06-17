@@ -76,8 +76,8 @@ class ModuleInitialization(Hook[ActorCritic]):
     def _init_module(self, module: nn.Module, scale: float, zero_bias: bool):
         if isinstance(module, nn.Linear):
             self._init_linear(module, scale, zero_bias)
-        elif isinstance(module, (nn.LSTM, nn.GRU)):
-            self._init_gru_lstm(module, scale, zero_bias)
+        elif isinstance(module, (nn.RNN, nn.LSTM, nn.GRU)):
+            self._init_rnn(module, scale, zero_bias)
         elif isinstance(module, nn.MultiheadAttention):
             self._init_mha(module, scale, zero_bias)
         elif isinstance(module, nn.Conv2d):
@@ -88,13 +88,15 @@ class ModuleInitialization(Hook[ActorCritic]):
         if zero_bias and module.bias is not None:
             nn.init.zeros_(module.bias)
 
-    def _init_gru_lstm(self, module: nn.GRU | nn.LSTM, scale: float, zero_bias: bool):
+    def _init_rnn(self, module: nn.RNN | nn.GRU | nn.LSTM, scale: float, zero_bias: bool):
         for i in range(module.num_layers):
             nn.init.orthogonal_(getattr(module, f"weight_hh_l{i}"), gain=scale)
             nn.init.orthogonal_(getattr(module, f"weight_ih_l{i}"), gain=scale)
-            if zero_bias and getattr(module, f"bias_hh_l{i}") is not None:
-                nn.init.zeros_(getattr(module, f"bias_hh_l{i}"))
-                nn.init.zeros_(getattr(module, f"bias_ih_l{i}"))
+            if zero_bias:
+                if (bias_hh := getattr(module, f"bias_hh_l{i}", None)) is not None:
+                    nn.init.zeros_(bias_hh)
+                if (bias_ih := getattr(module, f"bias_ih_l{i}", None)) is not None:
+                    nn.init.zeros_(bias_ih)
 
     def _init_mha(self, module: nn.MultiheadAttention, scale: float, zero_bias: bool):
         if module.in_proj_weight is not None:
