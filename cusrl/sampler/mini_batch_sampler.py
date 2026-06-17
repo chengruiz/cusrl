@@ -23,10 +23,19 @@ class MiniBatchSampler(Sampler):
             Whether to reshuffle indices between epochs. Defaults to ``True``.
     """
 
-    def __init__(self, num_epochs: int = 1, num_mini_batches: int | Sequence[int] = 1, shuffle: bool = True):
+    def __init__(
+        self,
+        num_epochs: int = 1,
+        num_mini_batches: int | Sequence[int] = 1,
+        shuffle: bool = True,
+    ):
+        if num_epochs <= 0:
+            raise ValueError("'num_epochs' must be positive")
         self.num_epochs = num_epochs
         self.num_mini_batches: int | tuple[int, ...]
         if isinstance(num_mini_batches, int):
+            if num_mini_batches <= 0:
+                raise ValueError("'num_mini_batches' must be positive")
             self.num_mini_batches = num_mini_batches
         else:
             self.num_mini_batches = tuple(num_mini_batches)
@@ -35,6 +44,8 @@ class MiniBatchSampler(Sampler):
                     "'num_mini_batches' must be an integer or a sequence of integers with length "
                     f"equal to 'num_epochs' ({self.num_epochs}); got {len(self.num_mini_batches)} values"
                 )
+            if any(value <= 0 for value in self.num_mini_batches):
+                raise ValueError("'num_mini_batches' values must be positive")
 
         self.shuffle = shuffle
 
@@ -47,6 +58,11 @@ class MiniBatchSampler(Sampler):
             num_mini_batches = (
                 self.num_mini_batches if isinstance(self.num_mini_batches, int) else self.num_mini_batches[epoch]
             )
+            if num_mini_batches > num_samples:
+                raise ValueError(
+                    f"'num_mini_batches' ({num_mini_batches}) cannot exceed the number of samples ({num_samples})"
+                )
+
             mini_batch_size = num_samples // num_mini_batches
             if self.shuffle and epoch > 0:
                 torch.randperm(num_samples, device=buffer.device, out=epoch_indices)

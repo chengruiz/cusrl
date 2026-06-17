@@ -42,6 +42,33 @@ def test_mini_batch_sampler_requires_full_buffer():
         next(iter(MiniBatchSampler()(buffer)))
 
 
+def test_mini_batch_sampler_rejects_empty_mini_batches():
+    buffer = Buffer(capacity=1, parallelism=1, device="cpu")
+    buffer.push({"observation": torch.tensor([[0.0]])})
+
+    with pytest.raises(ValueError, match="cannot exceed"):
+        next(iter(MiniBatchSampler(num_mini_batches=2)(buffer)))
+
+
+def test_temporal_mini_batch_sampler_rejects_empty_mini_batches():
+    buffer = Buffer(capacity=2, parallelism=1, device="cpu")
+    for step in range(2):
+        observation = torch.tensor([[float(step)]])
+        buffer.push({"observation": observation, "actor_memory": observation})
+
+    with pytest.raises(ValueError, match="cannot exceed"):
+        next(iter(TemporalMiniBatchSampler(num_mini_batches=2)(buffer)))
+
+
+def test_mini_batch_sampler_rejects_non_positive_mini_batch_configuration():
+    with pytest.raises(ValueError, match="'num_epochs' must be positive"):
+        MiniBatchSampler(num_epochs=0)
+    with pytest.raises(ValueError, match="'num_mini_batches' must be positive"):
+        MiniBatchSampler(num_mini_batches=0)
+    with pytest.raises(ValueError, match="'num_mini_batches' values must be positive"):
+        MiniBatchSampler(num_epochs=2, num_mini_batches=[1, 0])
+
+
 def test_temporal_mini_batch_sampler_samples_sequences_and_memories():
     buffer = Buffer(capacity=3, parallelism=2, device="cpu")
     for step in range(3):
