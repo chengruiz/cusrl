@@ -117,6 +117,33 @@ def test_stateless_and_stateful_wrappers_flatten_nested_memory_inputs():
     assert torch.allclose(stateful.memory_in__hidden[1], observation[1] + next_observation[1])
 
 
+def test_export_onnx_dynamo_passes_nested_kwargs_matching_wrapper_signature(tmp_path, monkeypatch):
+    graph = FlowGraph("stateful_graph", output_names=["action", "memory_out"])
+    graph.add_node(
+        StatefulAccumulator(),
+        module_name="core",
+        input_names={"observation": "observation", "memory_in": "memory_in"},
+        output_names=("action", "memory_out"),
+    )
+    example_inputs = {
+        "observation": torch.zeros(2, 3),
+        "memory_in": {"hidden": torch.zeros(2, 3)},
+    }
+
+    class ExportReached(Exception):
+        pass
+
+    def fake_export(model, *, args, kwargs, **_):
+        assert args == ()
+        model(**kwargs)
+        raise ExportReached
+
+    monkeypatch.setattr(torch.onnx, "export", fake_export)
+
+    with pytest.raises(ExportReached):
+        graph.export_onnx(example_inputs, str(tmp_path), dynamo=True, optimize=False, verbose=False)
+
+
 def test_get_num_tensors_counts_nested_tensor_structures():
     nested = [torch.zeros(1), (torch.ones(1), [torch.randn(1), torch.randn(1)])]
 

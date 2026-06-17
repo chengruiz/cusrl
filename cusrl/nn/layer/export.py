@@ -183,7 +183,7 @@ class FlowGraph(nn.Module):
         self.eval()
 
         stateless_wrapper = StatelessWrapper(self, example_inputs, self.output_names)
-        flattened_inputs: dict[str, torch.Tensor] = flatten_nested(example_inputs)
+        flattened_inputs: dict[str, torch.Tensor] = flatten_nested(example_inputs, separator="__")
         input_names = stateless_wrapper.flattened_input_names
         output_names = stateless_wrapper.flattened_output_names
 
