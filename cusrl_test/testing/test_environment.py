@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+import cusrl
 from cusrl.testing.environment import DummyNumpyEnvironment, DummyTorchEnvironment
 
 
@@ -13,6 +14,7 @@ def test_dummy_torch_environment_shapes_and_indexed_reset():
         reward_dim=2,
     )
 
+    assert environment.spec.device == cusrl.device()
     observation, state, info = environment.reset(indices=torch.tensor([0, 2]))
     assert observation.shape == (2, 3)
     assert state.shape == (2, 5)
@@ -37,6 +39,7 @@ def test_dummy_numpy_environment_shapes_and_dtypes():
         reward_dim=1,
     )
 
+    assert environment.spec.device == torch.device("cpu")
     observation, state, info = environment.reset(indices=np.array([True, False, True]))
     assert observation.shape == (2, 4)
     assert observation.dtype == np.float32

@@ -40,6 +40,7 @@ class IsaacLabEnvAdapter(Environment[torch.Tensor]):
             action_dim=self._get_action_dim(),
             state_dim=self._get_state_dim(),
             autoreset=True,
+            device=self.device,
             demonstration_sampler=getattr(self.unwrapped, "collect_reference_motions", None),
             final_state_is_missing=True,
         )

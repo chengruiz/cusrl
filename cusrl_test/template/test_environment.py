@@ -1,7 +1,15 @@
 import numpy as np
 import torch
 
-from cusrl.template.environment import get_done_indices, update_observation_and_state
+from cusrl.template.environment import EnvironmentSpec, get_done_indices, update_observation_and_state
+
+
+def test_environment_spec_exposes_device_as_torch_device():
+    default_spec = EnvironmentSpec(observation_dim=1, action_dim=1)
+    cuda_spec = EnvironmentSpec(observation_dim=1, action_dim=1, device="cuda:0")
+
+    assert default_spec.device == torch.device("cpu")
+    assert cuda_spec.device == torch.device("cuda:0")
 
 
 def test_get_done_indices_accepts_torch_and_numpy_arrays():

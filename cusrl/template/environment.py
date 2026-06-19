@@ -3,6 +3,7 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeAlias
 
 import gymnasium as gym
+import torch
 from objprint import add_objprint
 
 from cusrl.utils.typing import Array, ArrayT, Nested, Slice
@@ -47,6 +48,9 @@ class EnvironmentSpec:
         autoreset (bool):
             Whether the environment automatically resets itself on terminal
             states inside :meth:`Environment.step`.
+        device (torch.device):
+            Device on which the environment produces tensor data. CPU and NumPy
+            environments use ``torch.device("cpu")``.
         environment_instance (Environment | None):
             The environment instance associated with the specification. It is
             recommended to define environment specifications in this class as
@@ -120,6 +124,7 @@ class EnvironmentSpec:
         action_space: gym.spaces.Space | None = None,
         autoreset: bool = False,
         demonstration_sampler: Callable[[int], Array] | None = None,
+        device: torch.device | str = "cpu",
         environment_instance: Optional["Environment"] = None,
         final_state_is_missing: bool = False,
         mirror_action: Optional["MirrorFn"] = None,
@@ -145,6 +150,7 @@ class EnvironmentSpec:
         self.action_space = action_space
         self.autoreset = autoreset
         self.demonstration_sampler = demonstration_sampler
+        self.device = torch.device(device)
         self.environment_instance = environment_instance
         self.final_state_is_missing = final_state_is_missing
         self.mirror_action = mirror_action
@@ -200,6 +206,7 @@ class Environment(ABC, Generic[ArrayT]):
         action_space: gym.spaces.Space | None = None,
         autoreset: bool = False,
         demonstration_sampler: Callable[[int], Array] | None = None,
+        device: torch.device | str = "cpu",
         final_state_is_missing: bool = False,
         mirror_action: Optional["MirrorFn"] = None,
         mirror_observation: Optional["MirrorFn"] = None,
@@ -228,6 +235,7 @@ class Environment(ABC, Generic[ArrayT]):
             action_denormalization=action_denormalization,
             action_space=action_space,
             autoreset=autoreset,
+            device=device,
             environment_instance=self,
             demonstration_sampler=demonstration_sampler,
             final_state_is_missing=final_state_is_missing,

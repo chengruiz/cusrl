@@ -37,6 +37,7 @@ class GymEnvAdapter(Environment[np.ndarray]):
             num_instances=1,
             observation_dim=wrapped.observation_space.shape[0],
             observation_space=wrapped.observation_space,
+            device="cpu",
         )
         wrapped.reset(seed=random.getrandbits(32))
         self.wrapped = wrapped
@@ -101,6 +102,7 @@ class GymVectorEnvAdapter(Environment[np.ndarray]):
             num_instances=wrapped.num_envs,
             observation_dim=wrapped.single_observation_space.shape[0],
             observation_space=wrapped.single_observation_space,
+            device="cpu",
         )
         wrapped.reset(seed=random.getrandbits(32))
         self.wrapped = wrapped

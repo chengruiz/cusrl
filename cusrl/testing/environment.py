@@ -11,6 +11,9 @@ __all__ = [
 
 
 class DummyNumpyEnvironment(Environment):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, device="cpu", **kwargs)
+
     def reset(self, *, indices=None, randomize_episode_progress=False):
         num_instances = self.num_instances
         if indices is not None:
@@ -34,6 +37,9 @@ class DummyNumpyEnvironment(Environment):
 
 
 class DummyTorchEnvironment(Environment):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, device=cusrl.device(), **kwargs)
+
     def reset(self, *, indices=None, randomize_episode_progress=False):
         num_instances = self.num_instances
         if indices is not None:

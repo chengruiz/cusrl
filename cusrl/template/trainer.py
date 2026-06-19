@@ -31,21 +31,28 @@ __all__ = ["EnvironmentStats", "Trainer", "TrainerHook"]
 
 
 class EnvironmentStats:
-    def __init__(self, num_envs: int, reward_dim: int = 1, buffer_size: int = 100):
+    def __init__(
+        self,
+        num_envs: int,
+        reward_dim: int = 1,
+        buffer_size: int = 100,
+        device: str | torch.device | None = None,
+    ):
         self.num_envs = num_envs
         self.reward_dim = reward_dim
-        self.episode_rew = torch.zeros([num_envs, reward_dim], device="cpu")
-        self.episode_len = torch.zeros([num_envs, 1], device="cpu")
-        self.rew_buffer = torch.zeros([buffer_size, reward_dim], device="cpu")
-        self.len_buffer = torch.zeros([buffer_size, 1], device="cpu")
+        self.device = torch.device("cpu" if device is None else device)
+        self.episode_rew = torch.zeros([num_envs, reward_dim], device=self.device)
+        self.episode_len = torch.zeros([num_envs, 1], device=self.device)
+        self.rew_buffer = torch.zeros([buffer_size, reward_dim], device=self.device)
+        self.len_buffer = torch.zeros([buffer_size, 1], device=self.device)
         self.num_episodes = 0
         self.total_steps = 0
 
         self.num_steps = 0
-        self.reward = torch.zeros([reward_dim], device="cpu")
+        self.reward = torch.zeros([reward_dim], device=self.device)
 
     def track_step(self, reward: Array):
-        reward = torch.as_tensor(reward, device="cpu")
+        reward = torch.as_tensor(reward, device=self.device)
         self.total_steps += self.num_envs
         self.episode_rew += reward
         self.episode_len += 1
@@ -61,7 +68,7 @@ class EnvironmentStats:
         episode_rew = self.episode_rew[indices]
         episode_len = self.episode_len[indices]
         num_episodes = episode_rew.size(0)
-        index = (torch.arange(num_episodes) + self.num_episodes) % self.rew_buffer.size(0)
+        index = (torch.arange(num_episodes, device=self.device) + self.num_episodes) % self.rew_buffer.size(0)
         self.rew_buffer[index] = episode_rew
         self.len_buffer[index] = episode_len
         self.num_episodes += num_episodes
@@ -88,10 +95,10 @@ class EnvironmentStats:
 
     def state_dict(self) -> dict:
         return {
-            "episode_rew": self.episode_rew.clone(),
-            "episode_len": self.episode_len.clone(),
-            "rew_buffer": self.rew_buffer.clone(),
-            "len_buffer": self.len_buffer.clone(),
+            "episode_rew": self.episode_rew.detach().clone(),
+            "episode_len": self.episode_len.detach().clone(),
+            "rew_buffer": self.rew_buffer.detach().clone(),
+            "len_buffer": self.len_buffer.detach().clone(),
             "num_episodes": self.num_episodes,
             "total_steps": self.total_steps,
         }
@@ -251,7 +258,11 @@ class Trainer:
         self.agent: Agent = agent_factory.from_environment(self.environment)
         self.hook = TrainerHookComposite(hooks)
         self.hook.init(self)
-        self.stats = EnvironmentStats(self.environment.num_instances, self.environment.spec.reward_dim)
+        self.stats = EnvironmentStats(
+            self.environment.num_instances,
+            self.environment.spec.reward_dim,
+            device=self.environment.spec.device,
+        )
         self.verbose = verbose and is_main_process()
         self.iteration = self._load_checkpoint(checkpoint_path)
         if init_iteration is not None:

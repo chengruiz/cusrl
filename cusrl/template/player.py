@@ -179,6 +179,7 @@ class Player:
             self.environment.num_instances,
             self.environment.spec.reward_dim,
             buffer_size=self.environment.num_instances,
+            device=self.environment.spec.device,
         )
         self.episode_count = torch.zeros(self.environment.num_instances, dtype=torch.long)
         self.interrupted = False
