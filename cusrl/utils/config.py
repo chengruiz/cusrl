@@ -10,13 +10,6 @@ from torch.distributed import GroupMember
 __all__ = ["CONFIG", "configure_distributed", "device", "is_autocast_available"]
 
 
-def _normalize_identifier(value: str) -> str:
-    """Convert arbitrary text into a filesystem-safe identifier fragment."""
-    value = re.sub(r"[^0-9A-Za-z._-]+", "_", value.strip())
-    value = value.strip("._-")
-    return value or "unknown"
-
-
 class Configurations:
     """Singleton container for runtime, device, and distributed settings."""
 
@@ -43,22 +36,6 @@ class Configurations:
             self._local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
             if self._cuda:
                 self.device = torch.device(f"cuda:{self._local_rank}")
-
-            # Set unique directories for each process to avoid conflicts
-            identifier = self._get_distributed_identifier()
-            torchinductor_root = os.getenv("TORCHINDUCTOR_CACHE_DIR", f"/tmp/cache/torchinductor/{torch.__version__}")
-            os.environ["TORCHINDUCTOR_CACHE_DIR"] = os.path.join(torchinductor_root, identifier)
-            if (triton_root := os.getenv("TRITON_CACHE_DIR")) is None:
-                os.environ["TRITON_CACHE_DIR"] = os.path.join(os.environ["TORCHINDUCTOR_CACHE_DIR"], "triton")
-            else:
-                os.environ["TRITON_CACHE_DIR"] = os.path.join(triton_root, identifier)
-            try:
-                import warp as wp
-
-                warp_root = os.getenv("WARP_CACHE_PATH", f"/tmp/cache/warp/{wp.__version__}")
-                os.environ["WARP_CACHE_PATH"] = os.path.join(warp_root, identifier)
-            except ImportError:
-                pass
         else:
             self._distributed = False
             self._rank = 0
@@ -118,19 +95,54 @@ class Configurations:
         """Number of processes participating on the current node."""
         return self._local_world_size
 
-    def _get_distributed_identifier(self) -> str:
-        """Build a process-specific cache directory suffix for distributed runs."""
-        if (job_id := os.getenv("TORCHELASTIC_RUN_ID")) is None or job_id == "none":
-            fallback_parts = []
-            if (master_addr := os.getenv("MASTER_ADDR")) is not None:
-                fallback_parts.append(f"master_{_normalize_identifier(master_addr)}")
-            if (master_port := os.getenv("MASTER_PORT")) is not None:
-                fallback_parts.append(f"port_{_normalize_identifier(master_port)}")
-            fallback_parts.append(datetime.now().strftime("%Y%m%d%H%M%S"))
-            fallback_parts.append(f"pid_{os.getpid()}")
-            job_id = "__".join(fallback_parts)
-        host = _normalize_identifier(socket.gethostname())
-        return os.path.join(f"host_{host}", f"job_{job_id}", f"rank{self._rank}")
+
+def _normalize_identifier(value: str) -> str:
+    """Convert arbitrary text into a filesystem-safe identifier fragment."""
+    value = re.sub(r"[^0-9A-Za-z._-]+", "_", value.strip())
+    value = value.strip("._-")
+    return value or "unknown"
+
+
+def _get_distributed_identifier() -> str:
+    """Build a process-specific cache directory suffix for distributed runs."""
+    if (job_id := os.getenv("TORCHELASTIC_RUN_ID")) is None or job_id == "none":
+        fallback_parts = []
+        if (master_addr := os.getenv("MASTER_ADDR")) is not None:
+            fallback_parts.append(f"master_{_normalize_identifier(master_addr)}")
+        if (master_port := os.getenv("MASTER_PORT")) is not None:
+            fallback_parts.append(f"port_{_normalize_identifier(master_port)}")
+        fallback_parts.append(datetime.now().strftime("%Y%m%d%H%M%S"))
+        fallback_parts.append(f"pid_{os.getpid()}")
+        job_id = "__".join(fallback_parts)
+    host = _normalize_identifier(socket.gethostname())
+    return os.path.join(f"host_{host}", f"job_{job_id}", f"rank{os.environ['RANK']}")
+
+
+def configure_distributed_cache_dirs(
+    configure_torchinductor: bool = True,
+    configure_triton: bool = True,
+    configure_warp: bool = True,
+):
+    """Set process-specific cache directories for distributed runtimes."""
+    identifier = _get_distributed_identifier()
+    if configure_torchinductor:
+        torchinductor_root = os.getenv("TORCHINDUCTOR_CACHE_DIR", f"/tmp/cache/torchinductor/{torch.__version__}")
+        os.environ["TORCHINDUCTOR_CACHE_DIR"] = os.path.join(torchinductor_root, identifier)
+
+    if configure_triton:
+        if (triton_root := os.getenv("TRITON_CACHE_DIR")) is None:
+            os.environ["TRITON_CACHE_DIR"] = os.path.join(os.environ["TORCHINDUCTOR_CACHE_DIR"], "triton")
+        else:
+            os.environ["TRITON_CACHE_DIR"] = os.path.join(triton_root, identifier)
+
+    if configure_warp:
+        try:
+            import warp as wp
+
+            warp_root = os.getenv("WARP_CACHE_PATH", f"/tmp/cache/warp/{wp.__version__}")
+            os.environ["WARP_CACHE_PATH"] = os.path.join(warp_root, identifier)
+        except ImportError:
+            pass
 
 
 def device(device: str | torch.device | None = None) -> torch.device:

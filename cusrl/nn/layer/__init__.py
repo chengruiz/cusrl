@@ -27,12 +27,12 @@ from .gate import (
     SigmoidTanhGate,
     get_gate_cls,
 )
+from .linear import LinearFp32, disable_autocast
 from .loss import (
     GradientPenaltyLoss,
     L2RegularizationLoss,
     NormalNllLoss,
 )
-from .linear import LinearFp32, disable_autocast
 from .mha import (
     MultiheadAttention,
     MultiheadCrossAttention,

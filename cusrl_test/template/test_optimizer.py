@@ -148,11 +148,7 @@ def test_build_optimizer_consumes_parameters_between_factories():
 
     assert isinstance(optimizer, OptimizerCollection)
     names_by_optimizer = {
-        name: {
-            param_name
-            for param_group in child_optimizer.param_groups
-            for param_name in param_group["param_names"]
-        }
+        name: {param_name for param_group in child_optimizer.param_groups for param_name in param_group["param_names"]}
         for name, child_optimizer in optimizer.optimizers.items()
     }
 
@@ -319,9 +315,7 @@ def test_optimizer_factory_rejects_empty_filtered_parameter_set():
     model = ToyModel()
 
     with pytest.raises(ValueError, match="optimizer filter"):
-        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=lambda name, param: False)(
-            model.named_parameters()
-        )
+        OptimizerFactory("SGD", defaults={"lr": 0.1}, param_filter=lambda name, param: False)(model.named_parameters())
 
 
 def test_optimizer_rule_rejects_invalid_selector():
