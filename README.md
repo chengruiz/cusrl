@@ -96,6 +96,7 @@ CusRL provides a modular and extensible framework for RL with the following key 
 
 If you find this framework useful for your research, please consider citing our work on legged locomotion:
 
+- A Spatio-Temporal Hierarchical Framework for Legged Navigation Via Closed-Loop Dynamics Proxy Model, IROS 2026
 - [Efficient Learning of A Unified Policy For Whole-body Manipulation and Locomotion Skills](https://www.arxiv.org/abs/2507.04229), IROS 2025 **Best Paper Award Finalist**
 - [Learning Symmetric Legged Locomotion via State Distribution Symmetrization](https://ieeexplore.ieee.org/document/11246183), IROS 2025
 - [Learning Accurate and Robust Velocity Tracking for Quadrupedal Robots](https://onlinelibrary.wiley.com/doi/10.1002/rob.70028), JFR 2025
