@@ -84,9 +84,7 @@ class Value(Module):
         latent, memory = self.backbone(state, memory=memory, done=done, **kwargs)
         self.intermediate_repr["backbone.output"] = latent
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
-        with torch.autocast(device_type=latent.device.type, enabled=False):
-            value = self.value_head(latent.float())
-        return value, memory
+        return self.value_head(latent), memory
 
     def clear_intermediate_repr(self):
         super().clear_intermediate_repr()

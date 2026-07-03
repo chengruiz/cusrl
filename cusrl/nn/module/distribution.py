@@ -7,7 +7,6 @@ from torch import Tensor, distributions, nn
 from torch.nn.functional import one_hot
 
 from cusrl.nn.layer.bijector import Bijector, make_bijector
-from cusrl.nn.layer.linear import LinearFp32, disable_autocast
 from cusrl.nn.module.module import Module, ModuleFactory
 
 __all__ = [
@@ -44,7 +43,7 @@ class Distribution(Module, Generic[DistributionParamsT]):
 
     def __init__(self, input_dim: int, output_dim: int):
         super().__init__(input_dim, output_dim)
-        self.mean_head = LinearFp32(input_dim, output_dim)
+        self.mean_head = nn.Linear(input_dim, output_dim)
 
     def forward(self, backbone_feat: Tensor, **kwargs) -> DistributionParamsT:
         """Computes the parameters of the distribution from backbone features.
@@ -195,27 +194,23 @@ class MeanStdDict(TypedDict):
 class _Normal(Distribution[MeanStdDict]):
     @classmethod
     def _dist(cls, dist_params) -> distributions.Normal:
-        return distributions.Normal(dist_params["mean"].float(), dist_params["std"].float(), validate_args=False)
+        return distributions.Normal(dist_params["mean"], dist_params["std"], validate_args=False)
 
     def sample_from_dist(self, dist_params) -> tuple[Tensor, Tensor]:
-        with disable_autocast(dist_params["mean"].device.type):
-            dist = self._dist(dist_params)
-            sample = dist.rsample()
-            logp = dist.log_prob(sample).sum(dim=-1, keepdim=True)
+        dist = self._dist(dist_params)
+        sample = dist.rsample()
+        logp = dist.log_prob(sample).sum(dim=-1, keepdim=True)
         return sample, logp
 
     def compute_logp(self, dist_params, sample) -> Tensor:
-        with disable_autocast(dist_params["mean"].device.type):
-            return self._dist(dist_params).log_prob(sample.float()).sum(dim=-1, keepdim=True)
+        return self._dist(dist_params).log_prob(sample).sum(dim=-1, keepdim=True)
 
     def compute_entropy(self, dist_params) -> Tensor:
-        with disable_autocast(dist_params["mean"].device.type):
-            return self._dist(dist_params).entropy().sum(dim=-1, keepdim=True)
+        return self._dist(dist_params).entropy().sum(dim=-1, keepdim=True)
 
     def compute_kl_div(self, dist_params1, dist_params2) -> Tensor:
-        with disable_autocast(dist_params1["mean"].device.type):
-            kl = distributions.kl_divergence(self._dist(dist_params1), self._dist(dist_params2))
-            return kl.sum(dim=-1, keepdim=True)
+        kl = distributions.kl_divergence(self._dist(dist_params1), self._dist(dist_params2))
+        return kl.sum(dim=-1, keepdim=True)
 
 
 def _resolve_init_std(init_std: float | None) -> float:
@@ -239,8 +234,7 @@ class StddevVector(nn.Module):
         self.param = nn.Parameter(torch.ones(output_dim) * init_param_value)
 
     def forward(self, input: Tensor):
-        with disable_autocast(input.device.type):
-            return self.bijector(self.param.float().repeat(*input.shape[:-1], 1)).float()
+        return self.bijector(self.param.repeat(*input.shape[:-1], 1))
 
     def __repr__(self):
         return f"StddevVector(bijector={self.bijector})"
@@ -270,7 +264,7 @@ class NormalDist(_Normal):
         self.std: StddevVector = StddevVector(output_dim, init_std=init_std, bijector=bijector)
 
     def forward(self, backbone_feat: Tensor, **kwargs):
-        return MeanStdDict(mean=self.mean_head(backbone_feat), std=self.std(backbone_feat).float())
+        return MeanStdDict(mean=self.mean_head(backbone_feat), std=self.std(backbone_feat))
 
 
 @dataclass(slots=True)
@@ -303,7 +297,7 @@ class AdaptiveNormalDist(_Normal):
     ):
         super().__init__(input_dim, output_dim)
 
-        self.std_head = LinearFp32(input_dim, output_dim)
+        self.std_head = nn.Linear(input_dim, output_dim)
         self.bijector = make_bijector(bijector)
         self.backward = backward
 
@@ -315,8 +309,7 @@ class AdaptiveNormalDist(_Normal):
         if not self.backward:
             backbone_feat = backbone_feat.detach()
         std = self.std_head(backbone_feat)
-        with disable_autocast(std.device.type):
-            return MeanStdDict(mean=action_mean, std=self.bijector(std).float())
+        return MeanStdDict(mean=action_mean, std=self.bijector(std))
 
 
 class OneHotCategoricalDistFactory(DistributionFactory["OneHotCategoricalDist"]):
@@ -334,7 +327,7 @@ class OneHotCategoricalDist(Distribution[LogitsDict]):
 
     @classmethod
     def _dist(cls, dist_params) -> distributions.OneHotCategoricalStraightThrough:
-        return distributions.OneHotCategoricalStraightThrough(logits=dist_params["logits"].float(), validate_args=False)
+        return distributions.OneHotCategoricalStraightThrough(logits=dist_params["logits"], validate_args=False)
 
     def forward(self, backbone_feat: Tensor, **kwargs):
         logits: Tensor = self.mean_head(backbone_feat)
@@ -346,21 +339,17 @@ class OneHotCategoricalDist(Distribution[LogitsDict]):
         return mode.to(dtype=logits.dtype)
 
     def sample_from_dist(self, dist_params) -> tuple[Tensor, Tensor]:
-        with disable_autocast(dist_params["logits"].device.type):
-            dist = self._dist(dist_params)
-            action = dist.rsample()
-            logp = dist.log_prob(action).unsqueeze(-1)
+        dist = self._dist(dist_params)
+        action = dist.rsample()
+        logp = dist.log_prob(action).unsqueeze(-1)
         return action, logp
 
     def compute_logp(self, dist_params, sample: Tensor) -> Tensor:
-        with disable_autocast(dist_params["logits"].device.type):
-            logp = self._dist(dist_params).log_prob(sample.float()).unsqueeze(-1)
-            return logp
+        logp = self._dist(dist_params).log_prob(sample).unsqueeze(-1)
+        return logp
 
     def compute_entropy(self, dist_params) -> Tensor:
-        with disable_autocast(dist_params["logits"].device.type):
-            return self._dist(dist_params).entropy().unsqueeze(-1)
+        return self._dist(dist_params).entropy().unsqueeze(-1)
 
     def compute_kl_div(self, dist_params1, dist_params2) -> Tensor:
-        with disable_autocast(dist_params1["logits"].device.type):
-            return distributions.kl_divergence(self._dist(dist_params1), self._dist(dist_params2)).unsqueeze(-1)
+        return distributions.kl_divergence(self._dist(dist_params1), self._dist(dist_params2)).unsqueeze(-1)
