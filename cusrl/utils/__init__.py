@@ -1,6 +1,6 @@
 from cusrl.utils import distributed, scheduler
 
-from .config import CONFIG, configure_distributed, device, is_autocast_available
+from .config import CONFIG, configure_distributed, configure_distributed_cache_dirs, device, is_autocast_available
 from .dataclass_utils import to_dataclass, to_strict_typed_dataclass
 from .dict_utils import from_dict, to_dict
 from .distributed import is_main_process
@@ -16,6 +16,7 @@ __all__ = [
     "Rate",
     "Timer",
     "configure_distributed",
+    "configure_distributed_cache_dirs",
     "device",
     "from_dict",
     "is_autocast_available",

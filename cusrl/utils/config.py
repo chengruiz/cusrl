@@ -7,7 +7,13 @@ from datetime import datetime
 import torch
 from torch.distributed import GroupMember
 
-__all__ = ["CONFIG", "configure_distributed", "device", "is_autocast_available"]
+__all__ = [
+    "CONFIG",
+    "configure_distributed",
+    "configure_distributed_cache_dirs",
+    "device",
+    "is_autocast_available",
+]
 
 
 class Configurations:
@@ -124,6 +130,9 @@ def configure_distributed_cache_dirs(
     configure_warp: bool = True,
 ):
     """Set process-specific cache directories for distributed runtimes."""
+    if "RANK" not in os.environ:
+        return
+
     identifier = _get_distributed_identifier()
     if configure_torchinductor:
         torchinductor_root = os.getenv("TORCHINDUCTOR_CACHE_DIR", f"/tmp/cache/torchinductor/{torch.__version__}")
