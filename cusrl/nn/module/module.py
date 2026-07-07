@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from typing_extensions import TypeVar
 
+from cusrl.utils.misc import import_obj
 from cusrl.utils.nest import iterate_nested
 from cusrl.utils.typing import Memory, Slice
 
@@ -165,10 +166,14 @@ class Module(nn.Module):
 
 def resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:
     if isinstance(activation_fn, str):
-        activation_name = activation_fn.removeprefix("torch.").removeprefix("nn.")
-        activation_fn = getattr(nn, activation_name, None)
-        if activation_fn is None:
-            raise ValueError(f"No activation function named '{activation_name}' was found in torch.nn")
+        activation_name = activation_fn
+        if "." not in activation_name:
+            activation_name = f"torch.nn.{activation_name}"
+        module_name, qual_name = activation_name.split(".", 1)
+        try:
+            activation_fn = import_obj(module_name, qual_name)
+        except ImportError:
+            raise ValueError(f"No activation function named '{activation_name}' was found")
     if not issubclass(activation_fn, nn.Module):
         raise TypeError(f"Activation functions must be subclasses of nn.Module; got {activation_fn}")
     return activation_fn
