@@ -393,10 +393,11 @@ class HookComposite(Hook[Agent]):
         for hook_name, hook in self._named_hooks.items():
             yield from hook.named_parameters(prefix=f"{prefix}{hook_name}")
 
-    def compile(self, **kwargs):
+    def compile(self, compiled_objective: bool = False, **kwargs):
         for hook in self:
             hook.compile(**kwargs)
-        self._compiled_objective = torch.compile(self._objective, **kwargs)
+        if compiled_objective:
+            self._compiled_objective = torch.compile(self._objective, **kwargs)
 
     def train(self, mode=True):
         for hook in self:
