@@ -37,6 +37,7 @@ from .mha import (
     MultiheadAttention,
     MultiheadCrossAttention,
     MultiheadSelfAttention,
+    NormFactory,
 )
 from .parameter import ParameterWrapper
 from .rms import RunningMeanStd
@@ -65,6 +66,7 @@ __all__ = [
     "MultiheadAttention",
     "MultiheadCrossAttention",
     "MultiheadSelfAttention",
+    "NormFactory",
     "NormalNllLoss",
     "OutputGate",
     "ParameterWrapper",

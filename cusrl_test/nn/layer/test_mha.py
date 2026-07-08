@@ -10,6 +10,13 @@ def _autocast_if_cuda(device: torch.device):
     return torch.autocast(device.type) if device.type == "cuda" else nullcontext()
 
 
+def _assert_norm_config(norms, norm_cls):
+    for norm in norms:
+        assert isinstance(norm, norm_cls)
+        assert norm.eps == pytest.approx(1e-5)
+        assert norm.elementwise_affine is False
+
+
 @torch.no_grad()
 @pytest.mark.parametrize("is_causal", [False, True])
 def test_mha_consistency_with_torch(is_causal):
@@ -128,7 +135,15 @@ def test_transformer_decoder_factory_forward():
 
 @torch.no_grad()
 @pytest.mark.parametrize("is_causal", [False, True])
-@pytest.mark.parametrize("qk_norm", ["rms", "layer"])
+@pytest.mark.parametrize(
+    "qk_norm",
+    [
+        pytest.param("rms", id="rms"),
+        pytest.param("layer", id="layer"),
+        pytest.param(cusrl.nn.NormFactory("rms"), id="rms_config"),
+        pytest.param(cusrl.nn.NormFactory("layer"), id="layer_config"),
+    ],
+)
 def test_mha_qk_norm_consistency_between_self_and_general(is_causal, qk_norm):
     torch.manual_seed(0)
     batch, seq, embed_dim, num_heads = 2, 9, 32, 4
@@ -166,3 +181,24 @@ def test_mha_qk_norm_consistency_between_self_and_general(is_causal, qk_norm):
 
     assert out_mha.shape == out_mhsa.shape
     assert torch.allclose(out_mha, out_mhsa, atol=1e-6, rtol=1e-6)
+
+
+@pytest.mark.parametrize(
+    "module_cls",
+    [
+        cusrl.nn.MultiheadAttention,
+        cusrl.nn.MultiheadCrossAttention,
+        cusrl.nn.MultiheadSelfAttention,
+    ],
+)
+@pytest.mark.parametrize(
+    ("qk_norm", "norm_cls"),
+    [
+        pytest.param(cusrl.nn.NormFactory("layer", eps=1e-5, elementwise_affine=False), torch.nn.LayerNorm),
+        pytest.param(cusrl.nn.NormFactory("rms", eps=1e-5, elementwise_affine=False), torch.nn.RMSNorm),
+    ],
+)
+def test_attention_qk_norm_accepts_norm_config(module_cls, qk_norm, norm_cls):
+    module = module_cls(embed_dim=8, num_heads=2, qk_norm=qk_norm)
+
+    _assert_norm_config([module.q_norm, module.k_norm], norm_cls)

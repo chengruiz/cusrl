@@ -4,7 +4,7 @@ import torch
 from torch import Tensor, nn
 
 from cusrl.nn.layer.gate import get_gate_cls
-from cusrl.nn.layer.mha import MultiheadCrossAttention, MultiheadSelfAttention, make_norm
+from cusrl.nn.layer.mha import MultiheadCrossAttention, MultiheadSelfAttention, NormFactory, make_norm
 
 __all__ = ["FeedForward", "TransformerDecoderLayer", "TransformerEncoderLayer"]
 
@@ -98,9 +98,9 @@ class TransformerEncoderLayer(nn.Module):
         gate_type (str | None, optional):
             Residual merge strategy used after each sublayer. Defaults to
             ``"residual"``.
-        qk_norm (Literal["rms", "layer"] | None, optional):
+        qk_norm (Literal["rms", "layer"] | NormFactory | None, optional):
             Normalization applied to query and key heads.
-        block_norm (Literal["rms", "layer"] | None, optional):
+        block_norm (Literal["rms", "layer"] | NormFactory | None, optional):
             Normalization applied around attention and feed-forward sublayers.
             Defaults to ``"layer"``.
         block_norm_order (Literal["pre", "post"], optional):
@@ -122,8 +122,8 @@ class TransformerEncoderLayer(nn.Module):
         dropout: float = 0.0,
         batch_first: bool = True,
         gate_type: str | None = "residual",
-        qk_norm: Literal["rms", "layer"] | None = None,
-        block_norm: Literal["rms", "layer"] | None = "layer",
+        qk_norm: Literal["rms", "layer"] | NormFactory | None = None,
+        block_norm: Literal["rms", "layer"] | NormFactory | None = "layer",
         block_norm_order: Literal["pre", "post"] = "post",
         input_dim: int | None = None,
         output_dim: int | None = None,
@@ -242,9 +242,9 @@ class TransformerDecoderLayer(nn.Module):
         gate_type (str | None, optional):
             Residual merge strategy used after each sublayer. Defaults to
             ``"residual"``.
-        qk_norm (Literal["rms", "layer"] | None, optional):
+        qk_norm (Literal["rms", "layer"] | NormFactory | None, optional):
             Normalization applied to query and key heads.
-        block_norm (Literal["rms", "layer"] | None, optional):
+        block_norm (Literal["rms", "layer"] | NormFactory | None, optional):
             Normalization applied around attention and feed-forward sublayers.
             Defaults to ``"layer"``.
         block_norm_order (Literal["pre", "post"], optional):
@@ -268,8 +268,8 @@ class TransformerDecoderLayer(nn.Module):
         dropout: float = 0.0,
         batch_first: bool = True,
         gate_type: str | None = "residual",
-        qk_norm: Literal["rms", "layer"] | None = None,
-        block_norm: Literal["rms", "layer"] | None = "layer",
+        qk_norm: Literal["rms", "layer"] | NormFactory | None = None,
+        block_norm: Literal["rms", "layer"] | NormFactory | None = "layer",
         block_norm_order: Literal["pre", "post"] = "post",
         input_dim: int | None = None,
         output_dim: int | None = None,

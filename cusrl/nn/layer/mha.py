@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Literal
 
 import torch
@@ -9,8 +10,36 @@ __all__ = [
     "MultiheadAttention",
     "MultiheadCrossAttention",
     "MultiheadSelfAttention",
+    "NormFactory",
     "make_norm",
 ]
+
+NormType = Literal["rms", "layer"]
+
+
+@dataclass(slots=True)
+class NormFactory:
+    """Configuration for normalization."""
+
+    type: NormType
+    eps: float = 1e-6
+    elementwise_affine: bool = True
+
+    def __call__(self, head_dim):
+        kwargs = {"eps": self.eps, "elementwise_affine": self.elementwise_affine}
+        if self.type == "rms":
+            return nn.RMSNorm(head_dim, **kwargs)
+        if self.type == "layer":
+            return nn.LayerNorm(head_dim, **kwargs)
+        raise ValueError(f"Unsupported normalization type: {self.type!r}")
+
+
+def make_norm(norm: NormType | NormFactory | None, head_dim: int) -> nn.Module:
+    if norm is None:
+        return nn.Identity()
+    if isinstance(norm, str):
+        norm = NormFactory(norm)
+    return norm(head_dim)
 
 
 class MultiheadAttention(nn.Module):
@@ -26,6 +55,8 @@ class MultiheadAttention(nn.Module):
             The number of parallel attention heads.
         dropout (float, optional):
             Dropout probability on attention weights. Defaults to ``0.0``.
+        qk_norm (Literal["rms", "layer"] | NormFactory | None, optional):
+            Normalization applied to query and key heads.
         bias (bool, optional):
             If ``True``, add bias to the input and output projection layers.
             Defaults to ``True``.
@@ -48,7 +79,7 @@ class MultiheadAttention(nn.Module):
         embed_dim: int,
         num_heads: int,
         dropout: float = 0.0,
-        qk_norm: Literal["rms", "layer"] | None = None,
+        qk_norm: NormType | NormFactory | None = None,
         bias: bool = True,
         k_dim: int | None = None,
         v_dim: int | None = None,
@@ -160,6 +191,8 @@ class MultiheadCrossAttention(nn.Module):
             The number of parallel attention heads.
         dropout (float, optional):
             Dropout probability on attention weights. Defaults to ``0.0``.
+        qk_norm (Literal["rms", "layer"] | NormFactory | None, optional):
+            Normalization applied to query and key heads.
         bias (bool, optional):
             If ``True``, add bias to the input and output projection layers.
             Defaults to ``True``.
@@ -178,7 +211,7 @@ class MultiheadCrossAttention(nn.Module):
         embed_dim: int,
         num_heads: int,
         dropout: float = 0.0,
-        qk_norm: Literal["rms", "layer"] | None = None,
+        qk_norm: NormType | NormFactory | None = None,
         bias: bool = True,
         kv_dim: int | None = None,
         batch_first: bool = True,
@@ -282,6 +315,8 @@ class MultiheadSelfAttention(nn.Module):
             base frequency. Defaults to ``None``.
         dropout (float, optional):
             Dropout probability on attention weights. Defaults to ``0.0``.
+        qk_norm (Literal["rms", "layer"] | NormFactory | None, optional):
+            Normalization applied to query and key heads.
         bias (bool, optional):
             If ``True``, add bias to the input and output projection layers.
             Defaults to ``True``.
@@ -299,7 +334,7 @@ class MultiheadSelfAttention(nn.Module):
         num_heads: int,
         rope_base: float | None = None,
         dropout: float = 0.0,
-        qk_norm: Literal["rms", "layer"] | None = None,
+        qk_norm: NormType | NormFactory | None = None,
         bias: bool = True,
         batch_first: bool = True,
     ):
@@ -379,13 +414,3 @@ class MultiheadSelfAttention(nn.Module):
         if not self.batch_first:
             attn_out = attn_out.transpose(0, 1)
         return attn_out
-
-
-def make_norm(norm: Literal["rms", "layer"] | None, head_dim: int) -> nn.Module:
-    if norm is None:
-        return nn.Identity()
-    if norm == "rms":
-        return nn.RMSNorm(head_dim, eps=1e-6)
-    if norm == "layer":
-        return nn.LayerNorm(head_dim, eps=1e-6)
-    raise ValueError(f"Unsupported normalization type: {norm!r}")
