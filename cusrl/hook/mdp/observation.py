@@ -9,6 +9,7 @@ from cusrl.hook.auxiliary.symmetry import MirrorFn
 from cusrl.nn import FlowGraph, RunningMeanStd
 from cusrl.nn.utils.normalization import mean_var_count
 from cusrl.template import ActorCritic, Hook
+from cusrl.utils import distributed
 from cusrl.utils.typing import Slice
 
 __all__ = ["ObservationNanToNum", "ObservationNormalization"]
@@ -102,7 +103,7 @@ class ObservationNormalization(Hook[ActorCritic]):
             raise ValueError("'max_count' must be positive or None")
         super().__init__()
         self.max_count = max_count
-        self.defer_synchronization = defer_synchronization
+        self.defer_synchronization = defer_synchronization and distributed.enabled()
         self.renormalize = renormalize
 
         # Mutable attributes
