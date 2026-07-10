@@ -104,6 +104,16 @@ def test_experiment_spec_builds_training_playing_and_benchmarking_factories():
     assert playing_factory.make_environment() == training_factory.make_environment()
     assert benchmarking_factory.make_environment() == training_factory.make_environment()
 
+    playing_factory.environment_args = "--headless"
+    assert playing_factory.make_environment() == (
+        "cartpole",
+        {"environment_name": "cartpole", "variant": "train"},
+        {"num_envs": 4, "argv": ["--headless"]},
+    )
+    assert spec.training_env_factory_kwargs == {"num_envs": 4}
+    assert training_factory.make_environment()[2] == {"num_envs": 4}
+    assert benchmarking_factory.make_environment()[2] == {"num_envs": 4}
+
 
 def test_playing_factory_passes_progress_bar_option():
     captured = {}

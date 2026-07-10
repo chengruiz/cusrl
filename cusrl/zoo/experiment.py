@@ -43,7 +43,7 @@ class EnvironmentFactorySpec:
         args = [self.environment_name]
         if self.environment_config is not None:
             args.append(self.environment_config)
-        kwargs = self.environment_kwargs or {}
+        kwargs = dict(self.environment_kwargs or {})
         if self.environment_args is not None:
             kwargs["argv"] = shlex.split(self.environment_args)
         return self.environment_factory(*args, **kwargs)

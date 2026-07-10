@@ -405,15 +405,15 @@ class HookComposite(Hook[Agent]):
 
     def pre_init(self, agent: "cusrl.Agent"):
         super().pre_init(agent)
-        for hook in self.active_hooks():
+        for hook in self:
             hook.pre_init(agent)
 
     def init(self):
-        for hook in self.active_hooks():
+        for hook in self:
             hook.init()
 
     def post_init(self):
-        for hook in self.active_hooks():
+        for hook in self:
             hook.post_init()
 
     def pre_act(self, transition):
