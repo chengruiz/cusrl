@@ -244,6 +244,12 @@ class StddevVector(nn.Module):
 class NormalDistFactory(DistributionFactory["NormalDist"]):
     init_std: float | None = None
     bijector: str | Bijector | None = None
+    """Bijector applied to the learned standard deviation parameter.
+
+    ``None`` uses direct parameterization and does not constrain the learned
+    standard deviation to remain positive. Unstable runs may benefit from
+    ``"exp"`` or ``"softplus"``.
+    """
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
         assert input_dim is not None and output_dim is not None
