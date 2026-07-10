@@ -247,11 +247,14 @@ class Agent(ABC):
             raise ValueError("Iteration must be non-negative")
         self.iteration = iteration
 
-    def to_tensor(self, input: Any) -> torch.Tensor:
-        tensor = torch.as_tensor(input, device=self.device)
-        if tensor is input:
-            tensor = tensor.clone()
-        return tensor
+    def to_tensor(
+        self,
+        input: Any,
+        dtype: torch.dtype | None = None,
+        copy: bool = True,
+        requires_grad: bool | None = None,
+    ) -> torch.Tensor:
+        return torch.asarray(input, device=self.device, dtype=dtype, copy=copy, requires_grad=requires_grad)
 
     @overload
     def to_nested_tensor(self, input: None) -> None: ...
