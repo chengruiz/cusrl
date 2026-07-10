@@ -91,9 +91,10 @@ def _filter_inheritable_tyro_args(tyro_args: Sequence[Any]) -> list[str]:
             consume_next_value = False
             continue
         if arg.startswith("--"):
-            has_inline_value = "=" in arg
-            is_named_inherited_arg = arg in _INHERITED_TYRO_ARGS
-            inheritable = arg.startswith(_INHERITED_TYRO_ARG_PREFIXES) or is_named_inherited_arg
+            option_name, separator, _ = arg.partition("=")
+            has_inline_value = bool(separator)
+            is_named_inherited_arg = option_name in _INHERITED_TYRO_ARGS
+            inheritable = option_name.startswith(_INHERITED_TYRO_ARG_PREFIXES) or is_named_inherited_arg
             inherit_values_until_option = inheritable and not is_named_inherited_arg and not has_inline_value
             consume_next_value = is_named_inherited_arg and not has_inline_value
             if inheritable:

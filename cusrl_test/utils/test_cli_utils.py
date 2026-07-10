@@ -68,6 +68,23 @@ def test_apply_inherited_tyro_args_prepends_filtered_training_args():
     ]
 
 
+@pytest.mark.parametrize(
+    "inline_arg",
+    [
+        "--env-args=--headless",
+        "--env_args=--headless",
+        '--env-kwargs={"device":"cpu"}',
+        '--env_kwargs={"device":"cpu"}',
+    ],
+)
+def test_apply_inherited_tyro_args_keeps_inline_named_args(inline_arg):
+    trial = SimpleNamespace(metadata={"tyro_args": [inline_arg]})
+
+    extra_args = cli_utils.apply_inherited_tyro_args(trial, Namespace(inherit_args=True), [])
+
+    assert extra_args == [inline_arg]
+
+
 def test_apply_inherited_tyro_args_chains_effective_training_args():
     source_trial = SimpleNamespace(
         metadata={
