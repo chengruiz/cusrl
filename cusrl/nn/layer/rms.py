@@ -53,7 +53,7 @@ class RunningMeanStd(nn.Module):
             The number of samples seen so far.
 
     Raises:
-        ValueError: If `clamp` or `max_count` is non-positive.
+        ValueError: If `clamp`, `max_count`, or `epsilon` is non-positive.
         ValueError: If `groups` contain overlapping indices.
         ValueError: If `groups` overlap with `excluded_indices`.
     """
@@ -72,6 +72,8 @@ class RunningMeanStd(nn.Module):
             raise ValueError("'clamp' must be None or a positive value")
         if max_count is not None and max_count <= 0:
             raise ValueError("'max_count' must be None or a positive value")
+        if epsilon <= 0:
+            raise ValueError("'epsilon' must be positive")
         self.groups = tuple(groups)
         self.excluded_indices = excluded_indices
         self.clamp = clamp
@@ -159,7 +161,7 @@ class RunningMeanStd(nn.Module):
             batch_mean, batch_var, batch_count = synchronize_mean_var_count(batch_mean, batch_var, batch_count)
         if batch_count == 0:
             return
-        self._process_mean_var(batch_mean, batch_var)
+        self._apply_groups_and_exclusions(batch_mean, batch_var)
         self._update_mean_var(batch_mean, batch_var, batch_count)
         self.std.copy_(torch.sqrt(self.var + self.epsilon))
         self.count += batch_count
@@ -220,16 +222,17 @@ class RunningMeanStd(nn.Module):
         """Inplace version of `unnormalize`."""
         return input.mul_(self.std).add_(self.mean)
 
-    def _process_mean_var(self, batch_mean: Tensor, batch_var: Tensor):
+    def _apply_groups_and_exclusions(self, channel_means: Tensor, channel_variances: Tensor):
         if self.excluded_indices is not None:
-            batch_mean[self.excluded_indices,] = 0.0
-            batch_var[self.excluded_indices,] = 1.0
-        for indices in self.groups:
-            group_mean = batch_mean[indices,].mean()
-            group_squared_mean = batch_mean[indices,].square().mean()
-            group_var = batch_var[indices,].mean() - group_mean.square() + group_squared_mean
-            batch_mean[indices,] = group_mean
-            batch_var[indices,] = group_var
+            channel_means[self.excluded_indices,] = 0.0
+            channel_variances[self.excluded_indices,] = 1.0
+        for group_indices in self.groups:
+            group_means = channel_means[group_indices,]
+            shared_mean = group_means.mean()
+            # shared_variance = mean(channel_variance_i + (channel_mean_i - shared_mean)^2)
+            shared_variance = (channel_variances[group_indices,] + (group_means - shared_mean).square()).mean()
+            channel_means[group_indices,] = shared_mean
+            channel_variances[group_indices,] = shared_variance
 
     def _update_mean_var(self, batch_mean: Tensor, batch_var: Tensor, batch_count: int):
         merge_mean_var_(self.mean, self.var, self.count, batch_mean, batch_var, batch_count)
