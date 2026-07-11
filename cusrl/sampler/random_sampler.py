@@ -26,6 +26,10 @@ class RandomSampler(Sampler):
     """
 
     def __init__(self, num_batches: int, batch_size: int):
+        if num_batches <= 0:
+            raise ValueError("'num_batches' must be positive")
+        if batch_size <= 0:
+            raise ValueError("'batch_size' must be positive")
         self.num_batches = num_batches
         self.batch_size = batch_size
 
@@ -73,6 +77,10 @@ class TemporalRandomSampler(Sampler):
     """
 
     def __init__(self, num_batches: int, batch_size: int, sequence_len: int | None = None):
+        if num_batches <= 0:
+            raise ValueError("'num_batches' must be positive")
+        if batch_size <= 0:
+            raise ValueError("'batch_size' must be positive")
         if sequence_len is not None and sequence_len <= 0:
             raise ValueError("'sequence_len' must be positive or None")
         self.num_batches = num_batches
@@ -126,6 +134,10 @@ class AutoRandomSampler(Sampler):
     """
 
     def __init__(self, num_batches: int, batch_size: int, sequence_len: int | None = None):
+        if num_batches <= 0:
+            raise ValueError("'num_batches' must be positive")
+        if batch_size <= 0:
+            raise ValueError("'batch_size' must be positive")
         self.num_batches = num_batches
         self.batch_size = batch_size
         self.sequence_len = sequence_len
