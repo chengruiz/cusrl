@@ -47,8 +47,10 @@ line-ending = "auto"
 quote-style = "double"
 skip-magic-trailing-comma = false
 
-[tool.setuptools]
-packages = ["cusrl"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cusrl", "cusrl.*"]
+namespaces = false
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
