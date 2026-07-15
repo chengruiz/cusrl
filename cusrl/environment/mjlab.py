@@ -32,9 +32,9 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
             observation_dim=self._get_observation_dim(),
             action_dim=self._get_action_dim(),
             state_dim=self._get_state_dim(),
-            autoreset=True,
+            autoreset=self.wrapped.cfg.auto_reset,
             device=self.device,
-            final_state_is_missing=True,
+            final_state_is_missing=self.wrapped.cfg.auto_reset,
         )
 
     def close(self):
