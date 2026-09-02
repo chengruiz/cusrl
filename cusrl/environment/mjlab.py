@@ -35,6 +35,7 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
             autoreset=self.wrapped.cfg.auto_reset,
             device=self.device,
             final_state_is_missing=self.wrapped.cfg.auto_reset,
+            timestep=float(self.wrapped.step_dt),
         )
 
     def close(self):
@@ -132,6 +133,16 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
         metrics = self.metrics.summary()
         self.metrics.clear()
         return metrics
+
+    def state_dict(self) -> dict[str, Any]:
+        state_dict = super().state_dict()
+        state_dict["common_step_counter"] = int(self.wrapped.common_step_counter)
+        return state_dict
+
+    def load_state_dict(self, state_dict: dict[str, Any]):
+        super().load_state_dict(state_dict)
+        if "common_step_counter" in state_dict:
+            self.wrapped.common_step_counter = int(state_dict["common_step_counter"])
 
 
 class MjlabPlayer(Player):
