@@ -254,6 +254,9 @@ class Agent(ABC):
         copy: bool = True,
         requires_grad: bool | None = None,
     ) -> torch.Tensor:
+        # Match PyTorch 2.12's inference behavior on older PyTorch versions.
+        if requires_grad is None:
+            requires_grad = isinstance(input, torch.Tensor) and input.requires_grad
         return torch.asarray(input, device=self.device, dtype=dtype, copy=copy, requires_grad=requires_grad)
 
     @overload
