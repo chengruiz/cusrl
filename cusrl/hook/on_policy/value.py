@@ -51,7 +51,11 @@ class ValueComputation(Hook[ActorCritic]):
         self._critic_memory = next_critic_memory
 
     def post_step(self, transition):
-        self.agent.critic.reset_memory(self._critic_memory, transition["done"])
+        if self._critic_memory is not None:
+            # Clone before in-place reset so `transition["next_critic_memory"]` retains
+            # the pre-reset memory when `buffer.push(transition)` runs after `post_step`.
+            self._critic_memory = map_nested(torch.clone, self._critic_memory)
+            self.agent.critic.reset_memory(self._critic_memory, transition["done"])
 
     @torch.no_grad()
     def pre_update(self, buffer: Buffer):
