@@ -44,9 +44,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             Smoothing factor for value function calculation, in :math:`[0, 1]`.
             If ``None``, the same value as ``lamda`` is used. Defaults to
             ``None``.
-        recompute (bool, optional):
-            If ``True``, recompute advantages and returns after each update.
-            Defaults to ``False``.
     """
 
     def __init__(
@@ -54,7 +51,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         gamma: float = 0.99,
         lamda: float = 0.95,
         lamda_value: float | None = None,
-        recompute: bool = False,
     ):
         if gamma < 0 or gamma >= 1:
             raise ValueError(f"'gamma' must be in [0, 1); got {gamma}")
@@ -64,7 +60,6 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
             raise ValueError(f"'lamda_value' must be in [0, 1]; got {lamda_value}")
 
         super().__init__(training_only=True)
-        self.recompute = recompute
 
         # Mutable attributes
         self.gamma: float = gamma
@@ -74,34 +69,26 @@ class GeneralizedAdvantageEstimation(Hook[ActorCritic]):
         self.register_mutable("lamda")
         self.register_mutable("lamda_value")
 
-    def pre_update(self, buffer):
-        if not self.recompute:
-            self._compute_advantage_and_return(buffer)
-
-    def objective(self, metadata, batch):
-        if self.recompute:
-            self._compute_advantage_and_return(batch)
-
     @torch.no_grad()
-    def _compute_advantage_and_return(self, data):
-        value = data["value"]
-        next_value = data["next_value"]
+    def pre_update(self, buffer):
+        value = buffer["value"]
+        next_value = buffer["next_value"]
 
-        data["advantage"] = _generalized_advantage_estimation(
-            reward=data["reward"],
-            done=data["done"],
+        buffer["advantage"] = _generalized_advantage_estimation(
+            reward=buffer["reward"],
+            done=buffer["done"],
             value=value,
             next_value=next_value,
             gamma=self.gamma,
             lamda=self.lamda,
         )
 
-        data["return"] = value + (
-            data["advantage"]
+        buffer["return"] = value + (
+            buffer["advantage"]
             if self.lamda_value is None
             else _generalized_advantage_estimation(
-                reward=data["reward"],
-                done=data["done"],
+                reward=buffer["reward"],
+                done=buffer["done"],
                 value=value,
                 next_value=next_value,
                 gamma=self.gamma,

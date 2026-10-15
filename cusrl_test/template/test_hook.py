@@ -9,14 +9,14 @@ def always_active(agent, metadata, batch):
 
 
 def test_hook_round_trip_preserves_constructor_fields():
-    hook = GeneralizedAdvantageEstimation(gamma=0.9, lamda=0.8, recompute=True)
+    hook = GeneralizedAdvantageEstimation(gamma=0.9, lamda=0.8, lamda_value=0.85)
 
     restored = from_dict(None, to_dict(hook))
 
     assert isinstance(restored, GeneralizedAdvantageEstimation)
     assert restored.gamma == 0.9
     assert restored.lamda == 0.8
-    assert restored.recompute is True
+    assert restored.lamda_value == 0.85
 
 
 def test_hook_round_trip_supports_dict_payload_constructor():
