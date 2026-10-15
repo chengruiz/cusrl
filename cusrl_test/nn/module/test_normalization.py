@@ -27,7 +27,8 @@ def test_normalization_factories_accept_array_like_inputs():
     input = torch.tensor([[3.0, 7.0]])
 
     restored = denormalization(normalization(input))
-    assert torch.allclose(restored.float(), input)
+    assert restored.dtype == input.dtype
+    assert torch.allclose(restored, input)
 
 
 def test_normalization_factories_validate_requested_dimensions():
