@@ -158,11 +158,12 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
     """
     if seed is None:
         seed = 42 if deterministic else int.from_bytes(os.urandom(4), "big")
+        seed = distributed.gather_obj(seed)[0]
 
     distributed.print_rank0(f"Setting seed: {seed} (deterministic={deterministic})")
-    rank_seed = seed + distributed.rank()
+    rank_seed = (seed + distributed.rank()) % (2**32)
     random.seed(rank_seed)
-    np.random.seed(rank_seed % (2**32))
+    np.random.seed(rank_seed)
     torch.manual_seed(rank_seed)
     os.environ["PYTHONHASHSEED"] = str(rank_seed)
     torch.cuda.manual_seed_all(rank_seed)
@@ -176,6 +177,7 @@ def set_global_seed(seed: int | None, deterministic: bool = False) -> int:
     else:
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = False
+        torch.use_deterministic_algorithms(False)
 
     CONFIG.seed = seed
     return seed

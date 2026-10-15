@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from cusrl.utils.misc import import_module, import_obj, to_numpy, wrap_method_with_signature
+from cusrl.utils.misc import import_module, import_obj, set_global_seed, to_numpy, wrap_method_with_signature
 
 
 def test_import_module_from_path_sets_argv_and_restores_it(tmp_path):
@@ -52,3 +52,19 @@ def test_wrap_method_with_signature_forwards_arguments():
 
     assert str(inspect.signature(wrapped)) == "(value, scale)"
     assert wrapped(3, scale=4) == 12
+
+
+def test_set_global_seed_bounds_pythonhashseed_and_toggles_determinism():
+    import os
+    import subprocess
+
+    set_global_seed(2**32 + 7, deterministic=True)
+    assert os.environ["PYTHONHASHSEED"] == "7"
+    assert torch.are_deterministic_algorithms_enabled()
+
+    set_global_seed(-1, deterministic=False)
+    assert os.environ["PYTHONHASHSEED"] == str(2**32 - 1)
+    assert not torch.are_deterministic_algorithms_enabled()
+
+    result = subprocess.run([sys.executable, "-c", "pass"], capture_output=True, text=True)
+    assert result.returncode == 0
