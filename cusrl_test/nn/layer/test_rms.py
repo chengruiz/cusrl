@@ -13,11 +13,15 @@ def test_running_mean_std_applies_groups_and_excluded_indices():
     )
     batch_mean = torch.tensor([1.0, 3.0, 5.0, 7.0])
     batch_var = torch.tensor([4.0, 16.0, 25.0, 49.0])
+    original_batch_mean = batch_mean.clone()
+    original_batch_var = batch_var.clone()
 
     normalizer.update_from_stats(batch_mean, batch_var, batch_count=2, synchronize=False)
 
     expected_mean = torch.tensor([2.0, 2.0, 5.0, 0.0])
     expected_var = torch.tensor([11.0, 11.0, 25.0, 1.0])
+    assert torch.equal(batch_mean, original_batch_mean)
+    assert torch.equal(batch_var, original_batch_var)
     assert torch.allclose(normalizer.mean, expected_mean)
     assert torch.allclose(normalizer.var, expected_var)
     assert torch.allclose(normalizer.std, torch.sqrt(expected_var + normalizer.epsilon))
@@ -70,3 +74,41 @@ def test_running_mean_std_rejects_overlap_between_groups_and_excluded_indices():
             groups=[slice(0, 2)],
             excluded_indices=[0],
         )
+
+
+def test_running_mean_std_respects_max_count_when_unsynchronized(monkeypatch):
+    normalizer = RunningMeanStd(num_channels=2, max_count=5, clamp=None)
+
+    normalizer.update_from_stats(
+        torch.tensor([1.0, 2.0]),
+        torch.tensor([1.0, 4.0]),
+        batch_count=10,
+        synchronize=False,
+    )
+    assert normalizer.count == 5
+    assert torch.allclose(normalizer.mean, torch.tensor([1.0, 2.0]))
+
+    normalizer.update_from_stats(
+        torch.tensor([3.0, 6.0]),
+        torch.tensor([1.0, 4.0]),
+        batch_count=5,
+        synchronize=False,
+    )
+    assert normalizer.count == 5
+    assert torch.allclose(normalizer.mean, torch.tensor([2.0, 4.0]))
+
+    monkeypatch.setattr("cusrl.utils.distributed.enabled", lambda: True)
+    monkeypatch.setattr(
+        "cusrl.nn.layer.rms.synchronize_mean_var_count",
+        lambda mean, var, count: (mean.clone(), var.clone(), count),
+    )
+    normalizer.update_from_stats(
+        torch.tensor([5.0, 10.0]),
+        torch.tensor([1.0, 4.0]),
+        batch_count=5,
+        synchronize=False,
+    )
+    assert normalizer.count == 10
+    normalizer.synchronize()
+    assert normalizer.count == 5
+    assert torch.allclose(normalizer.mean, torch.tensor([3.5, 7.0]))

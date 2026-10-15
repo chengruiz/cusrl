@@ -156,12 +156,17 @@ class RunningMeanStd(nn.Module):
                 Whether to synchronize local and batch statistics across
                 distributed workers before merging them. Defaults to ``True``.
         """
+        if not distributed.enabled():
+            synchronize = True
         if synchronize:
             self.synchronize()
             batch_mean, batch_var, batch_count = synchronize_mean_var_count(batch_mean, batch_var, batch_count)
         if batch_count == 0:
             return
-        self._apply_groups_and_exclusions(batch_mean, batch_var)
+        if self.excluded_indices is not None or self.groups:
+            batch_mean = batch_mean.clone()
+            batch_var = batch_var.clone()
+            self._apply_groups_and_exclusions(batch_mean, batch_var)
         self._update_mean_var(batch_mean, batch_var, batch_count)
         self.std.copy_(torch.sqrt(self.var + self.epsilon))
         self.count += batch_count
