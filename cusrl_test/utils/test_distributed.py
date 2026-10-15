@@ -20,3 +20,24 @@ def test_single_process_distributed_helpers_are_local_noops(capsys):
     distributed.gather_print("hello")
     captured = capsys.readouterr()
     assert captured.out == "hello\n"
+
+
+def test_reduce_mean_var_supports_scalar_and_multidim_tensors(monkeypatch):
+    monkeypatch.setattr(distributed, "configure_distributed", lambda: True)
+    monkeypatch.setattr(
+        distributed,
+        "gather_stack",
+        lambda x: torch.stack([x, x + torch.tensor([2.0, 4.0]).view(2, *([1] * (x.ndim - 1)))], dim=0),
+    )
+
+    for shape in [(), (3,), (2, 1), (2, 4)]:
+        mean = torch.ones(shape)
+        var = torch.full(shape, 2.0)
+        out_mean, out_var = distributed.reduce_mean_var_(mean, var)
+
+        assert out_mean is mean
+        assert out_var is var
+        assert mean.shape == shape
+        assert var.shape == shape
+        assert torch.allclose(mean, torch.full(shape, 2.0))
+        assert torch.allclose(var, torch.full(shape, 5.0))

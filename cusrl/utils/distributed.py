@@ -176,8 +176,8 @@ def reduce_mean_var_(mean: torch.Tensor, var: torch.Tensor) -> tuple[torch.Tenso
     """Average per-rank means and variances into the provided tensors in place."""
     if not configure_distributed():
         return mean, var
-    all_mean_var = gather_stack(torch.cat((mean, var), dim=0))
-    all_means, all_vars = all_mean_var.chunk(2, -1)
+    all_mean_var = gather_stack(torch.stack((mean, var), dim=0))
+    all_means, all_vars = all_mean_var.unbind(dim=1)
     torch.mean(all_means, dim=0, out=mean)
     torch.mean(all_vars + (all_means - mean).square(), dim=0, out=var)
     return mean, var
