@@ -40,6 +40,7 @@ class EnvironmentStats:
     ):
         self.num_envs = num_envs
         self.reward_dim = reward_dim
+        self.buffer_size = buffer_size
         self.device = torch.device("cpu" if device is None else device)
         self.episode_rew = torch.zeros([num_envs, reward_dim], device=self.device)
         self.episode_len = torch.zeros([num_envs, 1], device=self.device)
@@ -67,8 +68,12 @@ class EnvironmentStats:
     def track_episode(self, indices: Slice):
         episode_rew = self.episode_rew[indices]
         episode_len = self.episode_len[indices]
+        if episode_rew.size(0) > self.buffer_size:
+            self.num_episodes += episode_rew.size(0) - self.buffer_size
+            episode_rew = episode_rew[-self.buffer_size :]
+            episode_len = episode_len[-self.buffer_size :]
         num_episodes = episode_rew.size(0)
-        index = (torch.arange(num_episodes, device=self.device) + self.num_episodes) % self.rew_buffer.size(0)
+        index = (torch.arange(num_episodes, device=self.device) + self.num_episodes) % self.buffer_size
         self.rew_buffer[index] = episode_rew
         self.len_buffer[index] = episode_len
         self.num_episodes += num_episodes
