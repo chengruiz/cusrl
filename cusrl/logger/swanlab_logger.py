@@ -79,18 +79,17 @@ class Swanlab(Logger):
             import swanlab
         except ImportError:
             raise ImportError("Install SwanLab with 'pip install swanlab' to use the SwanLab logger")
-        if cusrl.utils.is_main_process():
-            self.swanlab_run = swanlab.init(experiment_name=name, **kwargs)
-            self.provider = swanlab
-        else:
-            self.swanlab_run = self.provider = None
-
         super().__init__(
             log_dir=log_dir,
             name=name,
             interval=interval,
             add_datetime_prefix=add_datetime_prefix,
         )
+        if cusrl.utils.is_main_process():
+            self.swanlab_run = swanlab.init(experiment_name=self.name or None, **kwargs)
+            self.provider = swanlab
+        else:
+            self.swanlab_run = self.provider = None
 
     def _log_impl(self, data: dict[str, float], iteration: int):
         if self.provider is None:
