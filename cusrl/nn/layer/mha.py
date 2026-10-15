@@ -161,6 +161,8 @@ class MultiheadAttention(nn.Module):
         q = self.q_norm(q)
         k = self.k_norm(k)
 
+        if attn_mask is not None and attn_mask.ndim == 3:
+            attn_mask = attn_mask.unsqueeze(1)
         attn_out = torch.nn.functional.scaled_dot_product_attention(
             q.transpose(-2, -3),
             k.transpose(-2, -3),
@@ -283,6 +285,8 @@ class MultiheadCrossAttention(nn.Module):
         q = self.q_norm(q)
         k = self.k_norm(k)
 
+        if attn_mask is not None and attn_mask.ndim == 3:
+            attn_mask = attn_mask.unsqueeze(1)
         attn_out = torch.nn.functional.scaled_dot_product_attention(
             q.transpose(-2, -3),
             k.transpose(-2, -3),
@@ -400,6 +404,8 @@ class MultiheadSelfAttention(nn.Module):
             q = self.rope(q)
             k = self.rope(k)
 
+        if attn_mask is not None and attn_mask.ndim == 3:
+            attn_mask = attn_mask.unsqueeze(1)
         attn_out = torch.nn.functional.scaled_dot_product_attention(
             q.transpose(-2, -3),
             k.transpose(-2, -3),

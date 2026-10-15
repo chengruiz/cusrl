@@ -202,3 +202,25 @@ def test_attention_qk_norm_accepts_norm_config(module_cls, qk_norm, norm_cls):
     module = module_cls(embed_dim=8, num_heads=2, qk_norm=qk_norm)
 
     _assert_norm_config([module.q_norm, module.k_norm], norm_cls)
+
+
+@torch.no_grad()
+@pytest.mark.parametrize("batch", [2, 4])
+def test_attention_3d_attn_mask_broadcasts_across_heads(batch):
+    q_len, kv_len, embed_dim, kv_dim, num_heads = 5, 7, 16, 12, 4
+    q = torch.randn(batch, q_len, embed_dim)
+    kv = torch.randn(batch, kv_len, kv_dim)
+    x = torch.randn(batch, q_len, embed_dim)
+
+    mask_3d = torch.ones(batch, q_len, kv_len, dtype=torch.bool)
+    mask_3d[0, :, -1] = False
+    self_mask_3d = torch.ones(batch, q_len, q_len, dtype=torch.bool)
+    self_mask_3d[0, :, -1] = False
+
+    mha = cusrl.nn.MultiheadAttention(embed_dim, num_heads, k_dim=kv_dim, v_dim=kv_dim).eval()
+    cross_mha = cusrl.nn.MultiheadCrossAttention(embed_dim, num_heads, kv_dim=kv_dim).eval()
+    self_mha = cusrl.nn.MultiheadSelfAttention(embed_dim, num_heads).eval()
+
+    assert torch.allclose(mha(q, kv, kv, attn_mask=mask_3d), mha(q, kv, kv, attn_mask=mask_3d.unsqueeze(1)))
+    assert torch.allclose(cross_mha(q, kv, attn_mask=mask_3d), cross_mha(q, kv, attn_mask=mask_3d.unsqueeze(1)))
+    assert torch.allclose(self_mha(x, attn_mask=self_mask_3d), self_mha(x, attn_mask=self_mask_3d.unsqueeze(1)))
