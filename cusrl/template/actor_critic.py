@@ -296,8 +296,9 @@ class ActorCritic(Agent):
             for metadata, batch in self.sampler(self.buffer):
                 self._train_step(metadata, batch)
         self.hook.post_update()
-        self.hook.apply_schedule(self.iteration + 1)
-        return super().update()
+        metrics = super().update()
+        self.hook.apply_schedule(self.iteration)
+        return metrics
 
     def _train_step(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]):
         self.actor.clear_intermediate_repr()
@@ -322,6 +323,7 @@ class ActorCritic(Agent):
     def set_iteration(self, iteration: int):
         if iteration != self.iteration:
             super().set_iteration(iteration)
+            self.metrics.clear()
             self.hook.apply_schedule(self.iteration)
 
     def resize_buffer(self, capacity: int):
