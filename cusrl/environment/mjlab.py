@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields
 from typing import Any, Literal, cast
 
@@ -89,7 +89,10 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
         else:
             if isinstance(indices, slice):
                 indices = torch.arange(self.num_instances, device=self.device)[indices]
-            observation_dict, _ = self.wrapped.reset(env_ids=torch.as_tensor(indices, device=self.device))
+            else:
+                indices = torch.as_tensor(indices, device=self.device)
+            observation_dict, reset_extras = self.wrapped.reset(env_ids=indices)
+            self._record_log(cast(dict, reset_extras).get("log", {}), indices.numel())
 
             observation = observation_dict.pop("actor", None)
             state = observation_dict.pop("critic", None)
@@ -117,17 +120,22 @@ class MjlabEnvAdapter(Environment[torch.Tensor]):
         truncated = cast(torch.Tensor, truncated).unsqueeze(-1)
         extras = cast(dict, extras).copy()
 
-        log = extras.pop("log", {}).copy()
         num_finished_episodes = int((terminated | truncated).sum().cpu().item())
+        self._record_log(extras.pop("log", {}), num_finished_episodes)
+        return observation, state, reward, terminated, truncated, observation_dict | extras
+
+    def _record_log(self, log: Mapping[str, Any], num_finished_episodes: int):
+        if not log or num_finished_episodes <= 0:
+            return
+        log = dict(log)
         for key, value in tuple(log.items()):
-            if key.startswith("Episode_Reward/"):
+            if key.startswith("Episode_Reward/") or key.startswith("Episode_Metrics/"):
                 log[key] = value.repeat(num_finished_episodes)
             elif key.startswith("Episode_Termination/"):
                 termination_flags = torch.zeros(num_finished_episodes, device=self.device)
                 termination_flags[: int(value)] = 1.0
                 log[key] = termination_flags
         self.metrics.record(log)
-        return observation, state, reward, terminated, truncated, observation_dict | extras
 
     def get_metrics(self):
         metrics = self.metrics.summary()
