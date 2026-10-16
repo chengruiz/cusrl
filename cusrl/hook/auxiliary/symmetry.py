@@ -9,7 +9,6 @@ from cusrl.nn.module import Actor, ActorFactory, AdaptiveNormalDist, NormalDist
 from cusrl.nn.module.distribution import MeanStdDict
 from cusrl.nn.utils.recurrent import concat_memory
 from cusrl.template import ActorCritic, Hook
-from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.nest import map_nested
 from cusrl.utils.typing import Memory, NestedTensor, Slice
 
@@ -422,7 +421,6 @@ class SymmetricActor(Actor):
         else:
             original_memory = mirrored_memory = None
 
-        self.wrapped.intermediate_repr.clear()
         mirrored_observation = self.mirror_observation(observation)
         mirrored_action_dist, mirrored_memory = self.wrapped(
             mirrored_observation,
@@ -431,9 +429,6 @@ class SymmetricActor(Actor):
             backbone_kwargs=backbone_kwargs,
             distribution_kwargs=distribution_kwargs,
         )
-        mirrored_intermediate_repr = self.wrapped.intermediate_repr
-
-        self.wrapped.intermediate_repr = {}
         original_action_dist, original_memory = self.wrapped(
             observation,
             memory=original_memory,
@@ -442,11 +437,6 @@ class SymmetricActor(Actor):
             distribution_kwargs=distribution_kwargs,
         )
 
-        self.intermediate_repr["original.action_dist"] = original_action_dist
-        self.intermediate_repr.update(prefix_dict_keys(self.wrapped.intermediate_repr, "original."))
-        self.intermediate_repr["mirrored.observation"] = mirrored_observation
-        self.intermediate_repr["mirrored.action_dist"] = mirrored_action_dist
-        self.intermediate_repr.update(prefix_dict_keys(mirrored_intermediate_repr, "mirrored."))
         action_dist = {
             "mean": (original_action_dist["mean"] + self.mirror_action(mirrored_action_dist["mean"])) / 2,
             "std": (original_action_dist["std"] + self.mirror_action(mirrored_action_dist["std"]).abs()) / 2,

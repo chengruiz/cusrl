@@ -27,7 +27,9 @@ def test_actor_forward_explore_act_and_distribution_metrics():
     assert torch.allclose(det_logp, actor.compute_logp(det_dist_params, det_action))
     assert actor.compute_entropy(det_dist_params).shape == (3, 1)
     assert torch.allclose(actor.compute_kl_div(det_dist_params, det_dist_params), torch.zeros(3, 1), atol=1e-6)
-    assert "backbone.output" in actor.intermediate_repr
+    with actor.collect_repr("backbone") as reprs:
+        actor(observation)
+    assert "backbone" in reprs
 
 
 def test_actor_rejects_unknown_forward_type():
@@ -50,7 +52,6 @@ def test_value_evaluate_matches_forward_for_state_value():
     assert memory is None
     assert value.shape == (3, 1)
     assert torch.allclose(value, evaluated)
-    assert "backbone.output" in critic.intermediate_repr
 
 
 def test_action_aware_value_requires_action_input():

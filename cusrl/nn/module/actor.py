@@ -5,7 +5,6 @@ from torch import Tensor
 
 from cusrl.nn.module.distribution import Distribution, DistributionFactoryLike
 from cusrl.nn.module.module import Module, ModuleFactory, ModuleFactoryLike
-from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, NestedTensor, Slice
 
 __all__ = ["Actor", "ActorFactory"]
@@ -55,11 +54,6 @@ class Actor(Module):
         self.latent_dim = self.backbone.output_dim
         self.backbone_kwargs: dict[str, Any] = {}
         self.distribution_kwargs: dict[str, Any] = {}
-
-    def clear_intermediate_repr(self):
-        super().clear_intermediate_repr()
-        self.backbone.clear_intermediate_repr()
-        self.distribution.clear_intermediate_repr()
 
     def inference(self, memory: Memory = None):
         from cusrl.nn.module.inference import InferenceWrapper
@@ -162,13 +156,13 @@ class Actor(Module):
             backbone_kwargs (dict | None, optional):
                 Additional keyword arguments for the backbone's forward pass.
                 Defaults to None.
-            distribution_kwargs (dict | None):
+            distribution_kwargs (dict | None, optional):
                 Additional keyword arguments for the distribution's forward
                 pass. Defaults to None.
 
         Outputs:
             - **action** (Tensor):
-                A tuple of (sampled_action, log_probability).
+                The chosen action.
             - **memory** (Memory):
                 The updated recurrent state.
         """
@@ -201,10 +195,6 @@ class Actor(Module):
             observation=observation,
             **(self.distribution_kwargs | (distribution_kwargs or {})),
         )
-
-        self.intermediate_repr["backbone.output"] = backbone_feat
-        self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
-        self.intermediate_repr.update(prefix_dict_keys(self.distribution.intermediate_repr, "distribution."))
         return dist_params, memory
 
     def _explore_impl(
@@ -238,10 +228,6 @@ class Actor(Module):
                 observation=observation,
                 **(self.distribution_kwargs | (distribution_kwargs or {})),
             )
-
-        self.intermediate_repr["backbone.output"] = backbone_feat
-        self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
-        self.intermediate_repr.update(prefix_dict_keys(self.distribution.intermediate_repr, "distribution."))
         return dist_params, (action, logp), memory
 
     def _act_impl(

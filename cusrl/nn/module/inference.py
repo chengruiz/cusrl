@@ -32,7 +32,7 @@ class InferenceWrapper(Module):
         memory: Memory = None,
         forward_kwargs: dict[str, Any] | None = None,
     ):
-        super().__init__(like=module, intermediate_repr=module.intermediate_repr)
+        super().__init__(like=module)
         self._wrapped = module
         self.memory = memory
         self.forward_kwargs = forward_kwargs or {}

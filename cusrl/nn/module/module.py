@@ -1,4 +1,5 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Any, Generic, Optional, TypeAlias
 
 import torch
@@ -38,8 +39,8 @@ class Module(nn.Module):
 
     This class provides a standardized interface and additional functionalities
     for all neural network modules within the framework. It includes features
-    for handling recurrent states, managing device placement, supporting
-    distributed training, and intermediate representation storage.
+    for handling recurrent states, managing device placement, and supporting
+    distributed training.
 
     Args:
         input_dim (int | None, optional):
@@ -54,9 +55,6 @@ class Module(nn.Module):
             Another module instance from which to copy ``input_dim``,
             ``output_dim``, and ``is_recurrent`` attributes. Defaults to
             ``None``.
-        intermediate_repr (dict[str, Any] | None, optional):
-            An initial dictionary for intermediate representations. Defaults to
-            ``None``.
     """
 
     Factory = ModuleFactory
@@ -67,7 +65,6 @@ class Module(nn.Module):
         output_dim: int | None = None,
         is_recurrent: bool = False,
         like: Optional["Module"] = None,
-        intermediate_repr: dict[str, Any] | None = None,
     ):
         super().__init__()
         if like is not None:
@@ -84,7 +81,6 @@ class Module(nn.Module):
         self.input_dim: int = input_dim
         self.output_dim: int = output_dim
         self.is_recurrent: bool = is_recurrent
-        self.intermediate_repr: dict[str, Any] = intermediate_repr or {}
 
     @property
     def device(self) -> torch.device:
@@ -159,8 +155,22 @@ class Module(nn.Module):
         for _, tensor in iterate_nested(memory):
             tensor[done] = 0
 
-    def clear_intermediate_repr(self):
-        self.intermediate_repr.clear()
+    @contextmanager
+    def collect_repr(self, *names: str) -> Iterator[dict[str, Any]]:
+        reprs: dict[str, Any] = {}
+        handles = [
+            self.get_submodule(name).register_forward_hook(
+                lambda _module, _args, output, key=name: reprs.__setitem__(
+                    key, output[0] if isinstance(output, tuple) else output
+                )
+            )
+            for name in dict.fromkeys(names)
+        ]
+        try:
+            yield reprs
+        finally:
+            for handle in handles:
+                handle.remove()
 
     def inference(self, memory: Memory = None):
         from cusrl.nn.module.inference import InferenceWrapper

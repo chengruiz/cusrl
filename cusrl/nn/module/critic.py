@@ -5,7 +5,6 @@ import torch
 from torch import nn
 
 from cusrl.nn.module.module import LayerFactoryLike, Module, ModuleFactory, ModuleFactoryLike
-from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = ["Value", "ValueFactory"]
@@ -93,15 +92,7 @@ class Value(Module):
             state = torch.cat([state, action], dim=-1)
         kwargs = self.backbone_kwargs | kwargs
         latent, memory = self.backbone.forward_with_memory(state, memory=memory, done=done, **kwargs)
-        self.intermediate_repr["backbone.output"] = latent
-        self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         return self.value_head(latent), memory
-
-    def clear_intermediate_repr(self):
-        super().clear_intermediate_repr()
-        self.backbone.clear_intermediate_repr()
-        if hasattr(self.value_head, "clear_intermediate_repr"):
-            self.value_head.clear_intermediate_repr()
 
     def step_memory(self, state, memory: Memory = None, **kwargs):
         return self.backbone.step_memory(state, memory, **kwargs)

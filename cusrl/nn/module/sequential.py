@@ -6,7 +6,6 @@ import torch
 from torch import nn
 
 from cusrl.nn.module.module import Module, ModuleFactory, ModuleFactoryLike
-from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
 __all__ = ["Sequential", "SequentialFactory"]
@@ -71,16 +70,7 @@ class Sequential(Module):
             )
             if layer_memory is not None:
                 final_memory[str(i)] = layer_memory
-
-            prefix = f"{i}/{type(layer).__name__}"
-            self.intermediate_repr[f"{prefix}.output"] = input
-            self.intermediate_repr.update(prefix_dict_keys(layer.intermediate_repr, f"{prefix}."))
         return (input, final_memory) if self.is_recurrent else input
-
-    def clear_intermediate_repr(self):
-        super().clear_intermediate_repr()
-        for layer in self.layers:
-            layer.clear_intermediate_repr()
 
     def reset_memory(self, memory: Memory, done: Slice | torch.Tensor | None = None):
         if not self.is_recurrent or memory is None:

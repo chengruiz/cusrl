@@ -30,6 +30,7 @@ class FlowGraph(nn.Module):
     def __init__(self, graph_name: str, output_names: Iterable[str] = ()):
         super().__init__()
         self.graph_name = graph_name
+        self.input_names: set[str] = set()
         self.output_names = list(output_names)
         self.info: dict[str, Any] = {}
         self.named_nodes: dict[str, nn.Module] = {}
@@ -97,6 +98,8 @@ class FlowGraph(nn.Module):
             output_names = (output_names,)
         if module_name in self.named_nodes:
             raise ValueError(f"Module name '{module_name}' is already used in the graph")
+        if input_names is not None:
+            self.input_names.update(input_names.values())
         self.named_nodes[module_name] = module
         self.add_module(module_name, module)
 
@@ -107,14 +110,24 @@ class FlowGraph(nn.Module):
                 inputs = {input_name: kwargs[arg_name] for input_name, arg_name in input_names.items()}
             else:
                 inputs = kwargs
-            outputs = getattr(module, method_name)(**inputs, **(extra_kwargs or {}))
+            prefix = f"{module_name}." if module_name else ""
+            sub_names = [
+                name.removeprefix(prefix)
+                for name in (*self.input_names, *(self.output_names or ()))
+                if prefix and name.startswith(prefix) and name not in output_names
+            ]
+            if isinstance(module, Module) and sub_names:
+                with module.collect_repr(*sub_names) as reprs:
+                    outputs = getattr(module, method_name)(**inputs, **(extra_kwargs or {}))
+                submodule_outputs = prefix_dict_keys(reprs, prefix)
+            else:
+                outputs = getattr(module, method_name)(**inputs, **(extra_kwargs or {}))
+                submodule_outputs = {}
             if not isinstance(outputs, tuple):
                 outputs = (outputs,)
             outputs = [output for output in outputs if output is not None]
             named_outputs = {name: output for name, output in zip(output_names, outputs, strict=True)}
-            if isinstance(module, Module):
-                prefix = f"{module_name}." if module_name else ""
-                named_outputs.update(prefix_dict_keys(module.intermediate_repr, prefix))
+            named_outputs.update(submodule_outputs)
             kwargs.update(named_outputs)
             return (), kwargs
 

@@ -16,13 +16,19 @@ class Double(nn.Module):
         return x * 2
 
 
+class Triple(nn.Module):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x * 3
+
+
 class WithIntermediate(Module):
     def __init__(self):
         super().__init__(input_dim=2, output_dim=2)
+        self.hidden = Triple()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         output = x + 1
-        self.intermediate_repr["hidden"] = output * 3
+        self.hidden(output)
         return output
 
 
@@ -59,7 +65,7 @@ def test_flow_graph_executes_nodes_in_order_and_tracks_metadata():
     assert graph.output_names == ["output"]
 
 
-def test_flow_graph_exposes_intermediate_repr_from_cusrl_module():
+def test_flow_graph_exposes_submodule_outputs():
     graph = FlowGraph("repr_graph", output_names=["output", "feature.hidden"])
     graph.add_node(
         WithIntermediate(),

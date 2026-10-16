@@ -1,7 +1,7 @@
-from typing import cast
+from typing import Any, cast
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from cusrl.nn import FlowGraph, LayerFactoryLike
 from cusrl.template import ActorCritic, Hook
@@ -13,13 +13,13 @@ __all__ = ["ReturnPrediction", "StatePrediction", "NextStatePrediction"]
 class ReturnPrediction(Hook[ActorCritic]):
     def __init__(
         self,
-        latent_name: str = "backbone.output",
+        submodule_name: str = "backbone",
         weight: float = 0.01,
         predictor_factory: LayerFactoryLike = nn.Linear,  # type: ignore[assignment]
         predicts_value_instead_of_return: bool = False,
     ):
         super().__init__()
-        self.latent_name = latent_name
+        self.submodule_name = submodule_name
         self.predictor_factory = predictor_factory
         self.predicts_value_instead_of_return = predicts_value_instead_of_return
 
@@ -30,17 +30,22 @@ class ReturnPrediction(Hook[ActorCritic]):
         # Runtime attributes
         self.predictor: nn.Module
         self.criterion: nn.MSELoss
+        self._latent: Tensor
+
+    def _save_latent(self, module: nn.Module, args: tuple, output: Any):
+        self._latent = output[0] if isinstance(output, tuple) else output
 
     def init(self):
-        self.agent.actor(torch.zeros(1, self.agent.observation_dim))
-        latent_dim = self.agent.actor.intermediate_repr[self.latent_name].numel()
+        self.agent.actor.get_submodule(self.submodule_name).register_forward_hook(self._save_latent)
+        with torch.no_grad():
+            self.agent.actor(torch.zeros(1, self.agent.observation_dim))
+        latent_dim = self._latent.numel()
         self.register_module("predictor", self.predictor_factory(latent_dim, self.agent.value_dim))
         self.criterion = nn.MSELoss()
 
     def objective(self, metadata, batch):
-        latent = self.agent.actor.intermediate_repr[self.latent_name]
         target = batch["value"] if self.predicts_value_instead_of_return else batch["return"]
-        prediction = self.predictor(latent)
+        prediction = self.predictor(self._latent)
         return_prediction_loss = self.criterion(prediction, target)
         return {"return_prediction_loss": return_prediction_loss * self.weight}
 
@@ -48,7 +53,7 @@ class ReturnPrediction(Hook[ActorCritic]):
         graph.add_node(
             self.predictor,
             module_name="return_predictor",
-            input_names={"input": f"actor.{self.latent_name}"},
+            input_names={"input": f"actor.{self.submodule_name}"},
             output_names="return_prediction",
             expose_outputs=True,
         )
@@ -65,9 +70,9 @@ class StatePrediction(Hook[ActorCritic]):
     Args:
         target_indices (Slice):
             Indices of the state to be predicted.
-        latent_name (str):
-            The name of the intermediate representation from the actor to be
-            used as input of the predictor. Defaults to ``"backbone.output"``.
+        submodule_name (str):
+            The name of the submodule of the actor whose output is used as
+            input of the predictor. Defaults to ``"backbone"``.
         weight (float):
             The weight of the state prediction loss in the total objective.
             Defaults to ``0.01``.
@@ -79,13 +84,13 @@ class StatePrediction(Hook[ActorCritic]):
     def __init__(
         self,
         target_indices: Slice,
-        latent_name: str = "backbone.output",
+        submodule_name: str = "backbone",
         weight: float = 0.01,
         predictor_factory: LayerFactoryLike = nn.Linear,  # type: ignore[assignment]
     ):
         super().__init__()
         self.target_indices = target_indices
-        self.latent_name = latent_name
+        self.submodule_name = submodule_name
         self.predictor_factory = predictor_factory
 
         # Mutable attributes
@@ -95,28 +100,33 @@ class StatePrediction(Hook[ActorCritic]):
         # Runtime attributes
         self.predictor: nn.Module
         self.criterion: nn.MSELoss
+        self._latent: Tensor
+
+    def _save_latent(self, module: nn.Module, args: tuple, output: Any):
+        self._latent = output[0] if isinstance(output, tuple) else output
 
     def init(self):
         if not self.agent.has_state:
             raise ValueError("StatePrediction requires the state space defined")
-        self.agent.actor(torch.zeros(1, self.agent.observation_dim))
-        latent_dim = self.agent.actor.intermediate_repr[self.latent_name].numel()
+        self.agent.actor.get_submodule(self.submodule_name).register_forward_hook(self._save_latent)
+        with torch.no_grad():
+            self.agent.actor(torch.zeros(1, self.agent.observation_dim))
+        latent_dim = self._latent.numel()
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
         self.register_module("predictor", self.predictor_factory(latent_dim, target_dim))
         self.criterion = nn.MSELoss()
 
     def objective(self, metadata, batch):
         state = cast(torch.Tensor, batch["state"])
-        latent = self.agent.actor.intermediate_repr[self.latent_name]
         target = state[..., self.target_indices]
-        state_prediction_loss = self.criterion(self.predictor(latent), target)
+        state_prediction_loss = self.criterion(self.predictor(self._latent), target)
         return {"state_prediction_loss": state_prediction_loss * self.weight}
 
     def post_export(self, graph: FlowGraph):
         graph.add_node(
             self.predictor,
             module_name="state_predictor",
-            input_names={"input": f"actor.{self.latent_name}"},
+            input_names={"input": f"actor.{self.submodule_name}"},
             output_names="state_prediction",
             expose_outputs=True,
         )
@@ -137,13 +147,13 @@ class NextStatePrediction(Hook[ActorCritic]):
     def __init__(
         self,
         target_indices: Slice,
-        latent_name: str = "backbone.output",
+        submodule_name: str = "backbone",
         weight: float = 0.01,
         predictor_factory: LayerFactoryLike = nn.Linear,  # type: ignore[assignment]
     ):
         super().__init__()
         self.target_indices = target_indices
-        self.latent_name = latent_name
+        self.submodule_name = submodule_name
         self.predictor_factory = predictor_factory
 
         # Mutable attributes
@@ -153,12 +163,18 @@ class NextStatePrediction(Hook[ActorCritic]):
         # Runtime attributes
         self.predictor: nn.Module
         self.criterion: nn.MSELoss
+        self._latent: Tensor
+
+    def _save_latent(self, module: nn.Module, args: tuple, output: Any):
+        self._latent = output[0] if isinstance(output, tuple) else output
 
     def init(self):
         if not self.agent.has_state:
             raise ValueError("NextStatePrediction requires the agent to define a state space")
-        self.agent.actor(torch.zeros(1, self.agent.observation_dim))
-        latent_dim = self.agent.actor.intermediate_repr[self.latent_name].numel()
+        self.agent.actor.get_submodule(self.submodule_name).register_forward_hook(self._save_latent)
+        with torch.no_grad():
+            self.agent.actor(torch.zeros(1, self.agent.observation_dim))
+        latent_dim = self._latent.numel()
         target_dim = torch.zeros(self.agent.state_dim)[self.target_indices].numel()
         predictor = self.predictor_factory(latent_dim + self.agent.action_dim, target_dim)
         self.register_module("predictor", ActionAwarePredictorWrapper(predictor))
@@ -166,9 +182,8 @@ class NextStatePrediction(Hook[ActorCritic]):
 
     def objective(self, metadata, batch):
         next_state = cast(torch.Tensor, batch["next_state"])
-        latent = self.agent.actor.intermediate_repr[self.latent_name]
         target = next_state[..., self.target_indices]
-        prediction = self.predictor(latent, batch["action"])
+        prediction = self.predictor(self._latent, batch["action"])
         next_state_prediction_loss = self.criterion(prediction, target)
         return {"next_state_prediction_loss": next_state_prediction_loss * self.weight}
 
@@ -176,7 +191,7 @@ class NextStatePrediction(Hook[ActorCritic]):
         graph.add_node(
             self.predictor,
             module_name="next_state_predictor",
-            input_names={"latent": f"actor.{self.latent_name}", "action": "action"},
+            input_names={"latent": f"actor.{self.submodule_name}", "action": "action"},
             output_names="next_state_prediction",
             expose_outputs=True,
         )

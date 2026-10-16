@@ -301,8 +301,6 @@ class ActorCritic(Agent):
         return metrics
 
     def _train_step(self, metadata: dict[str, Any], batch: dict[str, NestedTensor]):
-        self.actor.clear_intermediate_repr()
-        self.critic.clear_intermediate_repr()
         self.hook.pre_objective(metadata, batch)
         with self.autocast():
             objectives = self.hook.objective(metadata, batch)

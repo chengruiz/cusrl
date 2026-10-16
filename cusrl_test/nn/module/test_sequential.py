@@ -113,7 +113,7 @@ def test_sequential_rnn_rnn():
     assert torch.all(reset_mem["1"][0, :] == 0.0)
 
 
-def test_sequential_tracks_and_clears_intermediate_representations():
+def test_sequential_accepts_varargs_modules():
     module = cusrl.Sequential(
         cusrl.Mlp(input_dim=4, hidden_dims=[6]),
         Identity(input_dim=6, output_dim=None),
@@ -122,11 +122,6 @@ def test_sequential_tracks_and_clears_intermediate_representations():
     output = module(torch.randn(2, 4))
 
     assert output.shape == (2, 6)
-    assert "0/Mlp.output" in module.intermediate_repr
-    assert "1/Identity.output" in module.intermediate_repr
-
-    module.clear_intermediate_repr()
-    assert module.intermediate_repr == {}
 
 
 def test_sequential_factory_requires_hidden_dims_for_all_intermediate_layers():
