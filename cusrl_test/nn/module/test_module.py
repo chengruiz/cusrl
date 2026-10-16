@@ -52,13 +52,18 @@ def test_module_device_property_uses_parameter_device():
     assert module.device == torch.device("cpu")
 
 
-def test_rnn_compatible_wraps_non_recurrent_modules():
-    module = LinearModule().rnn_compatible()
+def test_forward_with_memory_supports_non_recurrent_and_recurrent_modules():
+    module = LinearModule()
     input = torch.tensor([[1.0, 2.0]])
     memory = {"hidden": torch.ones(1, 2)}
 
     output = module(input)
-    output_with_memory, returned_memory = module(input, memory=memory)
+    output_with_memory, returned_memory = module.forward_with_memory(
+        input,
+        memory=memory,
+        done=torch.tensor([[False]]),
+        sequential=False,
+    )
 
     assert torch.allclose(output, input)
     assert torch.allclose(output_with_memory, input)

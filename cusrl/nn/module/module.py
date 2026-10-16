@@ -85,7 +85,6 @@ class Module(nn.Module):
         self.output_dim: int = output_dim
         self.is_recurrent: bool = is_recurrent
         self.intermediate_repr: dict[str, Any] = intermediate_repr or {}
-        self._rnn_compatible: bool = False
 
     @property
     def device(self) -> torch.device:
@@ -100,20 +99,39 @@ class Module(nn.Module):
     def forward(self, *args, **kwargs):
         raise NotImplementedError
 
+    def forward_with_memory(
+        self,
+        input: torch.Tensor,
+        memory: Memory = None,
+        *,
+        done: torch.Tensor | None = None,
+        sequential: bool = True,
+        **kwargs,
+    ) -> tuple[Any, Memory]:
+        """Executes the module and always returns an ``(output, memory)`` tuple.
+
+        For recurrent modules, ``memory``, ``done``, and ``sequential`` are
+        forwarded to :meth:`__call__`. For non-recurrent modules, :meth:`__call__`
+        is invoked without recurrent arguments and the input ``memory`` is
+        returned unchanged alongside the output.
+        """
+        if self.is_recurrent:
+            return self(input, memory=memory, done=done, sequential=sequential, **kwargs)
+        return self(input, **kwargs), memory
+
     def step_memory(self, input: torch.Tensor, memory: Memory = None, **kwargs) -> Memory:
         """Updates the module's memory based on the input.
 
         This method is useful in scenarios where only the next memory state is
         needed, without the full output of the forward pass. The default
-        implementation calls the `forward` method. Subclasses can override this
-        for a more efficient update if computing the memory state is less
-        expensive than a full forward pass.
+        implementation calls :meth:`forward_with_memory`. Subclasses can
+        override this for a more efficient update if computing the memory state
+        is less expensive than a full forward pass.
         """
-
         if not self.is_recurrent:
             return None
-        _, *next_memory = self(input, memory=memory, **kwargs)
-        return next_memory[0]
+        _, next_memory = self.forward_with_memory(input, memory=memory, **kwargs)
+        return next_memory
 
     def reset_memory(self, memory: Memory, done: Slice | torch.Tensor | None = None):
         """Resets the memory of the model for finished environments.
@@ -148,20 +166,6 @@ class Module(nn.Module):
         from cusrl.nn.module.inference import InferenceWrapper
 
         return InferenceWrapper(self, memory=memory)
-
-    def rnn_compatible(self):
-        if not self.is_recurrent and not self._rnn_compatible:
-            self._rnn_compatible = True
-            original_forward = self.forward
-
-            def wrapped_forward(input, **kwargs):
-                output = original_forward(input)
-                if "memory" in kwargs:
-                    return output, kwargs["memory"]
-                return output
-
-            self.forward = wrapped_forward
-        return self
 
 
 def resolve_activation_fn(activation_fn: str | type[nn.Module]) -> type[nn.Module]:

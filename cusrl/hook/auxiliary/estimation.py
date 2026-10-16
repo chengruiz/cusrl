@@ -105,12 +105,12 @@ class StateEstimation(Hook[ActorCritic]):
 
         source_dim = torch.zeros(1, self.source_dim)[..., self.source_indices].numel()
         target_dim = torch.zeros(1, self.target_dim)[..., self.target_indices].numel()
-        self.register_module("estimator", self.estimator_factory(source_dim, target_dim).rnn_compatible())
+        self.register_module("estimator", self.estimator_factory(source_dim, target_dim))
         self.criterion = nn.MSELoss()
 
     def pre_act(self, transition):
         source = cast(Tensor, transition[self.source_name])[..., self.source_indices]
-        estimation, next_estimator_memory = self.estimator(
+        estimation, next_estimator_memory = self.estimator.forward_with_memory(
             source,
             memory=self._estimator_memory,
             sequential=False,
@@ -126,6 +126,8 @@ class StateEstimation(Hook[ActorCritic]):
     def objective(self, metadata, batch):
         source = cast(Tensor, batch[self.source_name])[..., self.source_indices]
         target = cast(Tensor, batch[self.target_name])[..., self.target_indices]
-        estimation, _ = self.estimator(source, memory=batch.get("estimator_memory"), done=batch["done"])
+        estimation, _ = self.estimator.forward_with_memory(
+            source, memory=batch.get("estimator_memory"), done=batch["done"]
+        )
         state_estimation_loss = self.criterion(estimation, target)
         return {"state_estimation_loss": state_estimation_loss * self.weight}

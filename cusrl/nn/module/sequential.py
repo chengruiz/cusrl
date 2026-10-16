@@ -1,38 +1,39 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import overload
 
 import torch
 from torch import nn
 
-from cusrl.nn.module.module import Module, ModuleFactory
+from cusrl.nn.module.module import Module, ModuleFactory, ModuleFactoryLike
 from cusrl.utils.dict_utils import prefix_dict_keys
 from cusrl.utils.typing import Memory, Slice
 
-__all__ = ["Sequential"]
+__all__ = ["Sequential", "SequentialFactory"]
 
 
 @dataclass(slots=True)
 class SequentialFactory(ModuleFactory["Sequential"]):
-    factories: Iterable[ModuleFactory]
-    hidden_dims: Iterable[int | None]
+    factories: Sequence[ModuleFactoryLike]
+    hidden_dims: Sequence[int | None]
 
     def __call__(self, input_dim: int | None = None, output_dim: int | None = None):
-        output_dims = list(self.hidden_dims) + [output_dim]
-        layers = []
-        for factory, output_dim in zip(self.factories, output_dims, strict=True):
-            layer = factory(input_dim, output_dim)
-            layers.append(layer)
+        if len(self.hidden_dims) != len(self.factories) - 1:
+            raise ValueError("'hidden_dims' must have one fewer element than 'factories'")
+
+        layers: list[Module] = []
+        for factory, hidden_dim in zip(self.factories, [*self.hidden_dims, output_dim], strict=True):
+            layer = factory(input_dim, hidden_dim)
             input_dim = layer.output_dim
+            layers.append(layer)
         return Sequential(layers)
 
 
 class Sequential(Module):
     Factory = SequentialFactory
-    layers: nn.ModuleList
 
     @overload
-    def __init__(self, *args: Module): ...
+    def __init__(self, modules: Module, *args: Module): ...
     @overload
     def __init__(self, modules: Iterable[Module]): ...
 
@@ -49,16 +50,27 @@ class Sequential(Module):
         )
         self.layers = nn.ModuleList(layers)
 
-    def forward(self, input, memory: Memory | None = None, **kwargs):
+    def forward(
+        self,
+        input: torch.Tensor,
+        memory: Memory | None = None,
+        *,
+        done: torch.Tensor | None = None,
+        sequential: bool = True,
+        **kwargs,
+    ):
         final_memory = {}
         for i, layer in enumerate(self.layers):
-            if layer.is_recurrent:
-                layer_memory = None if memory is None else memory.get(str(i))
-                input, layer_memory = layer(input, memory=layer_memory, **kwargs)
-                if layer_memory is not None:
-                    final_memory[str(i)] = layer_memory
-            else:
-                input = layer(input, **kwargs)
+            layer_memory = None if memory is None else memory.get(str(i))
+            input, layer_memory = layer.forward_with_memory(
+                input,
+                memory=layer_memory,
+                done=done,
+                sequential=sequential,
+                **kwargs,
+            )
+            if layer_memory is not None:
+                final_memory[str(i)] = layer_memory
 
             prefix = f"{i}/{type(layer).__name__}"
             self.intermediate_repr[f"{prefix}.output"] = input

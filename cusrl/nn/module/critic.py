@@ -50,7 +50,7 @@ class Value(Module):
             output_dim=value_head(torch.zeros(1, backbone.output_dim)).numel(),
             is_recurrent=backbone.is_recurrent,
         )
-        self.backbone: Module = backbone.rnn_compatible()
+        self.backbone: Module = backbone
         self.value_head = value_head
         self.action_aware: bool = action_aware
         self.backbone_kwargs: dict[str, Any] = {}
@@ -67,6 +67,17 @@ class Value(Module):
         value, _ = self(state, action=action, memory=memory, done=done, **kwargs)
         return value
 
+    def forward_with_memory(
+        self,
+        state: torch.Tensor,
+        memory: Memory = None,
+        *,
+        action: torch.Tensor | None = None,
+        done: torch.Tensor | None = None,
+        **kwargs,
+    ) -> tuple[torch.Tensor, Memory]:
+        return self(state, action=action, memory=memory, done=done, **kwargs)
+
     def forward(
         self,
         state: torch.Tensor,
@@ -81,7 +92,7 @@ class Value(Module):
                 raise ValueError("Action must be provided when 'action_aware' is True")
             state = torch.cat([state, action], dim=-1)
         kwargs = self.backbone_kwargs | kwargs
-        latent, memory = self.backbone(state, memory=memory, done=done, **kwargs)
+        latent, memory = self.backbone.forward_with_memory(state, memory=memory, done=done, **kwargs)
         self.intermediate_repr["backbone.output"] = latent
         self.intermediate_repr.update(prefix_dict_keys(self.backbone.intermediate_repr, "backbone."))
         return self.value_head(latent), memory

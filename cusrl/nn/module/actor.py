@@ -50,7 +50,7 @@ class Actor(Module):
             distribution.output_dim,
             backbone.is_recurrent,
         )
-        self.backbone: Module = backbone.rnn_compatible()
+        self.backbone: Module = backbone
         self.distribution: Distribution = distribution
         self.latent_dim = self.backbone.output_dim
         self.backbone_kwargs: dict[str, Any] = {}
@@ -66,6 +66,9 @@ class Actor(Module):
 
         return InferenceWrapper(self, memory=memory, forward_kwargs={"forward_type": "act_deterministic"})
 
+    def forward_with_memory(self, observation: Tensor, memory: Memory = None, **kwargs):
+        return self(observation, memory=memory, **kwargs)
+
     def forward(
         self,
         *args,
@@ -75,7 +78,7 @@ class Actor(Module):
         """Main forward pass for the actor, dispatching to specific
         implementations.
 
-        This method acts as a router to different methtionalities based on the
+        This method acts as a router to different functionalities based on the
         ``forward_type`` argument.
         """
         if forward_type == "forward":
@@ -186,7 +189,7 @@ class Actor(Module):
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
     ) -> tuple[NestedTensor, Memory]:
-        backbone_feat, memory = self.backbone(
+        backbone_feat, memory = self.backbone.forward_with_memory(
             observation,
             memory=memory,
             done=done,
@@ -212,7 +215,7 @@ class Actor(Module):
         backbone_kwargs: dict | None = None,
         distribution_kwargs: dict | None = None,
     ) -> tuple[NestedTensor, tuple[Tensor, Tensor], Memory]:
-        backbone_feat, memory = self.backbone(
+        backbone_feat, memory = self.backbone.forward_with_memory(
             observation,
             memory=memory,
             **(self.backbone_kwargs | (backbone_kwargs or {})),

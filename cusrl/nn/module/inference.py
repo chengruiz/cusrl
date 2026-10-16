@@ -32,7 +32,6 @@ class InferenceWrapper(Module):
         memory: Memory = None,
         forward_kwargs: dict[str, Any] | None = None,
     ):
-        module = module.rnn_compatible()
         super().__init__(like=module, intermediate_repr=module.intermediate_repr)
         self._wrapped = module
         self.memory = memory
@@ -61,7 +60,7 @@ class InferenceWrapper(Module):
         add_batch_dim = input.ndim == 1
         if add_batch_dim:
             input = input.unsqueeze(0)
-        action, self.memory = self._wrapped(
+        action, self.memory = self._wrapped.forward_with_memory(
             input,
             memory=self.memory,
             **self.forward_kwargs,
