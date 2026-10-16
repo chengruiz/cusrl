@@ -148,3 +148,37 @@ def test_get_num_tensors_counts_nested_tensor_structures():
     nested = [torch.zeros(1), (torch.ones(1), [torch.randn(1), torch.randn(1)])]
 
     assert get_num_tensors(nested) == 4
+
+
+def test_export_jit_loads_clean_buffers_and_runs_stateful_inference(tmp_path):
+    graph = FlowGraph("stateful_graph", output_names=["action", "memory_out"])
+    graph.add_node(
+        StatefulAccumulator(),
+        module_name="core",
+        input_names={"observation": "observation", "memory_in": "memory_in"},
+        output_names=("action", "memory_out"),
+    )
+    init_hidden = torch.zeros(4, 3, requires_grad=True)
+    example_inputs = {
+        "observation": torch.ones(4, 3),
+        "memory_in": {"hidden": init_hidden},
+    }
+
+    graph.export_jit(example_inputs, str(tmp_path), optimize=True)
+
+    assert torch.equal(init_hidden, torch.zeros(4, 3))
+    loaded = torch.jit.load(str(tmp_path / "stateful_graph.pt"))
+    for _, buf in loaded.named_buffers():
+        assert not buf.requires_grad
+        assert torch.equal(buf, torch.zeros_like(buf))
+
+    obs = torch.full((4, 3), 1.5)
+    out1 = loaded(obs)
+    out2 = loaded(obs)
+    assert torch.allclose(out1, obs * 2)
+    assert torch.allclose(out2, obs * 4)
+
+    loaded.reset(torch.tensor([True, False, True, False]))
+    out3 = loaded(obs)
+    assert torch.allclose(out3[[0, 2]], obs[[0, 2]] * 2)
+    assert torch.allclose(out3[[1, 3]], obs[[1, 3]] * 6)

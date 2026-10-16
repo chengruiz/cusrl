@@ -20,7 +20,15 @@ def test_export_recurrent_ppo_agent():
     environment = create_dummy_env(with_state=True)
     agent = cusrl.preset.RecurrentPpoAgentFactory().from_environment(environment)
     agent.export(f"{dirname}/recurrent_ppo_agent", target_format="onnx")
-    agent.export(f"{dirname}/recurrent_ppo_agent", target_format="jit")
+    agent.export(f"{dirname}/recurrent_ppo_agent", target_format="jit", batch_size=2)
+    model = torch.jit.load(f"{dirname}/recurrent_ppo_agent/actor.pt", map_location=agent.device)
+    for _, buf in model.named_buffers():
+        assert not buf.requires_grad
+        assert torch.equal(buf, torch.zeros_like(buf))
+    obs = torch.randn(1, 2, environment.observation_dim, device=agent.device)
+    action = model(obs)
+    assert action.shape == (1, 2, environment.action_dim)
+    model.reset(torch.tensor([True, False], device=agent.device))
 
 
 @pytest.mark.parametrize("rnn_type", ["LSTM", "GRU"])

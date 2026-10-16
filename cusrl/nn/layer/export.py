@@ -153,7 +153,11 @@ class FlowGraph(nn.Module):
             stateful_wrapper,
             inputs={
                 "forward": non_memory_inputs,
-                "reset": torch.rand(example_inputs["observation"].size(-2)) < 0.5,
+                "reset": torch.ones(
+                    example_inputs["observation"].size(-2),
+                    dtype=torch.bool,
+                    device=example_inputs["observation"].device,
+                ),
             },
             strict=False,
             check_trace=False,  # Disable trace checking since the module has internal states
@@ -361,7 +365,7 @@ class StatefulWrapper(nn.Module):
                 continue
             memory_names.append(name)
             output_names.remove(f"memory_out{name.removeprefix('memory_in')}")
-            self.register_buffer(name, value)
+            self.register_buffer(name, value.detach().clone())
         self.input_names: tuple[str, ...] = tuple(input_names)
         self.output_names: tuple[str, ...] = tuple(output_names)
         self.memory_names: tuple[str, ...] = tuple(memory_names)

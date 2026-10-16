@@ -367,7 +367,8 @@ class ActorCritic(Agent):
         actor_input_names = {"observation": "observation"}
         actor_output_names = ["action"]
         if self.actor.is_recurrent:
-            _, actor_init_memory = self.actor(**inputs)
+            with torch.no_grad():
+                _, actor_init_memory = self.actor(**inputs)
             self.actor.reset_memory(actor_init_memory)
             inputs["memory_in"] = actor_init_memory
             actor_input_names["memory"] = "memory_in"
