@@ -470,17 +470,7 @@ class SymmetricActor(Actor):
             distribution_kwargs=distribution_kwargs,
         )
         if deterministic:
-            original_action = self.distribution.determine(
-                self.intermediate_repr["original.backbone.output"],
-                observation=observation,
-                **(distribution_kwargs or {}),
-            )
-            mirrored_action = self.distribution.determine(
-                self.intermediate_repr["mirrored.backbone.output"],
-                observation=self.intermediate_repr["mirrored.observation"],
-                **(distribution_kwargs or {}),
-            )
-            action = (original_action + self.mirror_action(mirrored_action)) / 2
+            action = self.distribution.determine_from_dist(action_dist)
             logp = self.distribution.compute_logp(action_dist, action)
         else:
             action, logp = self.distribution.sample_from_dist(action_dist)

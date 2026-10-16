@@ -173,6 +173,10 @@ class Distribution(Module, Generic[DistributionParamsT]):
         """
         return self.mean_head(backbone_feat)
 
+    def determine_from_dist(self, dist_params: DistributionParamsT) -> Tensor:
+        """Returns the deterministic action for given distribution parameters."""
+        raise NotImplementedError
+
     def deterministic(self):
         return DeterministicWrapper(self)
 
@@ -195,6 +199,9 @@ class _Normal(Distribution[MeanStdDict]):
     @classmethod
     def _dist(cls, dist_params) -> distributions.Normal:
         return distributions.Normal(dist_params["mean"], dist_params["std"], validate_args=False)
+
+    def determine_from_dist(self, dist_params) -> Tensor:
+        return dist_params["mean"]
 
     def sample_from_dist(self, dist_params) -> tuple[Tensor, Tensor]:
         dist = self._dist(dist_params)
@@ -340,7 +347,10 @@ class OneHotCategoricalDist(Distribution[LogitsDict]):
         return LogitsDict(logits=logits)
 
     def determine(self, backbone_feat: Tensor, **kwargs) -> Tensor:
-        logits: Tensor = self.mean_head(backbone_feat)
+        return self.determine_from_dist(self(backbone_feat, **kwargs))
+
+    def determine_from_dist(self, dist_params) -> Tensor:
+        logits: Tensor = dist_params["logits"]
         mode = one_hot(logits.argmax(dim=-1), logits.size(-1))
         return mode.to(dtype=logits.dtype)
 
