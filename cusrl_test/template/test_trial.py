@@ -119,3 +119,22 @@ def test_is_checkpoint_file_uses_full_filename_regex(tmp_path):
     assert cusrl.Trial._is_checkpoint_file(invalid_suffix) is False
     assert cusrl.Trial._is_checkpoint_file(invalid_prefix) is False
     assert cusrl.Trial._is_checkpoint_file(tmp_path / "ckpt_13.pt") is False
+
+
+def test_trial_resolves_symlink_trial_directory_and_relative_checkpoint(tmp_path, monkeypatch):
+    experiment_dir = tmp_path / "MountainCar-v0_ppo"
+    latest_trial_dir = experiment_dir / "2026-03-26-12-00-00_run"
+    ckpt_file = _write_checkpoint(latest_trial_dir, iteration=2, value=2)
+    latest_symlink = experiment_dir / "latest"
+    latest_symlink.symlink_to(latest_trial_dir.name, target_is_directory=True)
+
+    trial_from_symlink = cusrl.Trial(latest_symlink, verbose=False)
+    assert trial_from_symlink.home == latest_trial_dir.resolve()
+    assert trial_from_symlink.name == latest_trial_dir.name
+    assert trial_from_symlink.experiment_name == "MountainCar-v0_ppo"
+
+    monkeypatch.chdir(ckpt_file.parent)
+    trial_from_rel_ckpt = cusrl.Trial(Path(ckpt_file.name), verbose=False)
+    assert trial_from_rel_ckpt.home == latest_trial_dir.resolve()
+    assert trial_from_rel_ckpt.name == latest_trial_dir.name
+    assert trial_from_rel_ckpt.iteration == 2

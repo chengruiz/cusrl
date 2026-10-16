@@ -1,3 +1,4 @@
+import os
 import signal
 from collections.abc import Iterable
 
@@ -101,7 +102,7 @@ class Player:
         agent (Agent | AgentFactory):
             An Agent instance or a factory that produces one for the given
             environment.
-        checkpoint_path (str | Trial | None, optional):
+        checkpoint_path (str | os.PathLike | Trial | None, optional):
             Path to a saved checkpoint or a :class:`Trial` object. If provided,
             loads the states of the agent and the environment states from the
             checkpoint. Defaults to ``None`` (no checkpoint loading).
@@ -147,7 +148,7 @@ class Player:
         self,
         environment: Environment | EnvironmentFactoryLike,
         agent: Agent | AgentFactory,
-        checkpoint_path: str | Trial | None = None,
+        checkpoint_path: str | os.PathLike | Trial | None = None,
         num_steps: int | None = None,
         num_episodes: int | None = None,
         timestep: float | None = None,
@@ -160,7 +161,7 @@ class Player:
         self.agent = agent if isinstance(agent, Agent) else agent.from_environment(self.environment)
         self.trial: Trial | None = None
         if checkpoint_path is not None:
-            self.trial = Trial(checkpoint_path) if isinstance(checkpoint_path, str) else checkpoint_path
+            self.trial = checkpoint_path if isinstance(checkpoint_path, Trial) else Trial(checkpoint_path)
             checkpoint = self.trial.load_checkpoint(map_location=self.agent.device)
             self.agent.load_state_dict(checkpoint["agent"])
             self.environment.load_state_dict(checkpoint["environment"])

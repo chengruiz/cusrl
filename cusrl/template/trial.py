@@ -66,7 +66,7 @@ class Trial:
             raise FileNotFoundError(f"Path '{trial_path}' does not exist")
 
         if trial_path.is_dir():
-            self.home: Path = trial_path.absolute()
+            self.home: Path = trial_path.resolve()
             if (self.home / "latest").is_symlink():
                 self.home = (self.home / "latest").resolve()
             if not (self.home / "ckpt").is_dir():
@@ -79,7 +79,7 @@ class Trial:
             if not self._is_checkpoint_file(trial_path):
                 raise ValueError(f"'{trial_path}' is not a valid checkpoint file")
 
-            self.home = trial_path.parent.parent.absolute()
+            self.home = trial_path.resolve().parent.parent
             self.all_iterations = self._search_ckpt(self.home / "ckpt")
             self.iteration = self._get_ckpt_iteration(trial_path)
 

@@ -202,7 +202,7 @@ def test_player_loads_checkpoint_and_builds_from_factories(tmp_path):
     player = cusrl.Player(
         environment=environment_factory,
         agent=agent_factory,
-        checkpoint_path=str(trial_dir),
+        checkpoint_path=trial_dir,
         num_steps=0,
         deterministic=False,
         verbose=False,
