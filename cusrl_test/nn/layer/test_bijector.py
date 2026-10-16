@@ -51,7 +51,23 @@ def test_softplus_bijector_inverse_gradient_finite():
     assert torch.isfinite(x.grad).all()
 
 
-def test_softplus_bijector_inverse_float_large_input():
-    bijector = SoftplusBijector(scale=1.0, max_value=200.0)
-    result = bijector.inverse(100.0)
-    assert result == pytest.approx(100.0, abs=1e-4)
+def test_softplus_bijector_float_large_input_no_overflow():
+    bijector = SoftplusBijector(scale=1.0, max_value=1000.0)
+    inv = bijector.inverse(800.0)
+    assert inv == pytest.approx(800.0, abs=1e-4)
+    assert bijector.forward(inv) == pytest.approx(800.0, abs=1e-4)
+
+
+def test_softplus_bijector_inverse_small_float32_input_no_underflow():
+    bijector = SoftplusBijector(scale=1.0, min_value=1e-8, max_value=1.0)
+    x = torch.tensor([1e-8, 3e-8], dtype=torch.float32)
+    result = bijector.inverse(x)
+    assert torch.isfinite(result).all()
+    roundtrip = bijector.forward(result)
+    assert torch.allclose(roundtrip, x, rtol=1e-5, atol=1e-12)
+
+
+def test_sigmoid_bijector_float_extreme_input_no_overflow():
+    bijector = SigmoidBijector(min_value=-2.0, max_value=3.0)
+    assert bijector.forward(-1000.0) == pytest.approx(-2.0)
+    assert bijector.forward(1000.0) == pytest.approx(3.0)

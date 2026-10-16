@@ -84,7 +84,12 @@ class SigmoidBijector(Bijector):
     def forward(self, input: FloatOrTensorT) -> FloatOrTensorT:
         if isinstance(input, Tensor):
             return self.min_value + self.range * torch.sigmoid(input)
-        return self.min_value + self.range * (1 / (1 + math.exp(-input)))
+        if input >= 0:
+            sigmoid = 1.0 / (1.0 + math.exp(-input))
+        else:
+            exp_x = math.exp(input)
+            sigmoid = exp_x / (1.0 + exp_x)
+        return self.min_value + self.range * sigmoid
 
     def inverse(self, input: FloatOrTensorT) -> FloatOrTensorT:
         if isinstance(input, Tensor):
@@ -110,17 +115,18 @@ class SoftplusBijector(Bijector):
             clamped_input = input.clamp(self.min_input, self.max_input)
             return torch.nn.functional.softplus(clamped_input * self.scale) / self.scale
         clamped_input = max(self.min_input, min(input, self.max_input))
-        return math.log1p(math.exp(clamped_input * self.scale)) / self.scale
+        scaled = clamped_input * self.scale
+        return (max(scaled, 0.0) + math.log1p(math.exp(-abs(scaled)))) / self.scale
 
     def inverse(self, input: FloatOrTensorT) -> FloatOrTensorT:
-        # log(exp(x) - 1) = x + log(1 - exp(-x)) = x + log1p(-exp(-x))
+        # log(exp(x) - 1) = x + log(1 - exp(-x)) = x + log(-expm1(-x))
         if isinstance(input, Tensor):
             clamped_input = input.clamp(self.min_value, self.max_value)
             scaled = clamped_input * self.scale
-            return (scaled + torch.log1p(-torch.exp(-scaled))) / self.scale
+            return (scaled + torch.log(-torch.expm1(-scaled))) / self.scale
         clamped_input = max(self.min_value, min(input, self.max_value))
         scaled = clamped_input * self.scale
-        return (scaled + math.log1p(-math.exp(-scaled))) / self.scale
+        return (scaled + math.log(-math.expm1(-scaled))) / self.scale
 
     def extra_repr(self):
         return f"scale={self.scale}, min={self.min_value}, max={self.max_value}"
