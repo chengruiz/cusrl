@@ -68,3 +68,18 @@ def test_set_global_seed_bounds_pythonhashseed_and_toggles_determinism():
 
     result = subprocess.run([sys.executable, "-c", "pass"], capture_output=True, text=True)
     assert result.returncode == 0
+
+
+def test_import_module_binds_submodule_to_parent_package(tmp_path, monkeypatch):
+    pkg_dir = tmp_path / "sample_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("")
+    (pkg_dir / "submodule.py").write_text("FLAG = 42\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    submodule = import_module(module_name="sample_pkg.submodule")
+    parent_pkg = sys.modules["sample_pkg"]
+
+    assert getattr(parent_pkg, "submodule", None) is submodule
+    assert parent_pkg.submodule.FLAG == 42
+    assert import_module(module_name=".submodule", package="sample_pkg") is submodule

@@ -82,6 +82,8 @@ def import_module(
         module_spec = find_spec(module_name, package=package)
         if module_spec is None:
             raise ImportError(f"Module '{module_name}' was not found")
+        if module_spec.name in sys.modules:
+            return sys.modules[module_spec.name]
     elif path is not None:
         if not os.path.exists(path):
             raise FileNotFoundError(f"Path '{path}' does not exist")
@@ -99,19 +101,21 @@ def import_module(
     module = module_from_spec(module_spec)
     sys.modules[module_spec.name] = module
 
-    if module_spec.loader is None:
-        return module  # namespace package
+    if module_spec.loader is not None:
+        original_argv = sys.argv.copy()
+        try:
+            sys.argv[:] = [module_spec.origin or "", *(args or [])]
+            module_spec.loader.exec_module(module)
+        except Exception:
+            if sys.modules.get(module_spec.name) is module:
+                del sys.modules[module_spec.name]
+            raise
+        finally:
+            sys.argv[:] = original_argv
 
-    original_argv = sys.argv.copy()
-    try:
-        sys.argv[:] = [module_spec.origin or "", *(args or [])]
-        module_spec.loader.exec_module(module)
-    except Exception:
-        if sys.modules.get(module_spec.name) is module:
-            del sys.modules[module_spec.name]
-        raise
-    finally:
-        sys.argv[:] = original_argv
+    parent_name, _, child_name = module_spec.name.rpartition(".")
+    if parent_name and (parent_module := sys.modules.get(parent_name)) is not None:
+        setattr(parent_module, child_name, module)
 
     return module
 
