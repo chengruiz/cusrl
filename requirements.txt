@@ -1,5 +1,4 @@
 einops~=0.8.2
-gitpython~=3.1.44
 gymnasium>=1.1.0
 numpy>=1.26.0
 objprint~=0.3.0

@@ -6,7 +6,6 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
-import git
 import numpy as np
 import objprint
 import torch
@@ -118,31 +117,35 @@ class EnvironmentStats:
         self.total_steps = state_dict["total_steps"]
 
 
+def _run_git(*args: str, cwd: Path) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.rstrip("\n")
+
+
 def save_version_info(output_dir: str | os.PathLike, workspace: str | os.PathLike | None = None):
     workspace_path = Path.cwd() if workspace is None else Path(workspace).absolute()
-    try:
-        repo = git.Repo(workspace_path, search_parent_directories=True)
-    except git.InvalidGitRepositoryError:
+    repo_root = _run_git("rev-parse", "--show-toplevel", cwd=workspace_path)
+    if repo_root is None:
         print(f"'{workspace_path}' is not a git repository.")
         return
 
+    repo_dir = Path(repo_root)
     output_dir = Path(output_dir)
-    repo_dir = Path(repo.working_tree_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    with open(output_dir / "workspace.txt", "w") as f:
-        f.write(str(repo_dir))
-    with open(output_dir / "git_log.txt", "w") as f:
-        f.write(repo.git.log("-3"))
-    with open(output_dir / "git_diff.patch", "w") as f:
-        subprocess.run(["git", "diff", "HEAD"], cwd=repo_dir, stdout=f, check=False)
-    with open(output_dir / "git_status.txt", "w") as f:
-        f.write(repo.git.status())
-    with open(output_dir / "version.txt", "w") as f:
-        try:
-            version = repo.git.describe("--tags")
-        except git.GitError:
-            version = "unknown"
-        f.write(version)
+    (output_dir / "workspace.txt").write_text(str(repo_dir))
+    (output_dir / "git_log.txt").write_text(_run_git("log", "-3", cwd=repo_dir) or "")
+    (output_dir / "git_diff.patch").write_text(_run_git("diff", "HEAD", cwd=repo_dir) or "")
+    (output_dir / "git_status.txt").write_text(_run_git("status", cwd=repo_dir) or "")
+    (output_dir / "version.txt").write_text(_run_git("describe", "--tags", cwd=repo_dir) or "unknown")
 
 
 class TrainerHook:
